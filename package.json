@@ -1,0 +1,21 @@
+{
+  "name": "zeiterfassung-handy-insel",
+  "version": "1.0.0",
+  "description": "Zeiterfassungssystem für Handy-Insel",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend",
+    "terminal-app"
+  ],
+  "scripts": {
+    "backend": "npm run dev --workspace=backend",
+    "frontend": "npm run dev --workspace=frontend",
+    "terminal": "npm run dev --workspace=terminal-app",
+    "build": "npm run build --workspaces",
+    "dev": "concurrently \"npm run backend\" \"npm run frontend\""
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
