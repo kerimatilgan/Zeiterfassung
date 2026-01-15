@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - JWT_SECRET=${JWT_SECRET:-handy-insel-zeiterfassung-secret-key-2024}
+      - TERMINAL_API_KEY=${TERMINAL_API_KEY:-handy-insel-terminal-key-2024}
+    volumes:
+      - ./data:/app/prisma
+      - ./reports:/app/reports
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  terminal:
+    build:
+      context: ./terminal-app
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  data:
+  reports:

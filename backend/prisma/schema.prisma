@@ -1,0 +1,103 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./zeiterfassung.db"
+}
+
+// Mitarbeiter
+model Employee {
+  id              String   @id @default(uuid())
+  employeeNumber  String   @unique // Mitarbeiternummer
+  firstName       String
+  lastName        String
+  email           String?  @unique
+  phone           String?
+  qrCode          String   @unique // Eindeutiger QR-Code für Zeiterfassung
+  pin             String?  // Optional: PIN für manuelle Eingabe
+  hourlyRate      Float    @default(12.00) // Stundenlohn in Euro
+  weeklyHours     Float    @default(40.0) // Vertraglich vereinbarte Wochenstunden
+  isActive        Boolean  @default(true)
+  isAdmin         Boolean  @default(false)
+  passwordHash    String?  // Für Dashboard-Login
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  timeEntries     TimeEntry[]
+  monthlyReports  MonthlyReport[]
+}
+
+// Zeiteinträge (Stempeln)
+model TimeEntry {
+  id          String    @id @default(uuid())
+  employeeId  String
+  employee    Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  clockIn     DateTime  // Einstempeln
+  clockOut    DateTime? // Ausstempeln (null = noch eingestempelt)
+
+  breakMinutes Int      @default(0) // Pausenzeit in Minuten
+
+  note        String?   // Optionale Notiz
+  isManual    Boolean   @default(false) // Manuell eingetragen vs. gescannt
+  editedBy    String?   // Falls bearbeitet: von wem
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+// Monatsabrechnungen
+model MonthlyReport {
+  id              String   @id @default(uuid())
+  employeeId      String
+  employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  year            Int
+  month           Int      // 1-12
+
+  totalHours      Float    // Gesamtstunden im Monat
+  targetHours     Float    // Soll-Stunden
+  overtimeHours   Float    // Überstunden
+
+  grossPay        Float    // Bruttolohn
+
+  status          String   @default("draft") // draft, finalized, paid
+  pdfPath         String?  // Pfad zur generierten PDF
+
+  notes           String?
+  createdBy       String   // Admin der die Abrechnung erstellt hat
+  finalizedAt     DateTime?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([employeeId, year, month])
+}
+
+// Einstellungen
+model Settings {
+  id                    String  @id @default("default")
+  companyName           String  @default("Handy-Insel")
+  companyAddress        String?
+  companyPhone          String?
+  companyEmail          String?
+
+  defaultBreakMinutes   Int     @default(30) // Standard-Pause bei > 6h
+  overtimeThreshold     Float   @default(40.0) // Ab wann Überstunden zählen (Wochenstunden)
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+// Feiertage / freie Tage
+model Holiday {
+  id          String   @id @default(uuid())
+  date        DateTime
+  name        String
+  isRecurring Boolean  @default(false) // Jährlich wiederkehrend
+
+  createdAt   DateTime @default(now())
+}
