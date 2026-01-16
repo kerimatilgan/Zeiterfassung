@@ -57,8 +57,8 @@ async function main() {
     console.log('Standard-Einstellungen erstellt');
   }
 
-  app.listen(PORT, () => {
-    console.log(`🚀 Zeiterfassung Backend läuft auf http://localhost:${PORT}`);
+  app.listen(Number(PORT), '0.0.0.0', () => {
+    console.log(`🚀 Zeiterfassung Backend läuft auf http://0.0.0.0:${PORT}`);
   });
 }
 
