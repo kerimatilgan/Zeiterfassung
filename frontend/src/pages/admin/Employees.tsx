@@ -16,6 +16,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Briefcase,
+  Star,
 } from 'lucide-react';
 
 interface Employee {
@@ -95,6 +96,7 @@ interface DaySummary {
   totalBreakMinutes: number;
   isActive: boolean;
   absence?: EmployeeAbsence;
+  holiday?: Holiday;
 }
 
 interface AbsenceType {
@@ -113,6 +115,13 @@ interface EmployeeAbsence {
   absenceType: AbsenceType;
   date: string;
   note: string | null;
+}
+
+interface Holiday {
+  id: string;
+  date: string;
+  name: string;
+  isRecurring: boolean;
 }
 
 export default function AdminEmployees() {
@@ -140,9 +149,12 @@ export default function AdminEmployees() {
   });
   const [showCreateEntry, setShowCreateEntry] = useState(false);
   const popupRef = useRef<HTMLDivElement>(null);
+  const clockInInputRef = useRef<HTMLInputElement>(null);
+  const clockOutInputRef = useRef<HTMLInputElement>(null);
 
   // Absences State
   const [absences, setAbsences] = useState<EmployeeAbsence[]>([]);
+  const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [showAbsencePopup, setShowAbsencePopup] = useState(false);
   const [editingAbsence, setEditingAbsence] = useState<EmployeeAbsence | null>(null);
   const [absenceFormData, setAbsenceFormData] = useState({
@@ -261,15 +273,18 @@ export default function AdminEmployees() {
     try {
       const from = startOfMonth(month).toISOString();
       const to = endOfMonth(month).toISOString();
+      const year = month.getFullYear();
 
-      // Load both time entries and absences in parallel
-      const [entriesResponse, absencesResponse] = await Promise.all([
+      // Load time entries, absences, and holidays in parallel
+      const [entriesResponse, absencesResponse, holidaysResponse] = await Promise.all([
         timeEntriesApi.getAll({ employeeId, from, to }),
         settingsApi.getAbsences({ employeeId, from, to }),
+        settingsApi.getHolidays(year),
       ]);
 
       setTimeEntries(entriesResponse.data as TimeEntry[]);
       setAbsences(absencesResponse.data as EmployeeAbsence[]);
+      setHolidays(holidaysResponse.data as Holiday[]);
     } catch (error) {
       console.error('Error loading time entries:', error);
       toast.error('Fehler beim Laden der Zeiteinträge');
@@ -290,6 +305,7 @@ export default function AdminEmployees() {
     setSelectedEmployeeForTime(null);
     setTimeEntries([]);
     setAbsences([]);
+    setHolidays([]);
     setEditingTimeEntry(null);
     setEditingDate(null);
     setShowCreateEntry(false);
@@ -315,11 +331,16 @@ export default function AdminEmployees() {
     return absences.find(absence => isSameDay(new Date(absence.date), date));
   };
 
+  const getHolidayForDate = (date: Date): Holiday | undefined => {
+    return holidays.find(holiday => isSameDay(new Date(holiday.date), date));
+  };
+
   // Berechnet Arbeitsstunden und automatische Pausen für einen Tag
   // Nur volle Minuten werden gezählt (keine Sekunden)
   const calculateDaySummary = (date: Date): DaySummary => {
     const entries = getEntriesForDate(date);
     const absence = getAbsenceForDate(date);
+    const holiday = getHolidayForDate(date);
     let totalWorkMinutes = 0;
     let totalBreakMinutes = 0;
     let isActive = false;
@@ -355,6 +376,7 @@ export default function AdminEmployees() {
       totalBreakMinutes,
       isActive,
       absence,
+      holiday,
     };
   };
 
@@ -393,9 +415,26 @@ export default function AdminEmployees() {
       // Neuen Eintrag für diesen Tag erstellen
       setEditingTimeEntry(null);
       setShowCreateEntry(true);
+
+      // Auto-fill: Prüfe ob bereits Einträge für diesen Tag existieren
+      const existingEntries = getEntriesForDate(date);
+      let defaultClockIn = '08:00';
+      let defaultClockOut = '17:00';
+
+      if (existingEntries.length > 0) {
+        // Sortiere nach clockIn und nimm den letzten Eintrag
+        const lastEntry = existingEntries[existingEntries.length - 1];
+        if (lastEntry.clockOut) {
+          // clockIn = letztes clockOut
+          defaultClockIn = format(new Date(lastEntry.clockOut), 'HH:mm');
+          // clockOut leer lassen (Mitarbeiter soll es eingeben)
+          defaultClockOut = '';
+        }
+      }
+
       setTimeEntryFormData({
-        clockIn: '08:00',
-        clockOut: '17:00',
+        clockIn: defaultClockIn,
+        clockOut: defaultClockOut,
         breakMinutes: 0,
         note: '',
       });
@@ -408,7 +447,7 @@ export default function AdminEmployees() {
     setShowCreateEntry(false);
   };
 
-  const handleTimeEntrySubmit = async (e: React.FormEvent) => {
+  const handleTimeEntrySubmit = async (e: React.FormEvent, keepOpen: boolean = false) => {
     e.preventDefault();
     if (!selectedEmployeeForTime || !editingDate) return;
 
@@ -421,27 +460,45 @@ export default function AdminEmployees() {
 
       if (editingTimeEntry) {
         // Update existing entry
-        await timeEntriesApi.update(editingTimeEntry.id, {
+        const response = await timeEntriesApi.update(editingTimeEntry.id, {
           clockIn: clockInDate.toISOString(),
           clockOut: clockOutDate?.toISOString() || null,
           breakMinutes: timeEntryFormData.breakMinutes,
           note: timeEntryFormData.note || null,
         });
-        toast.success('Zeiteintrag aktualisiert');
+        // Optimistic Update: Lokalen State direkt aktualisieren
+        setTimeEntries(prev => prev.map(entry =>
+          entry.id === editingTimeEntry.id ? response.data : entry
+        ));
+        toast.success('Eintrag gespeichert');
+        closeQuickEdit();
       } else {
         // Create new entry
-        await timeEntriesApi.createManual({
+        const response = await timeEntriesApi.createManual({
           employeeId: selectedEmployeeForTime.id,
           clockIn: clockInDate.toISOString(),
           clockOut: clockOutDate?.toISOString() || null,
           breakMinutes: timeEntryFormData.breakMinutes,
           note: timeEntryFormData.note || null,
         });
-        toast.success('Zeiteintrag erstellt');
-      }
+        // Optimistic Update: Neuen Eintrag hinzufügen
+        setTimeEntries(prev => [...prev, response.data]);
+        toast.success('Eintrag gespeichert');
 
-      closeQuickEdit();
-      loadTimeEntries(selectedEmployeeForTime.id, selectedMonth);
+        if (keepOpen && clockOutDate) {
+          // Modal offen lassen, clockIn auf letztes clockOut setzen
+          setTimeEntryFormData({
+            clockIn: timeEntryFormData.clockOut,
+            clockOut: '',
+            breakMinutes: 0,
+            note: '',
+          });
+          // Fokus auf Einstempeln-Feld setzen
+          setTimeout(() => clockInInputRef.current?.focus(), 50);
+        } else {
+          closeQuickEdit();
+        }
+      }
     } catch (error: any) {
       toast.error(error.response?.data?.error || 'Fehler beim Speichern');
     }
@@ -453,9 +510,10 @@ export default function AdminEmployees() {
     if (confirm('Zeiteintrag wirklich löschen?')) {
       try {
         await timeEntriesApi.delete(editingTimeEntry.id);
+        // Optimistic Update: Eintrag aus lokalem State entfernen
+        setTimeEntries(prev => prev.filter(entry => entry.id !== editingTimeEntry.id));
         toast.success('Zeiteintrag gelöscht');
         closeQuickEdit();
-        loadTimeEntries(selectedEmployeeForTime.id, selectedMonth);
       } catch (error: any) {
         toast.error(error.response?.data?.error || 'Fehler beim Löschen');
       }
@@ -533,11 +591,11 @@ export default function AdminEmployees() {
     // Nur mit linker Maustaste und wenn kein Popup offen ist
     if (e.button !== 0 || showAbsencePopup || editingTimeEntry || showCreateEntry) return;
 
-    // Prüfen ob der Tag bereits eine Abwesenheit hat
+    // Prüfen ob der Tag bereits eine Abwesenheit hat - NICHT automatisch öffnen
+    // Abwesenheit wird nur bearbeitet wenn man explizit auf das Abwesenheit-Element klickt
     const absence = getAbsenceForDate(date);
     if (absence) {
-      // Bei Klick auf existierende Abwesenheit -> direkt bearbeiten
-      openAbsencePopup(date, absence);
+      // Tag mit Abwesenheit nicht in die Auswahl einschließen
       return;
     }
 
@@ -559,6 +617,15 @@ export default function AdminEmployees() {
 
     const dates = getSelectedDateRange();
 
+    // Bei Einzelklick (nur ein Tag) KEIN Abwesenheit-Popup öffnen
+    // Abwesenheit wird nur über den "Abwesenheit" Button oder bei Drag über mehrere Tage erstellt
+    if (dates.length <= 1) {
+      setIsSelecting(false);
+      setSelectionStart(null);
+      setSelectionEnd(null);
+      return;
+    }
+
     // Filtere Tage raus, die bereits eine Abwesenheit haben
     const availableDates = dates.filter((d) => !getAbsenceForDate(d));
 
@@ -570,13 +637,8 @@ export default function AdminEmployees() {
       return;
     }
 
-    if (availableDates.length === 1) {
-      // Nur ein Tag -> normale Abwesenheit erstellen
-      openAbsencePopup(availableDates[0]);
-    } else {
-      // Mehrere Tage -> Multi-Popup öffnen
-      openMultiAbsencePopup(availableDates);
-    }
+    // Mehrere Tage -> Multi-Popup öffnen
+    openMultiAbsencePopup(availableDates);
 
     setIsSelecting(false);
   };
@@ -588,29 +650,40 @@ export default function AdminEmployees() {
     try {
       if (editingAbsence) {
         // Update existing absence (nur einzelner Tag)
-        await settingsApi.updateAbsence(editingAbsence.id, {
+        const response = await settingsApi.updateAbsence(editingAbsence.id, {
           absenceTypeId: absenceFormData.absenceTypeId,
           note: absenceFormData.note || null,
         });
+        // Optimistic Update: Lokalen State aktualisieren
+        setAbsences(prev => prev.map(absence =>
+          absence.id === editingAbsence.id ? response.data : absence
+        ));
         toast.success('Abwesenheit aktualisiert');
       } else if (selectedDates.length > 0) {
         // Create absences for all selected dates
         let successCount = 0;
         let errorCount = 0;
+        const newAbsences: EmployeeAbsence[] = [];
 
         for (const date of selectedDates) {
           try {
             const dateStr = format(date, 'yyyy-MM-dd');
-            await settingsApi.createAbsence({
+            const response = await settingsApi.createAbsence({
               employeeId: selectedEmployeeForTime.id,
               absenceTypeId: absenceFormData.absenceTypeId,
               date: new Date(dateStr).toISOString(),
               note: absenceFormData.note || null,
             });
+            newAbsences.push(response.data);
             successCount++;
           } catch {
             errorCount++;
           }
+        }
+
+        // Optimistic Update: Neue Abwesenheiten hinzufügen
+        if (newAbsences.length > 0) {
+          setAbsences(prev => [...prev, ...newAbsences]);
         }
 
         if (successCount > 0) {
@@ -625,7 +698,6 @@ export default function AdminEmployees() {
       }
 
       closeAbsencePopup();
-      loadTimeEntries(selectedEmployeeForTime.id, selectedMonth);
     } catch (error: any) {
       toast.error(error.response?.data?.error || 'Fehler beim Speichern');
     }
@@ -637,9 +709,10 @@ export default function AdminEmployees() {
     if (confirm('Abwesenheit wirklich löschen?')) {
       try {
         await settingsApi.deleteAbsence(editingAbsence.id);
+        // Optimistic Update: Abwesenheit aus lokalem State entfernen
+        setAbsences(prev => prev.filter(absence => absence.id !== editingAbsence.id));
         toast.success('Abwesenheit gelöscht');
         closeAbsencePopup();
-        loadTimeEntries(selectedEmployeeForTime.id, selectedMonth);
       } catch (error: any) {
         toast.error(error.response?.data?.error || 'Fehler beim Löschen');
       }
@@ -1048,10 +1121,9 @@ export default function AdminEmployees() {
         </div>
       )}
 
-      {/* Time Entries Modal */}
+      {/* Time Entries Modal - Fullscreen */}
       {showTimeEntriesModal && selectedEmployeeForTime && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="fixed inset-0 z-50 bg-white flex flex-col">
             {/* Header */}
             <div className="p-6 border-b border-gray-100 flex items-center justify-between shrink-0">
               <div>
@@ -1134,7 +1206,11 @@ export default function AdminEmployees() {
                         const isEditing = editingDate && isSameDay(date, editingDate);
                         const hasEntries = summary.entries.length > 0;
                         const hasAbsence = !!summary.absence;
+                        const hasHoliday = !!summary.holiday;
                         const inSelection = isDateInSelection(date);
+
+                        // Feiertage auf Arbeitstagen werden wie freie Tage behandelt
+                        const isHolidayOnWorkDay = hasHoliday && !isNonWorkDay;
 
                         return (
                           <tr
@@ -1143,6 +1219,7 @@ export default function AdminEmployees() {
                               // Nur starten wenn nicht auf einen Link/Button geklickt wird
                               if ((e.target as HTMLElement).closest('.entry-item')) return;
                               if ((e.target as HTMLElement).closest('.absence-item')) return;
+                              if ((e.target as HTMLElement).closest('.holiday-item')) return;
                               if ((e.target as HTMLElement).closest('button')) return;
                               handleSelectionStart(date, e);
                             }}
@@ -1151,21 +1228,23 @@ export default function AdminEmployees() {
                               // Wenn auf einen spezifischen Eintrag geklickt wird, nicht die ganze Zeile
                               if ((e.target as HTMLElement).closest('.entry-item')) return;
                               if ((e.target as HTMLElement).closest('.absence-item')) return;
+                              if ((e.target as HTMLElement).closest('.holiday-item')) return;
                               if ((e.target as HTMLElement).closest('button')) return;
                               // Nur bei Einzelklick (nicht bei Drag) neuen Eintrag erstellen
                               if (isSelecting) return;
+                              // Zeiteinträge sind auch an Feiertagen möglich (Mitarbeiter kann trotzdem arbeiten)
                               if (!hasEntries && !hasAbsence) {
                                 handleDayClick(date);
                               }
                             }}
                             className={`transition-colors select-none ${
                               isNonWorkDay ? 'bg-gray-50 text-gray-400' : ''
-                            } ${isEditing ? 'bg-primary-100' : ''} ${
+                            } ${isHolidayOnWorkDay && !isNonWorkDay ? 'bg-red-50' : ''} ${isEditing ? 'bg-primary-100' : ''} ${
                               inSelection ? 'bg-blue-100' : ''
                             } ${
                               hasAbsence ? '' : 'cursor-pointer hover:bg-primary-50'
                             }`}
-                            style={hasAbsence && !inSelection ? { backgroundColor: summary.absence!.absenceType.color + '10' } : {}}
+                            style={hasAbsence && !inSelection && !hasHoliday ? { backgroundColor: summary.absence!.absenceType.color + '10' } : {}}
                           >
                             <td className="px-4 py-3 font-medium align-top">
                               {format(date, 'dd.MM.yyyy')}
@@ -1174,6 +1253,21 @@ export default function AdminEmployees() {
                               {format(date, 'EEEE', { locale: de })}
                             </td>
                             <td className="px-4 py-3">
+                              {/* Feiertag anzeigen (auf Arbeitstagen) */}
+                              {isHolidayOnWorkDay && (
+                                <div
+                                  className="holiday-item flex items-center gap-2 rounded px-2 py-1 -mx-1 mb-2 bg-red-100"
+                                >
+                                  <Star size={14} className="text-red-600" fill="currentColor" />
+                                  <span className="font-medium text-red-700">
+                                    {summary.holiday!.name}
+                                  </span>
+                                  <span className="text-xs text-red-500 ml-auto">
+                                    Feiertag
+                                  </span>
+                                </div>
+                              )}
+
                               {/* Abwesenheit anzeigen */}
                               {hasAbsence && (
                                 <div
@@ -1260,6 +1354,8 @@ export default function AdminEmployees() {
                                 <span className={summary.isActive ? 'text-green-600' : 'text-gray-900'}>
                                   {formatMinutesToHours(summary.totalWorkMinutes)} h
                                 </span>
+                              ) : isHolidayOnWorkDay ? (
+                                <span className="text-red-600">Feiertag</span>
                               ) : hasAbsence ? (
                                 <span style={{ color: summary.absence!.absenceType.color }}>
                                   {summary.absence!.absenceType.requiredHours === 0
@@ -1290,18 +1386,23 @@ export default function AdminEmployees() {
                           <X size={16} />
                         </button>
                       </div>
-                      <form onSubmit={handleTimeEntrySubmit} className="space-y-3">
+                      <form onSubmit={(e) => handleTimeEntrySubmit(e, !editingTimeEntry)} className="space-y-3">
                         <div className="grid grid-cols-2 gap-3">
                           <div>
                             <label className="block text-xs font-medium text-gray-500 mb-1">
                               Einstempeln
                             </label>
                             <input
+                              ref={clockInInputRef}
                               type="time"
                               value={timeEntryFormData.clockIn}
-                              onChange={(e) =>
-                                setTimeEntryFormData({ ...timeEntryFormData, clockIn: e.target.value })
-                              }
+                              onChange={(e) => {
+                                setTimeEntryFormData({ ...timeEntryFormData, clockIn: e.target.value });
+                                // Auto-Tab zu Ausstempeln wenn Zeit vollständig (HH:MM = 5 Zeichen)
+                                if (e.target.value.length === 5) {
+                                  setTimeout(() => clockOutInputRef.current?.focus(), 10);
+                                }
+                              }}
                               className="input text-sm py-1.5"
                               required
                             />
@@ -1311,6 +1412,7 @@ export default function AdminEmployees() {
                               Ausstempeln
                             </label>
                             <input
+                              ref={clockOutInputRef}
                               type="time"
                               value={timeEntryFormData.clockOut}
                               onChange={(e) =>
@@ -1356,12 +1458,33 @@ export default function AdminEmployees() {
                             >
                               Abbrechen
                             </button>
-                            <button
-                              type="submit"
-                              className="px-3 py-1.5 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700"
-                            >
-                              Speichern
-                            </button>
+                            {/* Bei neuem Eintrag: Speichern & Weiter (Enter) + Fertig */}
+                            {!editingTimeEntry ? (
+                              <>
+                                <button
+                                  type="submit"
+                                  className="px-3 py-1.5 text-sm bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                                  disabled={!timeEntryFormData.clockOut}
+                                  title={!timeEntryFormData.clockOut ? 'Ausstempeln-Zeit benötigt' : 'Enter = Speichern & Weiter'}
+                                >
+                                  Speichern & Weiter
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleTimeEntrySubmit(e, false)}
+                                  className="px-3 py-1.5 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+                                >
+                                  Fertig
+                                </button>
+                              </>
+                            ) : (
+                              <button
+                                type="submit"
+                                className="px-3 py-1.5 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+                              >
+                                Speichern
+                              </button>
+                            )}
                           </div>
                         </div>
                       </form>
@@ -1464,7 +1587,6 @@ export default function AdminEmployees() {
                 </div>
               )}
             </div>
-          </div>
         </div>
       )}
     </div>

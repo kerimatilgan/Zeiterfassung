@@ -277,12 +277,30 @@ router.post('/:id/finalize', authMiddleware, adminMiddleware, async (req: AuthRe
     const endDate = new Date(report.year, report.month, 0, 23, 59, 59);
     const { dailyHours } = await calculateHoursForPeriod(report.employeeId, startDate, endDate);
 
+    // Abwesenheiten für den Monat laden
+    const absences = await prisma.employeeAbsence.findMany({
+      where: {
+        employeeId: report.employeeId,
+        date: { gte: startDate, lte: endDate },
+      },
+      include: { absenceType: true },
+    });
+
+    // Feiertage für den Monat laden
+    const holidays = await prisma.holiday.findMany({
+      where: {
+        date: { gte: startDate, lte: endDate },
+      },
+    });
+
     const settings = await prisma.settings.findUnique({ where: { id: 'default' } });
 
     await generateMonthlyReportPDF({
       report,
       employee: report.employee,
       dailyHours,
+      absences,
+      holidays,
       settings,
       outputPath: pdfPath,
     });
@@ -336,6 +354,136 @@ router.get('/:id/pdf', authMiddleware, async (req: AuthRequest, res: Response) =
   } catch (error) {
     console.error('Download PDF error:', error);
     res.status(500).json({ error: 'Fehler beim Herunterladen der PDF' });
+  }
+});
+
+// PDF-Vorschau generieren (ohne zu speichern) - für Entwürfe
+router.get('/:id/preview-pdf', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const report = await prisma.monthlyReport.findUnique({
+      where: { id },
+      include: { employee: true },
+    });
+
+    if (!report) {
+      return res.status(404).json({ error: 'Abrechnung nicht gefunden' });
+    }
+
+    // Zeiteinträge für den Monat laden
+    const startDate = new Date(report.year, report.month - 1, 1);
+    const endDate = new Date(report.year, report.month, 0, 23, 59, 59);
+    const { dailyHours } = await calculateHoursForPeriod(report.employeeId, startDate, endDate);
+
+    // Abwesenheiten für den Monat laden
+    const absences = await prisma.employeeAbsence.findMany({
+      where: {
+        employeeId: report.employeeId,
+        date: { gte: startDate, lte: endDate },
+      },
+      include: { absenceType: true },
+    });
+
+    // Feiertage für den Monat laden
+    const holidays = await prisma.holiday.findMany({
+      where: {
+        date: { gte: startDate, lte: endDate },
+      },
+    });
+
+    const settings = await prisma.settings.findUnique({ where: { id: 'default' } });
+
+    // Temporäres PDF generieren
+    const tempDir = path.join(process.cwd(), 'temp');
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+
+    const tempFilename = `preview_${report.id}_${Date.now()}.pdf`;
+    const tempPath = path.join(tempDir, tempFilename);
+
+    await generateMonthlyReportPDF({
+      report,
+      employee: report.employee,
+      dailyHours,
+      absences,
+      holidays,
+      settings,
+      outputPath: tempPath,
+    });
+
+    // PDF senden und danach löschen
+    res.download(tempPath, `Vorschau_${report.employee.employeeNumber}_${report.year}_${report.month}.pdf`, (err) => {
+      // Temporäre Datei löschen nach dem Senden
+      fs.unlink(tempPath, () => {});
+      if (err) {
+        console.error('Error sending preview PDF:', err);
+      }
+    });
+  } catch (error) {
+    console.error('Preview PDF error:', error);
+    res.status(500).json({ error: 'Fehler beim Erstellen der PDF-Vorschau' });
+  }
+});
+
+// Abrechnung neu berechnen (nur Drafts)
+router.post('/:id/recalculate', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const report = await prisma.monthlyReport.findUnique({
+      where: { id },
+      include: { employee: true },
+    });
+
+    if (!report) {
+      return res.status(404).json({ error: 'Abrechnung nicht gefunden' });
+    }
+
+    if (report.status !== 'draft') {
+      return res.status(400).json({ error: 'Nur Entwürfe können neu berechnet werden' });
+    }
+
+    const startDate = new Date(report.year, report.month - 1, 1);
+    const endDate = new Date(report.year, report.month, 0, 23, 59, 59);
+
+    const { totalHours } = await calculateHoursForPeriod(report.employeeId, startDate, endDate);
+
+    const workDays = parseWorkDays(report.employee.workDays);
+    const workingDays = countWorkingDays(report.year, report.month, report.employee.workDays);
+    const dailyTargetHours = workDays.length > 0 ? report.employee.weeklyHours / workDays.length : 0;
+    const targetHours = workingDays * dailyTargetHours;
+    const overtimeHours = Math.max(0, totalHours - targetHours);
+
+    // Urlaubstage neu berechnen
+    const vacationDaysUsed = await calculateVacationDaysUsed(report.employeeId, report.year, report.month);
+    const vacationDaysRemaining = report.employee.vacationDaysPerYear - vacationDaysUsed;
+
+    const updatedReport = await prisma.monthlyReport.update({
+      where: { id },
+      data: {
+        totalHours,
+        targetHours,
+        overtimeHours,
+        vacationDaysUsed,
+        vacationDaysRemaining,
+      },
+      include: {
+        employee: {
+          select: {
+            firstName: true,
+            lastName: true,
+            employeeNumber: true,
+          },
+        },
+      },
+    });
+
+    res.json(updatedReport);
+  } catch (error) {
+    console.error('Recalculate report error:', error);
+    res.status(500).json({ error: 'Fehler beim Neuberechnen der Abrechnung' });
   }
 });
 

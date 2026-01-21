@@ -259,10 +259,12 @@ router.get('/my/stats', authMiddleware, async (req: AuthRequest, res: Response) 
     const startOfWeek = new Date(now);
     startOfWeek.setDate(now.getDate() - now.getDay() + 1); // Montag
     startOfWeek.setHours(0, 0, 0, 0);
+    const startOfYear = new Date(now.getFullYear(), 0, 1);
+    const endOfYear = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
 
     const employee = await prisma.employee.findUnique({
       where: { id: req.employee!.id },
-      select: { weeklyHours: true },
+      select: { weeklyHours: true, vacationDaysPerYear: true },
     });
 
     // Alle Einträge diesen Monat
@@ -283,6 +285,22 @@ router.get('/my/stats', authMiddleware, async (req: AuthRequest, res: Response) 
       },
     });
 
+    // Urlaubstage dieses Jahr zählen (nur Abwesenheiten mit "Urlaub" im Namen)
+    const vacationAbsences = await prisma.employeeAbsence.count({
+      where: {
+        employeeId: req.employee!.id,
+        date: {
+          gte: startOfYear,
+          lte: endOfYear,
+        },
+        absenceType: {
+          name: {
+            contains: 'Urlaub',
+          },
+        },
+      },
+    });
+
     // Stunden berechnen
     const calculateHours = (entries: typeof monthEntries) => {
       return entries.reduce((total, entry) => {
@@ -300,12 +318,20 @@ router.get('/my/stats', authMiddleware, async (req: AuthRequest, res: Response) 
     const weeklyTarget = employee?.weeklyHours ?? 40;
     const weekOvertime = Math.max(0, weekHours - weeklyTarget);
 
+    // Urlaubstage berechnen
+    const vacationDaysTotal = employee?.vacationDaysPerYear ?? 30;
+    const vacationDaysUsed = vacationAbsences;
+    const vacationDaysRemaining = vacationDaysTotal - vacationDaysUsed;
+
     res.json({
       monthHours: Math.round(monthHours * 100) / 100,
       weekHours: Math.round(weekHours * 100) / 100,
       weeklyTarget,
       weekOvertime: Math.round(weekOvertime * 100) / 100,
       entriesThisMonth: monthEntries.length,
+      vacationDaysTotal,
+      vacationDaysUsed,
+      vacationDaysRemaining,
     });
   } catch (error) {
     console.error('Get stats error:', error);

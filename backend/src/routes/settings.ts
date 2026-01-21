@@ -2,6 +2,13 @@ import { Router, Response } from 'express';
 import { prisma } from '../index.js';
 import { authMiddleware, adminMiddleware, AuthRequest } from '../middleware/auth.js';
 import { z } from 'zod';
+import {
+  getGermanHolidays,
+  getBundeslandFromPLZ,
+  extractPLZFromAddress,
+  BUNDESLAND_NAMES,
+  type Bundesland,
+} from '../utils/germanHolidays.js';
 
 const router = Router();
 
@@ -117,6 +124,164 @@ router.delete('/holidays/:id', authMiddleware, adminMiddleware, async (req: Auth
     console.error('Delete holiday error:', error);
     res.status(500).json({ error: 'Fehler beim Löschen des Feiertags' });
   }
+});
+
+// Feiertage automatisch generieren (Admin)
+router.post('/holidays/generate', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const schema = z.object({
+      year: z.number().min(2020).max(2100),
+      bundesland: z.string().optional(), // Optional: Direkt angeben statt aus PLZ
+      deleteExisting: z.boolean().optional(), // Bestehende Feiertage des Jahres löschen
+    });
+
+    const data = schema.parse(req.body);
+    const year = data.year;
+
+    let bundesland: Bundesland | null = data.bundesland as Bundesland | null;
+
+    // Wenn kein Bundesland angegeben, aus Firmenadresse ermitteln
+    if (!bundesland) {
+      const settings = await prisma.settings.findUnique({
+        where: { id: 'default' },
+      });
+
+      if (!settings?.companyAddress) {
+        return res.status(400).json({
+          error: 'Keine Firmenadresse hinterlegt. Bitte zuerst eine Adresse mit PLZ eingeben oder Bundesland direkt angeben.',
+        });
+      }
+
+      const plz = extractPLZFromAddress(settings.companyAddress);
+      if (!plz) {
+        return res.status(400).json({
+          error: 'Keine gültige PLZ in der Firmenadresse gefunden. Bitte Adresse im Format "Straße, PLZ Ort" eingeben.',
+        });
+      }
+
+      bundesland = getBundeslandFromPLZ(plz);
+      if (!bundesland) {
+        return res.status(400).json({
+          error: `PLZ ${plz} konnte keinem Bundesland zugeordnet werden. Bitte Bundesland direkt angeben.`,
+        });
+      }
+    }
+
+    // Optional: Bestehende Feiertage des Jahres löschen
+    if (data.deleteExisting) {
+      const startOfYear = new Date(year, 0, 1);
+      const endOfYear = new Date(year, 11, 31, 23, 59, 59);
+
+      await prisma.holiday.deleteMany({
+        where: {
+          date: { gte: startOfYear, lte: endOfYear },
+        },
+      });
+    }
+
+    // Feiertage berechnen
+    const holidays = getGermanHolidays(year, bundesland);
+
+    // Feiertage in DB einfügen (Duplikate vermeiden)
+    let created = 0;
+    let skipped = 0;
+
+    for (const holiday of holidays) {
+      // Prüfen ob Feiertag bereits existiert (gleiches Datum)
+      const existing = await prisma.holiday.findFirst({
+        where: {
+          date: {
+            gte: new Date(holiday.date.getFullYear(), holiday.date.getMonth(), holiday.date.getDate()),
+            lt: new Date(holiday.date.getFullYear(), holiday.date.getMonth(), holiday.date.getDate() + 1),
+          },
+        },
+      });
+
+      if (existing) {
+        skipped++;
+        continue;
+      }
+
+      await prisma.holiday.create({
+        data: {
+          date: holiday.date,
+          name: holiday.name,
+          isRecurring: false,
+        },
+      });
+      created++;
+    }
+
+    res.status(201).json({
+      message: `${created} Feiertage für ${year} erstellt (${skipped} übersprungen)`,
+      bundesland,
+      bundeslandName: BUNDESLAND_NAMES[bundesland],
+      year,
+      created,
+      skipped,
+      total: holidays.length,
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: error.errors[0].message });
+    }
+    console.error('Generate holidays error:', error);
+    res.status(500).json({ error: 'Fehler beim Generieren der Feiertage' });
+  }
+});
+
+// Bundesland Info abrufen (für UI)
+router.get('/holidays/bundesland-info', authMiddleware, async (_req: AuthRequest, res: Response) => {
+  try {
+    const settings = await prisma.settings.findUnique({
+      where: { id: 'default' },
+    });
+
+    if (!settings?.companyAddress) {
+      return res.json({
+        detected: false,
+        message: 'Keine Firmenadresse hinterlegt',
+      });
+    }
+
+    const plz = extractPLZFromAddress(settings.companyAddress);
+    if (!plz) {
+      return res.json({
+        detected: false,
+        plz: null,
+        message: 'Keine PLZ in der Adresse gefunden',
+      });
+    }
+
+    const bundesland = getBundeslandFromPLZ(plz);
+    if (!bundesland) {
+      return res.json({
+        detected: false,
+        plz,
+        message: `PLZ ${plz} konnte keinem Bundesland zugeordnet werden`,
+      });
+    }
+
+    res.json({
+      detected: true,
+      plz,
+      bundesland,
+      bundeslandName: BUNDESLAND_NAMES[bundesland],
+    });
+  } catch (error) {
+    console.error('Get bundesland info error:', error);
+    res.status(500).json({ error: 'Fehler beim Ermitteln des Bundeslandes' });
+  }
+});
+
+// Alle Bundesländer abrufen (für Dropdown)
+router.get('/holidays/bundeslaender', authMiddleware, async (_req: AuthRequest, res: Response) => {
+  res.json(
+    Object.entries(BUNDESLAND_NAMES).map(([code, name]) => ({
+      code,
+      name,
+    }))
+  );
 });
 
 // ==================== ABWESENHEITSTYPEN ====================

@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { timeEntriesApi } from '../../lib/api';
 import { useAuthStore } from '../../store/authStore';
-import { Clock, TrendingUp, Calendar, Timer } from 'lucide-react';
+import { Clock, TrendingUp, Calendar, Timer, Umbrella } from 'lucide-react';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { useState, useEffect, useCallback } from 'react';
@@ -146,6 +146,30 @@ export default function EmployeeDashboard() {
               </p>
               <p className="text-sm text-gray-500">Soll (Woche)</p>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Urlaubstage */}
+      <div className="card p-6">
+        <div className="flex items-center gap-4 mb-4">
+          <div className="p-3 rounded-lg bg-green-100">
+            <Umbrella className="w-6 h-6 text-green-600" />
+          </div>
+          <h2 className="text-lg font-semibold text-gray-900">Urlaubstage {new Date().getFullYear()}</h2>
+        </div>
+        <div className="grid grid-cols-3 gap-4">
+          <div className="text-center p-4 bg-gray-50 rounded-lg">
+            <p className="text-3xl font-bold text-gray-900">{stats?.vacationDaysTotal ?? '-'}</p>
+            <p className="text-sm text-gray-500">Anspruch</p>
+          </div>
+          <div className="text-center p-4 bg-orange-50 rounded-lg">
+            <p className="text-3xl font-bold text-orange-600">{stats?.vacationDaysUsed ?? '-'}</p>
+            <p className="text-sm text-gray-500">Genommen</p>
+          </div>
+          <div className="text-center p-4 bg-green-50 rounded-lg">
+            <p className="text-3xl font-bold text-green-600">{stats?.vacationDaysRemaining ?? '-'}</p>
+            <p className="text-sm text-gray-500">Verbleibend</p>
           </div>
         </div>
       </div>

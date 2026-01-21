@@ -4,7 +4,8 @@ import { reportsApi, employeesApi } from '../../lib/api';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import toast from 'react-hot-toast';
-import { FileText, Download, Check, Trash2, Eye, Plus, X } from 'lucide-react';
+import { FileText, Download, Check, Trash2, Eye, Plus, X, RefreshCw, Edit2, Calendar } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 // Formatiert Dezimalstunden zu H:MM Format
 const formatHoursToTime = (hours: number): string => {
@@ -21,12 +22,15 @@ const MONTHS = [
 export default function AdminReports() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingReport, setEditingReport] = useState<any>(null);
   const [previewData, setPreviewData] = useState<any>(null);
   const [selectedEmployee, setSelectedEmployee] = useState('');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
 
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const { data: employees } = useQuery({
     queryKey: ['employees'],
@@ -85,6 +89,24 @@ export default function AdminReports() {
     },
   });
 
+  const recalculateMutation = useMutation({
+    mutationFn: (id: string) => reportsApi.recalculate(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['reports'] });
+      toast.success('Abrechnung neu berechnet');
+      setShowEditModal(false);
+      setEditingReport(null);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error || 'Fehler beim Neuberechnen');
+    },
+  });
+
+  const openEditModal = (report: any) => {
+    setEditingReport(report);
+    setShowEditModal(true);
+  };
+
   const handleDownload = async (id: string, filename: string) => {
     try {
       const response = await reportsApi.downloadPdf(id);
@@ -97,6 +119,27 @@ export default function AdminReports() {
       link.remove();
     } catch (error) {
       toast.error('Fehler beim Herunterladen');
+    }
+  };
+
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+
+  const handlePreviewPdf = async (report: any) => {
+    setIsPreviewLoading(true);
+    try {
+      const response = await reportsApi.previewPdf(report.id);
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Vorschau_${report.employee.employeeNumber}_${report.year}_${report.month}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast.success('PDF-Vorschau heruntergeladen');
+    } catch (error) {
+      toast.error('Fehler beim Erstellen der PDF-Vorschau');
+    } finally {
+      setIsPreviewLoading(false);
     }
   };
 
@@ -184,6 +227,20 @@ export default function AdminReports() {
                       <div className="flex items-center justify-end gap-2">
                         {report.status === 'draft' && (
                           <>
+                            <button
+                              onClick={() => openEditModal(report)}
+                              className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
+                              title="Bearbeiten"
+                            >
+                              <Edit2 size={18} />
+                            </button>
+                            <button
+                              onClick={() => handlePreviewPdf(report)}
+                              className="p-2 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
+                              title="PDF-Vorschau"
+                            >
+                              <Eye size={18} />
+                            </button>
                             <button
                               onClick={() => finalizeMutation.mutate(report.id)}
                               className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-lg"
@@ -352,9 +409,9 @@ export default function AdminReports() {
                   </p>
                 </div>
                 <div className="p-4 bg-green-50 rounded-lg">
-                  <p className="text-sm text-green-600">Urlaubstage</p>
+                  <p className="text-sm text-green-600">Urlaubstage ({previewData.period.year})</p>
                   <p className="text-2xl font-bold text-green-700">
-                    {previewData.summary.vacationDaysUsed} / {previewData.summary.vacationDaysPerYear}
+                    {previewData.summary.vacationDaysUsed} / {previewData.employee.vacationDaysPerYear}
                   </p>
                 </div>
               </div>
@@ -409,6 +466,126 @@ export default function AdminReports() {
                   <FileText size={18} />
                   Abrechnung erstellen
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {showEditModal && editingReport && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg">
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+              <h2 className="text-xl font-semibold">
+                Abrechnung bearbeiten
+              </h2>
+              <button
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditingReport(null);
+                }}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              {/* Report Info */}
+              <div className="p-4 bg-gray-50 rounded-lg">
+                <h3 className="font-medium text-gray-900">
+                  {editingReport.employee.firstName} {editingReport.employee.lastName}
+                </h3>
+                <p className="text-sm text-gray-500">
+                  #{editingReport.employee.employeeNumber} | {MONTHS[editingReport.month - 1]} {editingReport.year}
+                </p>
+              </div>
+
+              {/* Current Values */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-3 bg-blue-50 rounded-lg">
+                  <p className="text-xs text-blue-600">Gesamtstunden</p>
+                  <p className="text-xl font-bold text-blue-700">
+                    {formatHoursToTime(editingReport.totalHours)} h
+                  </p>
+                </div>
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <p className="text-xs text-gray-600">Soll-Stunden</p>
+                  <p className="text-xl font-bold text-gray-700">
+                    {formatHoursToTime(editingReport.targetHours)} h
+                  </p>
+                </div>
+                <div className="p-3 bg-orange-50 rounded-lg">
+                  <p className="text-xs text-orange-600">Überstunden</p>
+                  <p className="text-xl font-bold text-orange-700">
+                    {formatHoursToTime(editingReport.overtimeHours)} h
+                  </p>
+                </div>
+                <div className="p-3 bg-green-50 rounded-lg">
+                  <p className="text-xs text-green-600">Urlaubstage</p>
+                  <p className="text-xl font-bold text-green-700">
+                    {editingReport.vacationDaysUsed ?? 0} genommen
+                  </p>
+                </div>
+              </div>
+
+              {/* Instructions */}
+              <div className="p-4 bg-amber-50 rounded-lg text-sm text-amber-700">
+                <p className="font-medium mb-1">Hinweis:</p>
+                <p>
+                  Zeiteinträge können in der Mitarbeiter-Verwaltung bearbeitet werden.
+                  Nach Änderungen hier "Neu berechnen" klicken, um die Abrechnung zu aktualisieren.
+                </p>
+              </div>
+
+              {/* Actions */}
+              <div className="flex flex-col gap-3 pt-4 border-t">
+                <button
+                  onClick={() => {
+                    navigate(`/admin/employees?edit=${editingReport.employeeId}&month=${editingReport.year}-${String(editingReport.month).padStart(2, '0')}`);
+                    setShowEditModal(false);
+                  }}
+                  className="btn btn-secondary flex items-center justify-center gap-2"
+                >
+                  <Calendar size={18} />
+                  Zeiteinträge bearbeiten
+                </button>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => recalculateMutation.mutate(editingReport.id)}
+                    disabled={recalculateMutation.isPending}
+                    className="btn btn-secondary flex items-center justify-center gap-2"
+                  >
+                    {recalculateMutation.isPending ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-gray-500 border-t-transparent rounded-full animate-spin" />
+                        Berechne...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw size={18} />
+                        Neu berechnen
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => handlePreviewPdf(editingReport)}
+                    disabled={isPreviewLoading}
+                    className="btn btn-secondary flex items-center justify-center gap-2"
+                  >
+                    {isPreviewLoading ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-gray-500 border-t-transparent rounded-full animate-spin" />
+                        PDF...
+                      </>
+                    ) : (
+                      <>
+                        <Download size={18} />
+                        PDF-Vorschau
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           </div>

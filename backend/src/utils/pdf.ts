@@ -1,9 +1,32 @@
 import PDFDocument from 'pdfkit';
 import fs from 'fs';
 
-interface DailyHour {
+interface TimeEntry {
+  id: string;
+  clockIn: Date;
+  clockOut: Date | null;
+  breakMinutes: number;
+  note: string | null;
+}
+
+interface Absence {
+  date: Date;
+  absenceType: {
+    name: string;
+    shortName: string;
+    requiredHours: number;
+  };
+}
+
+interface Holiday {
+  date: Date;
+  name: string;
+}
+
+interface DailyData {
   date: string;
   hours: number;
+  entries: TimeEntry[];
 }
 
 interface ReportData {
@@ -22,10 +45,13 @@ interface ReportData {
     firstName: string;
     lastName: string;
     employeeNumber: string;
+    weeklyHours: number;
     vacationDaysPerYear: number;
     workDays: string;
   };
-  dailyHours: DailyHour[];
+  dailyHours: DailyData[];
+  absences?: Absence[];
+  holidays?: Holiday[];
   settings: {
     companyName: string;
     companyAddress?: string | null;
@@ -40,176 +66,399 @@ const MONTH_NAMES = [
   'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'
 ];
 
-const DAY_NAMES = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+const DAY_NAMES_FULL = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
+const DAY_NAMES_SHORT = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+
+// Formatiert Minuten zu HH:MM Format
+function formatMinutes(minutes: number): string {
+  const sign = minutes < 0 ? '-' : '';
+  const absMinutes = Math.abs(minutes);
+  const h = Math.floor(absMinutes / 60);
+  const m = Math.floor(absMinutes % 60);
+  return `${sign}${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+}
+
+// Formatiert Zeit im HH:MM Format
+function formatTime(date: Date): string {
+  return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+}
 
 export async function generateMonthlyReportPDF(data: ReportData): Promise<void> {
   return new Promise((resolve, reject) => {
     try {
-      const doc = new PDFDocument({ margin: 50, size: 'A4' });
+      const doc = new PDFDocument({
+        margin: 30,
+        size: 'A4',
+        bufferPages: true
+      });
       const stream = fs.createWriteStream(data.outputPath);
 
       doc.pipe(stream);
 
-      const { report, employee, dailyHours, settings } = data;
+      const { report, employee, dailyHours, absences = [], holidays = [], settings } = data;
 
-      // Header
-      doc.fontSize(20).font('Helvetica-Bold');
-      doc.text(settings?.companyName || 'Handy-Insel', { align: 'center' });
-
-      doc.fontSize(10).font('Helvetica');
-      if (settings?.companyAddress) {
-        doc.text(settings.companyAddress, { align: 'center' });
-      }
-      if (settings?.companyPhone || settings?.companyEmail) {
-        doc.text(
-          [settings?.companyPhone, settings?.companyEmail].filter(Boolean).join(' | '),
-          { align: 'center' }
-        );
-      }
-
-      doc.moveDown(2);
-
-      // Titel
-      doc.fontSize(16).font('Helvetica-Bold');
-      doc.text(`Stundenabrechnung ${MONTH_NAMES[report.month - 1]} ${report.year}`, { align: 'center' });
-
-      doc.moveDown();
-
-      // Mitarbeiterdaten
-      doc.fontSize(12).font('Helvetica-Bold');
-      doc.text('Mitarbeiter:');
-      doc.font('Helvetica').fontSize(11);
-      doc.text(`Name: ${employee.firstName} ${employee.lastName}`);
-      doc.text(`Mitarbeiternummer: ${employee.employeeNumber}`);
-
-      doc.moveDown(1.5);
-
-      // Zusammenfassung Box
-      const summaryY = doc.y;
-      doc.rect(50, summaryY, 495, 95).stroke();
-
-      doc.fontSize(12).font('Helvetica-Bold');
-      doc.text('Zusammenfassung', 60, summaryY + 10);
-
-      doc.fontSize(10).font('Helvetica');
-      const col1X = 60;
-      const col2X = 300;
-      let rowY = summaryY + 30;
-
-      doc.text(`Gesamtstunden:`, col1X, rowY);
-      doc.text(`${report.totalHours.toFixed(2)} Std.`, col1X + 100, rowY);
-      doc.text(`Soll-Stunden:`, col2X, rowY);
-      doc.text(`${report.targetHours.toFixed(2)} Std.`, col2X + 100, rowY);
-
-      rowY += 15;
-      doc.text(`Überstunden:`, col1X, rowY);
-      doc.text(`${report.overtimeHours.toFixed(2)} Std.`, col1X + 100, rowY);
-
-      rowY += 15;
-      doc.text(`Urlaubstage:`, col1X, rowY);
-      doc.font('Helvetica-Bold');
-      doc.text(`${report.vacationDaysUsed} von ${employee.vacationDaysPerYear} genommen`, col1X + 100, rowY);
-      doc.font('Helvetica');
-      doc.text(`Verbleibend:`, col2X, rowY);
-      doc.font('Helvetica-Bold').text(`${report.vacationDaysRemaining} Tage`, col2X + 100, rowY);
-
-      doc.y = summaryY + 110;
-
-      // Tägliche Aufstellung
-      doc.fontSize(12).font('Helvetica-Bold');
-      doc.text('Tägliche Aufstellung');
-      doc.moveDown(0.5);
-
-      // Tabellen-Header
-      const tableTop = doc.y;
-      const tableLeft = 50;
-
-      doc.fontSize(9).font('Helvetica-Bold');
-      doc.text('Datum', tableLeft, tableTop);
-      doc.text('Tag', tableLeft + 80, tableTop);
-      doc.text('Stunden', tableLeft + 120, tableTop);
-
-      doc.text('Datum', tableLeft + 180, tableTop);
-      doc.text('Tag', tableLeft + 260, tableTop);
-      doc.text('Stunden', tableLeft + 300, tableTop);
-
-      doc.moveTo(tableLeft, tableTop + 15).lineTo(tableLeft + 350, tableTop + 15).stroke();
-
-      // Alle Tage des Monats generieren
-      const daysInMonth = new Date(report.year, report.month, 0).getDate();
-      const allDays: { date: string; dayName: string; hours: number; dayOfWeek: number }[] = [];
-
-      // workDays parsen (z.B. "1,2,3,4,5" -> [1,2,3,4,5])
+      // workDays parsen
       const workDayNumbers = employee.workDays.split(',').map(d => parseInt(d.trim())).filter(d => !isNaN(d));
+      const dailyTargetMinutes = workDayNumbers.length > 0
+        ? Math.round((employee.weeklyHours / workDayNumbers.length) * 60)
+        : 0;
+
+      // Alle Tage des Monats vorbereiten
+      const daysInMonth = new Date(report.year, report.month, 0).getDate();
+      const allDays: {
+        date: Date;
+        dateStr: string;
+        dayOfWeek: number;
+        isWorkDay: boolean;
+        entries: TimeEntry[];
+        absence?: Absence;
+        holiday?: Holiday;
+        netMinutes: number;
+        breakMinutes: number;
+        targetMinutes: number;
+        diffMinutes: number;
+      }[] = [];
+
+      // Absences und Holidays in Maps für schnellen Zugriff
+      const absenceMap = new Map<string, Absence>();
+      absences.forEach(a => {
+        const dateStr = new Date(a.date).toISOString().split('T')[0];
+        absenceMap.set(dateStr, a);
+      });
+
+      const holidayMap = new Map<string, Holiday>();
+      holidays.forEach(h => {
+        const dateStr = new Date(h.date).toISOString().split('T')[0];
+        holidayMap.set(dateStr, h);
+      });
+
+      // dailyHours in Map
+      const dailyHoursMap = new Map<string, DailyData>();
+      dailyHours.forEach(d => {
+        dailyHoursMap.set(d.date, d);
+      });
+
+      let runningTotalMinutes = 0;
 
       for (let day = 1; day <= daysInMonth; day++) {
+        const date = new Date(report.year, report.month - 1, day);
         const dateStr = `${report.year}-${String(report.month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-        const dateObj = new Date(report.year, report.month - 1, day);
-        const dayOfWeek = dateObj.getDay();
-        const dayName = DAY_NAMES[dayOfWeek];
-        const entry = dailyHours.find(d => d.date === dateStr);
+        const dayOfWeek = date.getDay();
+        const isWorkDay = workDayNumbers.includes(dayOfWeek);
+
+        const dayData = dailyHoursMap.get(dateStr);
+        const entries = dayData?.entries || [];
+        const absence = absenceMap.get(dateStr);
+        const holiday = holidayMap.get(dateStr);
+
+        // Berechne Brutto-Minuten (erster clockIn bis letzter clockOut), Netto-Minuten (Summe Arbeitszeit), Pausen
+        let netMinutes = 0;
+        let firstClockIn: number | null = null;  // Timestamp
+        let lastClockOut: number | null = null;  // Timestamp
+
+        // Sortiere entries nach clockIn
+        const sortedEntries = [...entries].sort((a, b) =>
+          new Date(a.clockIn).getTime() - new Date(b.clockIn).getTime()
+        );
+
+        sortedEntries.forEach(entry => {
+          if (entry.clockOut) {
+            const clockInTime = new Date(entry.clockIn).getTime();
+            const clockOutTime = new Date(entry.clockOut).getTime();
+            const worked = (clockOutTime - clockInTime) / (1000 * 60);
+            const entryBreak = Number(entry.breakMinutes) || 0;
+            netMinutes += worked - entryBreak;
+
+            // Track first/last times
+            if (firstClockIn === null || clockInTime < firstClockIn) {
+              firstClockIn = clockInTime;
+            }
+            if (lastClockOut === null || clockOutTime > lastClockOut) {
+              lastClockOut = clockOutTime;
+            }
+          }
+        });
+
+        // Brutto = von erstem Einstempeln bis letztem Ausstempeln
+        // Pausen = Brutto - Netto (inkl. Lücken zwischen Einträgen)
+        let grossMinutes = 0;
+        let breakMinutes = 0;
+        if (firstClockIn !== null && lastClockOut !== null) {
+          grossMinutes = (lastClockOut - firstClockIn) / (1000 * 60);
+          breakMinutes = Math.round(grossMinutes - netMinutes);
+        }
+
+        // Target für den Tag (nur an Arbeitstagen ohne Feiertag)
+        let targetMinutes = 0;
+        if (isWorkDay && !holiday) {
+          targetMinutes = dailyTargetMinutes;
+        }
+
+        // Bei Abwesenheit: requiredHours anrechnen
+        if (absence && absence.absenceType.requiredHours > 0) {
+          netMinutes = absence.absenceType.requiredHours * 60;
+        }
+
+        const diffMinutes = netMinutes - targetMinutes;
+        runningTotalMinutes += diffMinutes;
+
         allDays.push({
-          date: dateStr,
-          dayName,
-          hours: entry?.hours || 0,
+          date,
+          dateStr,
           dayOfWeek,
+          isWorkDay,
+          entries,
+          absence,
+          holiday,
+          netMinutes: Math.round(netMinutes),
+          breakMinutes: Math.round(breakMinutes),
+          targetMinutes,
+          diffMinutes: Math.round(diffMinutes),
         });
       }
 
-      // In zwei Spalten aufteilen
-      const midPoint = Math.ceil(allDays.length / 2);
-      let rowOffset = 20;
+      // ============ PDF RENDERING ============
 
-      doc.fontSize(8).font('Helvetica');
+      const pageWidth = doc.page.width - 60; // margins
+      const leftMargin = 30;
 
-      for (let i = 0; i < midPoint; i++) {
-        const y = tableTop + rowOffset;
+      // --- HEADER ---
+      doc.fontSize(16).font('Helvetica-Bold');
+      doc.text('Zeiterfassung - Kurzübersicht', leftMargin, 30);
+      doc.text(`${MONTH_NAMES[report.month - 1]} ${report.year}`, leftMargin, 30, { align: 'right' });
 
-        // Linke Spalte
-        const leftDay = allDays[i];
-        const leftDateFormatted = leftDay.date.split('-').reverse().join('.');
-        const isNonWorkDayLeft = !workDayNumbers.includes(leftDay.dayOfWeek);
+      doc.moveDown(0.5);
 
-        if (isNonWorkDayLeft) doc.fillColor('#888888');
-        doc.text(leftDateFormatted, tableLeft, y);
-        doc.text(leftDay.dayName, tableLeft + 80, y);
-        doc.text(leftDay.hours > 0 ? leftDay.hours.toFixed(2) : '-', tableLeft + 120, y);
-        if (isNonWorkDayLeft) doc.fillColor('#000000');
+      // Mitarbeiter + Druckdatum
+      doc.fontSize(12).font('Helvetica-Bold');
+      doc.text(`${employee.firstName} ${employee.lastName}`, leftMargin);
+      doc.font('Helvetica').fontSize(10);
+      const printDate = new Date().toLocaleDateString('de-DE');
+      doc.text(`gedruckt am ${printDate}`, leftMargin, doc.y - 14, { align: 'right' });
 
-        // Rechte Spalte
-        const rightIndex = i + midPoint;
-        if (rightIndex < allDays.length) {
-          const rightDay = allDays[rightIndex];
-          const rightDateFormatted = rightDay.date.split('-').reverse().join('.');
-          const isNonWorkDayRight = !workDayNumbers.includes(rightDay.dayOfWeek);
+      doc.moveDown(0.5);
 
-          if (isNonWorkDayRight) doc.fillColor('#888888');
-          doc.text(rightDateFormatted, tableLeft + 180, y);
-          doc.text(rightDay.dayName, tableLeft + 260, y);
-          doc.text(rightDay.hours > 0 ? rightDay.hours.toFixed(2) : '-', tableLeft + 300, y);
-          if (isNonWorkDayRight) doc.fillColor('#000000');
+      // Urlaubstage und Krankheitstage zählen
+      let vacationDays = 0;
+      let sickDays = 0;
+      allDays.forEach(d => {
+        if (d.absence) {
+          const name = d.absence.absenceType.name.toLowerCase();
+          if (name.includes('urlaub')) vacationDays++;
+          else if (name.includes('krank')) sickDays++;
+        }
+      });
+
+      // --- ZUSAMMENFASSUNG BANNER ---
+      const summaryY = doc.y;
+      const totalTargetMinutes = Math.round(report.targetHours * 60);
+      const totalWorkedMinutes = Math.round(report.totalHours * 60);
+      const diffMinutes = totalWorkedMinutes - totalTargetMinutes;
+
+      // Box zeichnen
+      doc.rect(leftMargin, summaryY, pageWidth, 70).stroke();
+
+      // Banner Titel
+      doc.fontSize(12).font('Helvetica-Bold');
+      doc.text('Zusammenfassung', leftMargin + 10, summaryY + 8);
+
+      // Zusammenfassungs-Daten in 4 Spalten
+      const colWidth = pageWidth / 4;
+      const dataY = summaryY + 28;
+
+      // Spalte 1: Gesamtstunden
+      doc.fontSize(10).font('Helvetica-Bold');
+      doc.text('Gesamtstunden', leftMargin + 10, dataY);
+      doc.font('Helvetica').fontSize(11);
+      doc.text(formatMinutes(totalWorkedMinutes), leftMargin + 10, dataY + 14);
+
+      // Spalte 2: Soll-Stunden
+      doc.fontSize(10).font('Helvetica-Bold');
+      doc.text('Soll-Stunden', leftMargin + colWidth + 10, dataY);
+      doc.font('Helvetica').fontSize(11);
+      doc.text(formatMinutes(totalTargetMinutes), leftMargin + colWidth + 10, dataY + 14);
+
+      // Spalte 3: Überstunden
+      doc.fontSize(10).font('Helvetica-Bold');
+      doc.text('Überstunden', leftMargin + colWidth * 2 + 10, dataY);
+      doc.font('Helvetica').fontSize(11);
+      const overtimeColor = diffMinutes >= 0 ? '#228B22' : '#DC143C';
+      doc.fillColor(overtimeColor);
+      doc.text(formatMinutes(diffMinutes), leftMargin + colWidth * 2 + 10, dataY + 14);
+      doc.fillColor('#000000');
+
+      // Spalte 4: Urlaubstage
+      doc.fontSize(10).font('Helvetica-Bold');
+      doc.text('Urlaubstage', leftMargin + colWidth * 3 + 10, dataY);
+      doc.font('Helvetica').fontSize(11);
+      doc.text(`${report.vacationDaysUsed} / ${employee.vacationDaysPerYear}`, leftMargin + colWidth * 3 + 10, dataY + 14);
+
+      doc.y = summaryY + 80;
+
+      doc.fontSize(10).font('Helvetica');
+      doc.text(`bis einschl. ${MONTH_NAMES[report.month - 1]}: Urlaub ${vacationDays} Tage, krank ${sickDays} Tage`, leftMargin, doc.y, { align: 'right' });
+
+      doc.moveDown(1);
+
+      // --- TABELLE ---
+      const tableTop = doc.y;
+      const colWidths = {
+        datum: 70,
+        dienst: 65,
+        beginn: 45,
+        ende: 45,
+        pausen: 45,
+        netto: 45,
+        soll: 45,
+        tagDiff: 50,
+        monatDiff: 55,
+      };
+
+      let x = leftMargin;
+
+      // Header
+      doc.fontSize(9).font('Helvetica-Bold');
+      doc.text('Datum', x, tableTop); x += colWidths.datum;
+      doc.text('Dienst', x, tableTop); x += colWidths.dienst;
+      doc.text('Beginn', x, tableTop); x += colWidths.beginn;
+      doc.text('Ende', x, tableTop); x += colWidths.ende;
+      doc.text('Pausen', x, tableTop, { width: colWidths.pausen - 5, align: 'right' }); x += colWidths.pausen;
+      doc.text('Netto', x, tableTop, { width: colWidths.netto - 5, align: 'right' }); x += colWidths.netto;
+      doc.text('Soll', x, tableTop, { width: colWidths.soll - 5, align: 'right' }); x += colWidths.soll;
+      doc.text('Tag+/-', x, tableTop, { width: colWidths.tagDiff - 5, align: 'right' }); x += colWidths.tagDiff;
+      doc.text('Monat+/-', x, tableTop, { width: colWidths.monatDiff - 5, align: 'right' });
+
+      // Linie unter Header
+      doc.moveTo(leftMargin, tableTop + 14).lineTo(leftMargin + pageWidth, tableTop + 14).stroke();
+
+      let y = tableTop + 18;
+      let runningTotal = 0;
+
+      doc.font('Helvetica').fontSize(9);
+
+      for (const day of allDays) {
+        // Neue Seite wenn nötig
+        if (y > doc.page.height - 80) {
+          doc.addPage();
+          y = 30;
         }
 
-        rowOffset += 12;
+        const dateFormatted = `${String(day.date.getDate()).padStart(2, '0')}.${String(day.date.getMonth() + 1).padStart(2, '0')}.${String(day.date.getFullYear()).slice(-2)} ${DAY_NAMES_SHORT[day.dayOfWeek]}`;
+
+        // Bestimme Dienst-Typ
+        let dienstTyp = '';
+        if (day.holiday) {
+          dienstTyp = 'Feiertag';
+        } else if (day.absence) {
+          dienstTyp = day.absence.absenceType.shortName || day.absence.absenceType.name;
+        } else if (!day.isWorkDay) {
+          dienstTyp = 'frei';
+        } else if (day.entries.length > 0) {
+          dienstTyp = 'Tagdienst';
+        } else {
+          dienstTyp = '';
+        }
+
+        // Zeiten
+        let beginn = '';
+        let ende = '';
+        if (day.entries.length > 0) {
+          const firstEntry = day.entries[0];
+          const lastEntry = day.entries[day.entries.length - 1];
+          beginn = formatTime(new Date(firstEntry.clockIn));
+          if (lastEntry.clockOut) {
+            ende = formatTime(new Date(lastEntry.clockOut));
+          }
+        }
+
+        const pausen = day.breakMinutes > 0 ? formatMinutes(day.breakMinutes) : '';
+        const netto = day.netMinutes > 0 ? formatMinutes(day.netMinutes) : '';
+        const soll = day.targetMinutes > 0 ? formatMinutes(day.targetMinutes) : '';
+
+        runningTotal += day.diffMinutes;
+        const tagDiff = day.diffMinutes !== 0 ? formatMinutes(day.diffMinutes) : '';
+        const monatDiff = formatMinutes(runningTotal);
+
+        // Zeile zeichnen
+        x = leftMargin;
+        const rowColor = !day.isWorkDay ? '#888888' : '#000000';
+        doc.fillColor(rowColor);
+
+        doc.text(dateFormatted, x, y, { width: colWidths.datum - 5 }); x += colWidths.datum;
+        doc.text(dienstTyp, x, y, { width: colWidths.dienst - 5 }); x += colWidths.dienst;
+        doc.text(beginn, x, y, { width: colWidths.beginn - 5 }); x += colWidths.beginn;
+        doc.text(ende, x, y, { width: colWidths.ende - 5 }); x += colWidths.ende;
+        doc.text(pausen, x, y, { width: colWidths.pausen - 5, align: 'right' }); x += colWidths.pausen;
+        doc.text(netto, x, y, { width: colWidths.netto - 5, align: 'right' }); x += colWidths.netto;
+        doc.text(soll, x, y, { width: colWidths.soll - 5, align: 'right' }); x += colWidths.soll;
+        doc.text(tagDiff, x, y, { width: colWidths.tagDiff - 5, align: 'right' }); x += colWidths.tagDiff;
+        doc.text(monatDiff, x, y, { width: colWidths.monatDiff - 5, align: 'right' });
+
+        doc.fillColor('#000000');
+        y += 16;
+
+        // Dünne Trennlinie zwischen den Tagen
+        doc.strokeColor('#E5E5E5').lineWidth(0.5);
+        doc.moveTo(leftMargin, y - 4).lineTo(leftMargin + pageWidth, y - 4).stroke();
+        doc.strokeColor('#000000').lineWidth(1);
       }
+
+      // --- FOOTER SUMMARY ---
+      y += 10;
+      if (y > doc.page.height - 80) {
+        doc.addPage();
+        y = 30;
+      }
+
+      doc.moveTo(leftMargin, y).lineTo(leftMargin + pageWidth, y).stroke();
+      y += 10;
+
+      const footerTotalTargetMinutes = Math.round(report.targetHours * 60);
+      const footerTotalWorkedMinutes = Math.round(report.totalHours * 60);
+      const footerDiffMinutes = footerTotalWorkedMinutes - footerTotalTargetMinutes;
+
+      // Feiertage zählen
+      const holidayCount = allDays.filter(d => d.holiday && d.isWorkDay).length;
+
+      doc.fontSize(10).font('Helvetica-Bold');
+
+      // Footer in 3 Spalten mit fester Breite
+      const footerCol1 = leftMargin;
+      const footerCol2 = leftMargin + 180;
+      const footerCol3 = leftMargin + 360;
+      const labelWidth = 75;
+      const valueWidth = 55;
+
+      // Zeile 1
+      doc.text('Gesamt-Soll', footerCol1, y, { width: labelWidth });
+      doc.font('Helvetica').text(formatMinutes(footerTotalTargetMinutes), footerCol1 + labelWidth, y, { width: valueWidth, align: 'right' });
+      doc.font('Helvetica-Bold').text('Urlaub', footerCol2, y, { width: labelWidth });
+      doc.font('Helvetica').text(formatMinutes(vacationDays * dailyTargetMinutes), footerCol2 + labelWidth, y, { width: valueWidth, align: 'right' });
+      doc.font('Helvetica-Bold').text('Feiertage', footerCol3, y, { width: labelWidth });
+      doc.font('Helvetica').text(formatMinutes(holidayCount * dailyTargetMinutes), footerCol3 + labelWidth, y, { width: valueWidth, align: 'right' });
+
+      y += 16;
+      // Zeile 2
+      doc.font('Helvetica-Bold').text('Arbeitszeit', footerCol1, y, { width: labelWidth });
+      doc.font('Helvetica').text(formatMinutes(footerTotalWorkedMinutes), footerCol1 + labelWidth, y, { width: valueWidth, align: 'right' });
+      doc.font('Helvetica-Bold').text('krank', footerCol2, y, { width: labelWidth });
+      doc.font('Helvetica').text(formatMinutes(sickDays * dailyTargetMinutes), footerCol2 + labelWidth, y, { width: valueWidth, align: 'right' });
+      doc.font('Helvetica-Bold').text('Gesamtsumme', footerCol3, y, { width: labelWidth });
+      doc.font('Helvetica').text(formatMinutes(footerTotalWorkedMinutes), footerCol3 + labelWidth, y, { width: valueWidth, align: 'right' });
+
+      y += 16;
+      // Zeile 3
+      doc.font('Helvetica-Bold').text('Differenz', footerCol1, y, { width: labelWidth });
+      doc.font('Helvetica').text(formatMinutes(footerDiffMinutes), footerCol1 + labelWidth, y, { width: valueWidth, align: 'right' });
 
       // Notizen
       if (report.notes) {
-        doc.y = tableTop + rowOffset + 20;
-        doc.fontSize(10).font('Helvetica-Bold');
-        doc.text('Notizen:');
-        doc.font('Helvetica').fontSize(9);
-        doc.text(report.notes);
+        y += 25;
+        doc.fontSize(11).font('Helvetica-Bold');
+        doc.text('Notizen:', leftMargin, y);
+        doc.font('Helvetica').fontSize(10);
+        doc.text(report.notes, leftMargin, y + 15, { width: pageWidth });
       }
-
-      // Footer
-      doc.fontSize(8).font('Helvetica');
-      doc.text(
-        `Erstellt am: ${new Date().toLocaleDateString('de-DE')} von ${report.createdBy}`,
-        50,
-        doc.page.height - 50,
-        { align: 'center' }
-      );
 
       doc.end();
 

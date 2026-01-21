@@ -75,7 +75,9 @@ export const reportsApi = {
   create: (data: { employeeId: string; year: number; month: number; notes?: string }) =>
     api.post('/reports/create', data),
   finalize: (id: string) => api.post(`/reports/${id}/finalize`),
+  recalculate: (id: string) => api.post(`/reports/${id}/recalculate`),
   downloadPdf: (id: string) => api.get(`/reports/${id}/pdf`, { responseType: 'blob' }),
+  previewPdf: (id: string) => api.get(`/reports/${id}/preview-pdf`, { responseType: 'blob' }),
   delete: (id: string) => api.delete(`/reports/${id}`),
 };
 
@@ -87,6 +89,10 @@ export const settingsApi = {
   getHolidays: (year?: number) => api.get('/settings/holidays', { params: { year } }),
   createHoliday: (data: any) => api.post('/settings/holidays', data),
   deleteHoliday: (id: string) => api.delete(`/settings/holidays/${id}`),
+  generateHolidays: (data: { year: number; bundesland?: string; deleteExisting?: boolean }) =>
+    api.post('/settings/holidays/generate', data),
+  getBundeslandInfo: () => api.get('/settings/holidays/bundesland-info'),
+  getBundeslaender: () => api.get('/settings/holidays/bundeslaender'),
   // Abwesenheitstypen
   getAbsenceTypes: () => api.get('/settings/absence-types'),
   getAllAbsenceTypes: () => api.get('/settings/absence-types/all'),

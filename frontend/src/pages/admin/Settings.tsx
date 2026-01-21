@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { settingsApi } from '../../lib/api';
 import toast from 'react-hot-toast';
-import { Save, Building2, Clock, Calendar, Trash2, Plus, X, Briefcase, Edit2 } from 'lucide-react';
+import { Save, Building2, Clock, Calendar, Trash2, Plus, X, Briefcase, Edit2, Wand2, MapPin, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 
@@ -41,6 +41,16 @@ export default function AdminSettings() {
     queryFn: () => settingsApi.getAllAbsenceTypes().then((r) => r.data as AbsenceType[]),
   });
 
+  const { data: bundeslandInfo } = useQuery({
+    queryKey: ['bundesland-info'],
+    queryFn: () => settingsApi.getBundeslandInfo().then((r) => r.data),
+  });
+
+  const { data: bundeslaender } = useQuery({
+    queryKey: ['bundeslaender'],
+    queryFn: () => settingsApi.getBundeslaender().then((r) => r.data as { code: string; name: string }[]),
+  });
+
   const [formData, setFormData] = useState({
     companyName: '',
     companyAddress: '',
@@ -52,6 +62,13 @@ export default function AdminSettings() {
 
   const [showHolidayModal, setShowHolidayModal] = useState(false);
   const [holidayForm, setHolidayForm] = useState({ date: '', name: '' });
+
+  const [showGenerateModal, setShowGenerateModal] = useState(false);
+  const [generateForm, setGenerateForm] = useState({
+    year: new Date().getFullYear(),
+    bundesland: '',
+    deleteExisting: true,
+  });
 
   const [showAbsenceTypeModal, setShowAbsenceTypeModal] = useState(false);
   const [editingAbsenceType, setEditingAbsenceType] = useState<AbsenceType | null>(null);
@@ -107,6 +124,20 @@ export default function AdminSettings() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['holidays'] });
       toast.success('Feiertag gelöscht');
+    },
+  });
+
+  const generateHolidaysMutation = useMutation({
+    mutationFn: (data: { year: number; bundesland?: string; deleteExisting?: boolean }) =>
+      settingsApi.generateHolidays(data),
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({ queryKey: ['holidays'] });
+      const { created, skipped, bundeslandName, year } = response.data;
+      toast.success(`${created} Feiertage für ${bundeslandName} ${year} erstellt${skipped > 0 ? ` (${skipped} übersprungen)` : ''}`);
+      setShowGenerateModal(false);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error || 'Fehler beim Generieren der Feiertage');
     },
   });
 
@@ -308,18 +339,48 @@ export default function AdminSettings() {
 
         {/* Holidays */}
         <div className="card">
-          <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <Calendar size={20} />
-              Feiertage
-            </h2>
-            <button
-              onClick={() => setShowHolidayModal(true)}
-              className="btn btn-secondary flex items-center gap-2 text-sm"
-            >
-              <Plus size={16} />
-              Hinzufügen
-            </button>
+          <div className="p-6 border-b border-gray-100">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <Calendar size={20} />
+                Feiertage
+              </h2>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setGenerateForm({
+                      year: new Date().getFullYear(),
+                      bundesland: bundeslandInfo?.bundesland || '',
+                      deleteExisting: true,
+                    });
+                    setShowGenerateModal(true);
+                  }}
+                  className="btn btn-secondary flex items-center gap-2 text-sm"
+                >
+                  <Wand2 size={16} />
+                  Auto
+                </button>
+                <button
+                  onClick={() => setShowHolidayModal(true)}
+                  className="btn btn-secondary flex items-center gap-2 text-sm"
+                >
+                  <Plus size={16} />
+                  Manuell
+                </button>
+              </div>
+            </div>
+            {bundeslandInfo?.detected && (
+              <div className="flex items-center gap-2 text-sm text-gray-600 bg-gray-50 rounded-lg px-3 py-2">
+                <MapPin size={14} />
+                <span>Erkanntes Bundesland: <strong>{bundeslandInfo.bundeslandName}</strong> (PLZ {bundeslandInfo.plz})</span>
+              </div>
+            )}
+            {bundeslandInfo && !bundeslandInfo.detected && (
+              <div className="flex items-center gap-2 text-sm text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
+                <AlertCircle size={14} />
+                <span>{bundeslandInfo.message}</span>
+              </div>
+            )}
           </div>
           <div className="divide-y divide-gray-100 max-h-96 overflow-y-auto">
             {holidays?.length ? (
@@ -628,6 +689,115 @@ export default function AdminSettings() {
                 </button>
                 <button type="submit" className="btn btn-primary">
                   {editingAbsenceType ? 'Speichern' : 'Erstellen'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Generate Holidays Modal */}
+      {showGenerateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+              <h2 className="text-xl font-semibold flex items-center gap-2">
+                <Wand2 size={20} />
+                Feiertage automatisch generieren
+              </h2>
+              <button
+                onClick={() => setShowGenerateModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                generateHolidaysMutation.mutate({
+                  year: generateForm.year,
+                  bundesland: generateForm.bundesland || undefined,
+                  deleteExisting: generateForm.deleteExisting,
+                });
+              }}
+              className="p-6 space-y-4"
+            >
+              <div>
+                <label className="label">Jahr</label>
+                <select
+                  value={generateForm.year}
+                  onChange={(e) => setGenerateForm({ ...generateForm, year: parseInt(e.target.value) })}
+                  className="input"
+                >
+                  {[...Array(5)].map((_, i) => {
+                    const year = new Date().getFullYear() + i;
+                    return <option key={year} value={year}>{year}</option>;
+                  })}
+                </select>
+              </div>
+              <div>
+                <label className="label">Bundesland</label>
+                <select
+                  value={generateForm.bundesland}
+                  onChange={(e) => setGenerateForm({ ...generateForm, bundesland: e.target.value })}
+                  className="input"
+                >
+                  <option value="">
+                    {bundeslandInfo?.detected
+                      ? `Automatisch (${bundeslandInfo.bundeslandName})`
+                      : 'Bitte auswählen...'}
+                  </option>
+                  {bundeslaender?.map((bl) => (
+                    <option key={bl.code} value={bl.code}>
+                      {bl.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Das Bundesland bestimmt die regionalen Feiertage (z.B. Fronleichnam, Allerheiligen)
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  id="deleteExisting"
+                  checked={generateForm.deleteExisting}
+                  onChange={(e) => setGenerateForm({ ...generateForm, deleteExisting: e.target.checked })}
+                  className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                />
+                <label htmlFor="deleteExisting" className="text-sm text-gray-700">
+                  Bestehende Feiertage des Jahres vorher löschen
+                </label>
+              </div>
+              <div className="bg-blue-50 rounded-lg p-4 text-sm text-blue-700">
+                <p className="font-medium mb-1">Generierte Feiertage:</p>
+                <p>Neujahr, Karfreitag, Ostermontag, Tag der Arbeit, Christi Himmelfahrt, Pfingstmontag, Tag der Deutschen Einheit, 1. + 2. Weihnachtstag + regionale Feiertage je nach Bundesland</p>
+              </div>
+              <div className="flex justify-end gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowGenerateModal(false)}
+                  className="btn btn-secondary"
+                >
+                  Abbrechen
+                </button>
+                <button
+                  type="submit"
+                  disabled={generateHolidaysMutation.isPending}
+                  className="btn btn-primary flex items-center gap-2"
+                >
+                  {generateHolidaysMutation.isPending ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Generiere...
+                    </>
+                  ) : (
+                    <>
+                      <Wand2 size={16} />
+                      Feiertage generieren
+                    </>
+                  )}
                 </button>
               </div>
             </form>

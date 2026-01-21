@@ -39,6 +39,9 @@ router.post('/login', async (req, res) => {
         firstName: employee.firstName,
         lastName: employee.lastName,
         email: employee.email,
+        weeklyHours: employee.weeklyHours,
+        vacationDaysPerYear: employee.vacationDaysPerYear,
+        workDays: employee.workDays,
         isAdmin: employee.isAdmin,
       },
     });
