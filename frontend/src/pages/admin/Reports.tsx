@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { reportsApi, employeesApi, formatNumber } from '../../lib/api';
+import { reportsApi, employeesApi } from '../../lib/api';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import toast from 'react-hot-toast';
@@ -145,9 +145,6 @@ export default function AdminReports() {
                   Stunden
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Brutto
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   Status
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
@@ -158,7 +155,7 @@ export default function AdminReports() {
             <tbody className="divide-y divide-gray-100">
               {isLoading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
                     Laden...
                   </td>
                 </tr>
@@ -181,9 +178,6 @@ export default function AdminReports() {
                           +{formatHoursToTime(report.overtimeHours)} h Überstunden
                         </p>
                       )}
-                    </td>
-                    <td className="px-6 py-4 font-medium text-gray-900">
-                      {formatNumber(report.grossPay)} EUR
                     </td>
                     <td className="px-6 py-4">{getStatusBadge(report.status)}</td>
                     <td className="px-6 py-4">
@@ -223,7 +217,7 @@ export default function AdminReports() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
                     Keine Abrechnungen vorhanden
                   </td>
                 </tr>
@@ -333,7 +327,7 @@ export default function AdminReports() {
               <div className="p-4 bg-gray-50 rounded-lg">
                 <h3 className="font-medium text-gray-900">{previewData.employee.name}</h3>
                 <p className="text-sm text-gray-500">
-                  #{previewData.employee.employeeNumber} | {formatNumber(previewData.employee.hourlyRate)} EUR/h
+                  #{previewData.employee.employeeNumber} | {previewData.employee.weeklyHours} h/Woche
                 </p>
               </div>
 
@@ -358,9 +352,9 @@ export default function AdminReports() {
                   </p>
                 </div>
                 <div className="p-4 bg-green-50 rounded-lg">
-                  <p className="text-sm text-green-600">Bruttolohn</p>
+                  <p className="text-sm text-green-600">Urlaubstage</p>
                   <p className="text-2xl font-bold text-green-700">
-                    {formatNumber(previewData.summary.grossPay)} EUR
+                    {previewData.summary.vacationDaysUsed} / {previewData.summary.vacationDaysPerYear}
                   </p>
                 </div>
               </div>

@@ -128,20 +128,25 @@ router.get('/preview/:employeeId/:year/:month', authMiddleware, adminMiddleware,
     );
 
     // Soll-Stunden berechnen (Arbeitstage * tägliche Soll-Stunden)
-    const workingDays = countWorkingDays(yearNum, monthNum);
-    const dailyTargetHours = employee.weeklyHours / 5;
+    const workDays = parseWorkDays(employee.workDays);
+    const workingDays = countWorkingDays(yearNum, monthNum, employee.workDays);
+    const dailyTargetHours = workDays.length > 0 ? employee.weeklyHours / workDays.length : 0;
     const targetHours = workingDays * dailyTargetHours;
 
     const overtimeHours = Math.max(0, totalHours - targetHours);
-    const grossPay = totalHours * employee.hourlyRate;
+
+    // Urlaubstage berechnen
+    const vacationDaysUsed = await calculateVacationDaysUsed(employeeId, yearNum, monthNum);
+    const vacationDaysRemaining = employee.vacationDaysPerYear - vacationDaysUsed;
 
     res.json({
       employee: {
         id: employee.id,
         name: `${employee.firstName} ${employee.lastName}`,
         employeeNumber: employee.employeeNumber,
-        hourlyRate: employee.hourlyRate,
         weeklyHours: employee.weeklyHours,
+        vacationDaysPerYear: employee.vacationDaysPerYear,
+        workDays: employee.workDays,
       },
       period: {
         year: yearNum,
@@ -152,9 +157,10 @@ router.get('/preview/:employeeId/:year/:month', authMiddleware, adminMiddleware,
         totalHours,
         targetHours: Math.round(targetHours * 100) / 100,
         overtimeHours: Math.round(overtimeHours * 100) / 100,
-        grossPay: Math.round(grossPay * 100) / 100,
         workingDays,
         entriesCount: entries.length,
+        vacationDaysUsed,
+        vacationDaysRemaining,
       },
       dailyHours,
     });
@@ -204,11 +210,15 @@ router.post('/create', authMiddleware, adminMiddleware, async (req: AuthRequest,
 
     const { totalHours } = await calculateHoursForPeriod(data.employeeId, startDate, endDate);
 
-    const workingDays = countWorkingDays(data.year, data.month);
-    const dailyTargetHours = employee.weeklyHours / 5;
+    const workDays = parseWorkDays(employee.workDays);
+    const workingDays = countWorkingDays(data.year, data.month, employee.workDays);
+    const dailyTargetHours = workDays.length > 0 ? employee.weeklyHours / workDays.length : 0;
     const targetHours = workingDays * dailyTargetHours;
     const overtimeHours = Math.max(0, totalHours - targetHours);
-    const grossPay = totalHours * employee.hourlyRate;
+
+    // Urlaubstage berechnen
+    const vacationDaysUsed = await calculateVacationDaysUsed(data.employeeId, data.year, data.month);
+    const vacationDaysRemaining = employee.vacationDaysPerYear - vacationDaysUsed;
 
     const report = await prisma.monthlyReport.create({
       data: {
@@ -218,7 +228,8 @@ router.post('/create', authMiddleware, adminMiddleware, async (req: AuthRequest,
         totalHours,
         targetHours,
         overtimeHours,
-        grossPay,
+        vacationDaysUsed,
+        vacationDaysRemaining,
         notes: data.notes,
         createdBy: `${req.employee!.firstName} ${req.employee!.lastName}`,
         status: 'draft',
@@ -353,19 +364,53 @@ router.delete('/:id', authMiddleware, adminMiddleware, async (req: AuthRequest, 
 });
 
 // Hilfsfunktionen
-function countWorkingDays(year: number, month: number): number {
+
+// Parst workDays String zu Array von Zahlen (0=So, 1=Mo, ..., 6=Sa)
+function parseWorkDays(workDaysStr: string): number[] {
+  return workDaysStr.split(',').map(d => parseInt(d.trim())).filter(d => !isNaN(d));
+}
+
+// Zählt Arbeitstage basierend auf employee.workDays
+function countWorkingDays(year: number, month: number, workDaysStr: string = '1,2,3,4,5'): number {
   const firstDay = new Date(year, month - 1, 1);
   const lastDay = new Date(year, month, 0);
+  const workDays = parseWorkDays(workDaysStr);
   let count = 0;
 
   for (let d = new Date(firstDay); d <= lastDay; d.setDate(d.getDate() + 1)) {
     const day = d.getDay();
-    if (day !== 0 && day !== 6) { // Nicht Samstag oder Sonntag
+    if (workDays.includes(day)) {
       count++;
     }
   }
 
   return count;
+}
+
+// Berechnet verbrauchte Urlaubstage im Jahr bis einschließlich Monat
+async function calculateVacationDaysUsed(employeeId: string, year: number, month: number): Promise<number> {
+  const startOfYear = new Date(year, 0, 1);
+  const endOfMonth = new Date(year, month, 0, 23, 59, 59);
+
+  // Finde alle Urlaubs-Abwesenheiten (AbsenceType mit name "Urlaub")
+  const vacationType = await prisma.absenceType.findFirst({
+    where: { name: { contains: 'Urlaub' } }
+  });
+
+  if (!vacationType) return 0;
+
+  const absences = await prisma.employeeAbsence.count({
+    where: {
+      employeeId,
+      absenceTypeId: vacationType.id,
+      date: {
+        gte: startOfYear,
+        lte: endOfMonth,
+      },
+    },
+  });
+
+  return absences;
 }
 
 function getMonthName(month: number): string {

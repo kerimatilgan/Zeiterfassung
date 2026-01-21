@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { employeesApi, timeEntriesApi, settingsApi, formatNumber } from '../../lib/api';
+import { employeesApi, timeEntriesApi, settingsApi } from '../../lib/api';
 import toast from 'react-hot-toast';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -25,8 +25,9 @@ interface Employee {
   lastName: string;
   email: string | null;
   phone: string | null;
-  hourlyRate: number;
   weeklyHours: number;
+  vacationDaysPerYear: number;
+  workDays: string;
   isActive: boolean;
   isAdmin: boolean;
   qrCode: string;
@@ -38,8 +39,9 @@ interface EmployeeFormData {
   lastName: string;
   email: string;
   phone: string;
-  hourlyRate: number;
   weeklyHours: number;
+  vacationDaysPerYear: number;
+  workDays: string;
   isAdmin: boolean;
   password: string;
 }
@@ -50,11 +52,23 @@ const initialFormData: EmployeeFormData = {
   lastName: '',
   email: '',
   phone: '',
-  hourlyRate: 12.0,
   weeklyHours: 40,
+  vacationDaysPerYear: 30,
+  workDays: '1,2,3,4,5',
   isAdmin: false,
   password: '',
 };
+
+// Wochentage für Checkbox-Auswahl
+const WEEKDAY_OPTIONS = [
+  { value: 1, label: 'Mo' },
+  { value: 2, label: 'Di' },
+  { value: 3, label: 'Mi' },
+  { value: 4, label: 'Do' },
+  { value: 5, label: 'Fr' },
+  { value: 6, label: 'Sa' },
+  { value: 0, label: 'So' },
+];
 
 interface TimeEntry {
   id: string;
@@ -205,8 +219,9 @@ export default function AdminEmployees() {
       lastName: employee.lastName,
       email: employee.email || '',
       phone: employee.phone || '',
-      hourlyRate: employee.hourlyRate,
       weeklyHours: employee.weeklyHours,
+      vacationDaysPerYear: employee.vacationDaysPerYear,
+      workDays: employee.workDays,
       isAdmin: employee.isAdmin,
       password: '',
     });
@@ -735,7 +750,7 @@ export default function AdminEmployees() {
                   Kontakt
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Stundenlohn
+                  Urlaub/Woche
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   Status
@@ -768,7 +783,7 @@ export default function AdminEmployees() {
                       <p className="text-sm text-gray-500">{employee.phone || '-'}</p>
                     </td>
                     <td className="px-6 py-4">
-                      <p className="text-gray-900">{formatNumber(employee.hourlyRate)} EUR</p>
+                      <p className="text-gray-900">{employee.vacationDaysPerYear} Tage/Jahr</p>
                       <p className="text-sm text-gray-500">{employee.weeklyHours}h/Woche</p>
                     </td>
                     <td className="px-6 py-4">
@@ -862,12 +877,13 @@ export default function AdminEmployees() {
                   />
                 </div>
                 <div>
-                  <label className="label">Stundenlohn (EUR)</label>
+                  <label className="label">Urlaubstage/Jahr</label>
                   <input
                     type="number"
-                    step="0.01"
-                    value={formData.hourlyRate}
-                    onChange={(e) => setFormData({ ...formData, hourlyRate: parseFloat(e.target.value) })}
+                    min="0"
+                    max="365"
+                    value={formData.vacationDaysPerYear}
+                    onChange={(e) => setFormData({ ...formData, vacationDaysPerYear: parseInt(e.target.value) || 0 })}
                     className="input"
                     required
                   />
@@ -923,6 +939,41 @@ export default function AdminEmployees() {
                   className="input"
                   required
                 />
+              </div>
+              <div>
+                <label className="label">Arbeitstage</label>
+                <div className="flex flex-wrap gap-2">
+                  {WEEKDAY_OPTIONS.map((day) => {
+                    const workDayNumbers = formData.workDays.split(',').map(d => parseInt(d.trim())).filter(d => !isNaN(d));
+                    const isChecked = workDayNumbers.includes(day.value);
+                    return (
+                      <label
+                        key={day.value}
+                        className={`flex items-center gap-1 px-3 py-1.5 rounded-lg cursor-pointer border transition-colors ${
+                          isChecked
+                            ? 'bg-primary-100 border-primary-500 text-primary-700'
+                            : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) => {
+                            let newWorkDays: number[];
+                            if (e.target.checked) {
+                              newWorkDays = [...workDayNumbers, day.value].sort((a, b) => a - b);
+                            } else {
+                              newWorkDays = workDayNumbers.filter(d => d !== day.value);
+                            }
+                            setFormData({ ...formData, workDays: newWorkDays.join(',') || '1,2,3,4,5' });
+                          }}
+                          className="sr-only"
+                        />
+                        <span className="text-sm font-medium">{day.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
               <div>
                 <label className="label">
@@ -1077,7 +1128,9 @@ export default function AdminEmployees() {
                         end: endOfMonth(selectedMonth),
                       }).map((date) => {
                         const summary = calculateDaySummary(date);
-                        const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+                        // Prüfe ob Tag ein Nicht-Arbeitstag ist (basierend auf employee.workDays)
+                        const employeeWorkDays = selectedEmployeeForTime?.workDays?.split(',').map(d => parseInt(d.trim())).filter(d => !isNaN(d)) || [1,2,3,4,5];
+                        const isNonWorkDay = !employeeWorkDays.includes(date.getDay());
                         const isEditing = editingDate && isSameDay(date, editingDate);
                         const hasEntries = summary.entries.length > 0;
                         const hasAbsence = !!summary.absence;
@@ -1106,7 +1159,7 @@ export default function AdminEmployees() {
                               }
                             }}
                             className={`transition-colors select-none ${
-                              isWeekend ? 'bg-gray-50 text-gray-400' : ''
+                              isNonWorkDay ? 'bg-gray-50 text-gray-400' : ''
                             } ${isEditing ? 'bg-primary-100' : ''} ${
                               inSelection ? 'bg-blue-100' : ''
                             } ${

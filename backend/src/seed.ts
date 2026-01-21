@@ -35,8 +35,9 @@ async function main() {
       email: 'admin@handy-insel.de',
       qrCode: `HI-ADMIN-${uuidv4().substring(0, 8)}`,
       pin: '1234',
-      hourlyRate: 15.0,
       weeklyHours: 40,
+      vacationDaysPerYear: 30,
+      workDays: '1,2,3,4,5',
       isAdmin: true,
       passwordHash: adminPassword,
     },
@@ -48,9 +49,9 @@ async function main() {
   const demoPassword = await bcrypt.hash('demo123', 10);
 
   const employees = [
-    { number: '001', firstName: 'Max', lastName: 'Mustermann', hourlyRate: 12.5 },
-    { number: '002', firstName: 'Erika', lastName: 'Musterfrau', hourlyRate: 13.0 },
-    { number: '003', firstName: 'Hans', lastName: 'Schmidt', hourlyRate: 11.5 },
+    { number: '001', firstName: 'Max', lastName: 'Mustermann' },
+    { number: '002', firstName: 'Erika', lastName: 'Musterfrau' },
+    { number: '003', firstName: 'Hans', lastName: 'Schmidt' },
   ];
 
   for (const emp of employees) {
@@ -64,8 +65,9 @@ async function main() {
         email: `${emp.firstName.toLowerCase()}.${emp.lastName.toLowerCase()}@handy-insel.de`,
         qrCode: `HI-${emp.number}-${uuidv4().substring(0, 8)}`,
         pin: emp.number,
-        hourlyRate: emp.hourlyRate,
         weeklyHours: 40,
+        vacationDaysPerYear: 30,
+        workDays: '1,2,3,4,5',
         isAdmin: false,
         passwordHash: demoPassword,
       },

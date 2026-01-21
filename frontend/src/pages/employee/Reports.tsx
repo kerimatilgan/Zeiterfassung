@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { reportsApi, formatNumber } from '../../lib/api';
-import { FileText, Download, Clock, TrendingUp } from 'lucide-react';
+import { reportsApi } from '../../lib/api';
+import { FileText, Download, Clock, TrendingUp, Umbrella } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 // Formatiert Dezimalstunden zu H:MM Format (nur volle Minuten, keine Sekunden)
@@ -116,13 +116,14 @@ export default function EmployeeReports() {
                     </span>
                   </div>
 
-                  <div className="pt-3 border-t border-gray-100">
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-500">Bruttolohn</span>
-                      <span className="text-xl font-bold text-gray-900">
-                        {formatNumber(report.grossPay)} EUR
-                      </span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-gray-500">
+                      <Umbrella size={16} />
+                      <span>Urlaubstage</span>
                     </div>
+                    <span className="font-medium text-gray-900">
+                      {report.vacationDaysUsed ?? 0} / {report.vacationDaysRemaining != null ? report.vacationDaysUsed + report.vacationDaysRemaining : '-'}
+                    </span>
                   </div>
                 </div>
               </div>

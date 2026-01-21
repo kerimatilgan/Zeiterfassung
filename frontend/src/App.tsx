@@ -8,6 +8,7 @@ import AdminSettings from './pages/admin/Settings';
 import EmployeeDashboard from './pages/employee/Dashboard';
 import EmployeeTimesheet from './pages/employee/Timesheet';
 import EmployeeReports from './pages/employee/Reports';
+import EmployeeSettings from './pages/employee/Settings';
 import Layout from './components/Layout';
 
 function ProtectedRoute({ children, adminOnly = false }: { children: React.ReactNode; adminOnly?: boolean }) {
@@ -53,6 +54,7 @@ function App() {
         <Route index element={<EmployeeDashboard />} />
         <Route path="timesheet" element={<EmployeeTimesheet />} />
         <Route path="reports" element={<EmployeeReports />} />
+        <Route path="settings" element={<EmployeeSettings />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/login" replace />} />

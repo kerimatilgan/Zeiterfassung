@@ -7,6 +7,9 @@ interface Employee {
   firstName: string;
   lastName: string;
   email: string | null;
+  weeklyHours: number;
+  vacationDaysPerYear: number;
+  workDays: string;
   isAdmin: boolean;
 }
 

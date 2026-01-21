@@ -13,7 +13,8 @@ interface ReportData {
     totalHours: number;
     targetHours: number;
     overtimeHours: number;
-    grossPay: number;
+    vacationDaysUsed: number;
+    vacationDaysRemaining: number;
     notes?: string | null;
     createdBy: string;
   };
@@ -21,7 +22,8 @@ interface ReportData {
     firstName: string;
     lastName: string;
     employeeNumber: string;
-    hourlyRate: number;
+    vacationDaysPerYear: number;
+    workDays: string;
   };
   dailyHours: DailyHour[];
   settings: {
@@ -79,13 +81,12 @@ export async function generateMonthlyReportPDF(data: ReportData): Promise<void> 
       doc.font('Helvetica').fontSize(11);
       doc.text(`Name: ${employee.firstName} ${employee.lastName}`);
       doc.text(`Mitarbeiternummer: ${employee.employeeNumber}`);
-      doc.text(`Stundenlohn: ${employee.hourlyRate.toFixed(2)} EUR`);
 
       doc.moveDown(1.5);
 
       // Zusammenfassung Box
       const summaryY = doc.y;
-      doc.rect(50, summaryY, 495, 80).stroke();
+      doc.rect(50, summaryY, 495, 95).stroke();
 
       doc.fontSize(12).font('Helvetica-Bold');
       doc.text('Zusammenfassung', 60, summaryY + 10);
@@ -103,10 +104,16 @@ export async function generateMonthlyReportPDF(data: ReportData): Promise<void> 
       rowY += 15;
       doc.text(`Überstunden:`, col1X, rowY);
       doc.text(`${report.overtimeHours.toFixed(2)} Std.`, col1X + 100, rowY);
-      doc.text(`Bruttolohn:`, col2X, rowY);
-      doc.font('Helvetica-Bold').text(`${report.grossPay.toFixed(2)} EUR`, col2X + 100, rowY);
 
-      doc.y = summaryY + 95;
+      rowY += 15;
+      doc.text(`Urlaubstage:`, col1X, rowY);
+      doc.font('Helvetica-Bold');
+      doc.text(`${report.vacationDaysUsed} von ${employee.vacationDaysPerYear} genommen`, col1X + 100, rowY);
+      doc.font('Helvetica');
+      doc.text(`Verbleibend:`, col2X, rowY);
+      doc.font('Helvetica-Bold').text(`${report.vacationDaysRemaining} Tage`, col2X + 100, rowY);
+
+      doc.y = summaryY + 110;
 
       // Tägliche Aufstellung
       doc.fontSize(12).font('Helvetica-Bold');
@@ -130,17 +137,22 @@ export async function generateMonthlyReportPDF(data: ReportData): Promise<void> 
 
       // Alle Tage des Monats generieren
       const daysInMonth = new Date(report.year, report.month, 0).getDate();
-      const allDays: { date: string; dayName: string; hours: number }[] = [];
+      const allDays: { date: string; dayName: string; hours: number; dayOfWeek: number }[] = [];
+
+      // workDays parsen (z.B. "1,2,3,4,5" -> [1,2,3,4,5])
+      const workDayNumbers = employee.workDays.split(',').map(d => parseInt(d.trim())).filter(d => !isNaN(d));
 
       for (let day = 1; day <= daysInMonth; day++) {
         const dateStr = `${report.year}-${String(report.month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         const dateObj = new Date(report.year, report.month - 1, day);
-        const dayName = DAY_NAMES[dateObj.getDay()];
+        const dayOfWeek = dateObj.getDay();
+        const dayName = DAY_NAMES[dayOfWeek];
         const entry = dailyHours.find(d => d.date === dateStr);
         allDays.push({
           date: dateStr,
           dayName,
           hours: entry?.hours || 0,
+          dayOfWeek,
         });
       }
 
@@ -156,26 +168,26 @@ export async function generateMonthlyReportPDF(data: ReportData): Promise<void> 
         // Linke Spalte
         const leftDay = allDays[i];
         const leftDateFormatted = leftDay.date.split('-').reverse().join('.');
-        const isWeekendLeft = leftDay.dayName === 'Sa' || leftDay.dayName === 'So';
+        const isNonWorkDayLeft = !workDayNumbers.includes(leftDay.dayOfWeek);
 
-        if (isWeekendLeft) doc.fillColor('#888888');
+        if (isNonWorkDayLeft) doc.fillColor('#888888');
         doc.text(leftDateFormatted, tableLeft, y);
         doc.text(leftDay.dayName, tableLeft + 80, y);
         doc.text(leftDay.hours > 0 ? leftDay.hours.toFixed(2) : '-', tableLeft + 120, y);
-        if (isWeekendLeft) doc.fillColor('#000000');
+        if (isNonWorkDayLeft) doc.fillColor('#000000');
 
         // Rechte Spalte
         const rightIndex = i + midPoint;
         if (rightIndex < allDays.length) {
           const rightDay = allDays[rightIndex];
           const rightDateFormatted = rightDay.date.split('-').reverse().join('.');
-          const isWeekendRight = rightDay.dayName === 'Sa' || rightDay.dayName === 'So';
+          const isNonWorkDayRight = !workDayNumbers.includes(rightDay.dayOfWeek);
 
-          if (isWeekendRight) doc.fillColor('#888888');
+          if (isNonWorkDayRight) doc.fillColor('#888888');
           doc.text(rightDateFormatted, tableLeft + 180, y);
           doc.text(rightDay.dayName, tableLeft + 260, y);
           doc.text(rightDay.hours > 0 ? rightDay.hours.toFixed(2) : '-', tableLeft + 300, y);
-          if (isWeekendRight) doc.fillColor('#000000');
+          if (isNonWorkDayRight) doc.fillColor('#000000');
         }
 
         rowOffset += 12;

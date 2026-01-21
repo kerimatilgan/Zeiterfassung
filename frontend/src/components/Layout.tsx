@@ -41,6 +41,7 @@ export default function Layout({ isAdmin = false }: LayoutProps) {
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', end: true },
     { to: '/dashboard/timesheet', icon: Clock, label: 'Meine Zeiten' },
     { to: '/dashboard/reports', icon: FileText, label: 'Abrechnungen' },
+    { to: '/dashboard/settings', icon: Settings, label: 'Einstellungen' },
   ];
 
   const links = isAdmin ? adminLinks : employeeLinks;

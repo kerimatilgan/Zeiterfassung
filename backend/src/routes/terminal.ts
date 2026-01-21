@@ -4,6 +4,13 @@ import { terminalAuthMiddleware } from '../middleware/auth.js';
 
 const router = Router();
 
+// Formatiert Minuten zu H:MM Format
+const formatMinutesToTime = (totalMinutes: number): string => {
+  const h = Math.floor(totalMinutes / 60);
+  const m = Math.floor(totalMinutes % 60);
+  return `${h}:${m.toString().padStart(2, '0')}`;
+};
+
 // Terminal authentifizieren
 router.use(terminalAuthMiddleware);
 
@@ -59,11 +66,11 @@ router.post('/scan', async (req, res) => {
     if (activeEntry) {
       // Ausstempeln
       const now = new Date();
-      const hoursWorked = (now.getTime() - activeEntry.clockIn.getTime()) / (1000 * 60 * 60);
+      const currentEntryHours = (now.getTime() - activeEntry.clockIn.getTime()) / (1000 * 60 * 60);
 
       // Automatische Pause nach 6 Stunden (30 min)
       let breakMinutes = activeEntry.breakMinutes;
-      if (hoursWorked > 6 && breakMinutes === 0) {
+      if (currentEntryHours > 6 && breakMinutes === 0) {
         const settings = await prisma.settings.findUnique({ where: { id: 'default' } });
         breakMinutes = settings?.defaultBreakMinutes ?? 30;
       }
@@ -76,7 +83,40 @@ router.post('/scan', async (req, res) => {
         },
       });
 
-      const netHours = hoursWorked - (breakMinutes / 60);
+      // Alle Einträge des heutigen Tages abrufen (für Gesamtarbeitszeit)
+      const todayStart = new Date(now);
+      todayStart.setHours(0, 0, 0, 0);
+      const todayEnd = new Date(now);
+      todayEnd.setHours(23, 59, 59, 999);
+
+      const todayEntries = await prisma.timeEntry.findMany({
+        where: {
+          employeeId: employee.id,
+          clockIn: {
+            gte: todayStart,
+            lte: todayEnd,
+          },
+        },
+        orderBy: { clockIn: 'asc' },
+      });
+
+      // Gesamtarbeitszeit des Tages berechnen (nur volle Minuten)
+      let totalWorkMinutes = 0;
+      let totalBreakMinutes = 0;
+
+      for (let i = 0; i < todayEntries.length; i++) {
+        const entry = todayEntries[i];
+        if (entry.clockOut) {
+          // Arbeitszeit dieses Eintrags (nur volle Minuten)
+          const workMs = entry.clockOut.getTime() - entry.clockIn.getTime();
+          totalWorkMinutes += Math.floor(workMs / (1000 * 60));
+          totalBreakMinutes += entry.breakMinutes;
+        }
+      }
+
+      // Nettoarbeitszeit (Arbeitszeit minus Pausen)
+      const netWorkMinutes = totalWorkMinutes - totalBreakMinutes;
+      const formattedTime = formatMinutesToTime(netWorkMinutes);
 
       // WebSocket Event für Ausstempeln
       io.emit('time-entry-updated', {
@@ -101,9 +141,9 @@ router.post('/scan', async (req, res) => {
           clockIn: activeEntry.clockIn,
           clockOut: updatedEntry.clockOut,
           breakMinutes,
-          hoursWorked: Math.round(netHours * 100) / 100,
+          hoursWorked: formattedTime,
         },
-        message: `Auf Wiedersehen, ${employee.firstName}! Du hast heute ${netHours.toFixed(2)} Stunden gearbeitet.`,
+        message: `Auf Wiedersehen, ${employee.firstName}! Du hast heute ${formattedTime} Stunden gearbeitet.`,
       });
     } else {
       // Einstempeln

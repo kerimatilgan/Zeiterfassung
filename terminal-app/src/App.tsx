@@ -15,7 +15,7 @@ interface ScanResult {
   entry?: {
     clockIn: string;
     clockOut?: string;
-    hoursWorked?: number;
+    hoursWorked?: string;
   };
   message?: string;
   error?: string;
@@ -245,7 +245,7 @@ export default function App() {
             <p className="text-2xl">{result.message}</p>
             {result.entry?.hoursWorked !== undefined && (
               <p className="text-3xl font-bold mt-4">
-                {result.entry.hoursWorked} Stunden
+                {result.entry.hoursWorked} h
               </p>
             )}
           </div>
