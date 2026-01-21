@@ -1,6 +1,11 @@
 import axios from 'axios';
 import { useAuthStore } from '../store/authStore';
 
+// Formatiert Zahlen im deutschen Format (Komma als Dezimaltrennzeichen)
+export const formatNumber = (value: number, decimals: number = 2): string => {
+  return value.toFixed(decimals).replace('.', ',');
+};
+
 const api = axios.create({
   baseURL: '/api',
   headers: {
@@ -82,6 +87,18 @@ export const settingsApi = {
   getHolidays: (year?: number) => api.get('/settings/holidays', { params: { year } }),
   createHoliday: (data: any) => api.post('/settings/holidays', data),
   deleteHoliday: (id: string) => api.delete(`/settings/holidays/${id}`),
+  // Abwesenheitstypen
+  getAbsenceTypes: () => api.get('/settings/absence-types'),
+  getAllAbsenceTypes: () => api.get('/settings/absence-types/all'),
+  createAbsenceType: (data: any) => api.post('/settings/absence-types', data),
+  updateAbsenceType: (id: string, data: any) => api.put(`/settings/absence-types/${id}`, data),
+  deleteAbsenceType: (id: string) => api.delete(`/settings/absence-types/${id}`),
+  // Mitarbeiter-Abwesenheiten
+  getAbsences: (params?: { employeeId?: string; from?: string; to?: string }) =>
+    api.get('/settings/absences', { params }),
+  createAbsence: (data: any) => api.post('/settings/absences', data),
+  updateAbsence: (id: string, data: any) => api.put(`/settings/absences/${id}`, data),
+  deleteAbsence: (id: string) => api.delete(`/settings/absences/${id}`),
 };
 
 export default api;

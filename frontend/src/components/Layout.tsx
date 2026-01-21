@@ -11,6 +11,7 @@ import {
   X,
 } from 'lucide-react';
 import { useState } from 'react';
+import { useSocket } from '../hooks/useSocket';
 
 interface LayoutProps {
   isAdmin?: boolean;
@@ -21,6 +22,9 @@ export default function Layout({ isAdmin = false }: LayoutProps) {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  // WebSocket-Verbindung für Echtzeit-Updates
+  useSocket();
+
   const handleLogout = () => {
     logout();
     navigate('/login');
@@ -29,7 +33,6 @@ export default function Layout({ isAdmin = false }: LayoutProps) {
   const adminLinks = [
     { to: '/admin', icon: LayoutDashboard, label: 'Dashboard', end: true },
     { to: '/admin/employees', icon: Users, label: 'Mitarbeiter' },
-    { to: '/admin/time-entries', icon: Clock, label: 'Zeiteinträge' },
     { to: '/admin/reports', icon: FileText, label: 'Abrechnungen' },
     { to: '/admin/settings', icon: Settings, label: 'Einstellungen' },
   ];
@@ -44,13 +47,15 @@ export default function Layout({ isAdmin = false }: LayoutProps) {
 
   return (
     <div className="min-h-screen flex">
-      {/* Mobile Sidebar Toggle */}
-      <button
-        onClick={() => setSidebarOpen(!sidebarOpen)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-white rounded-lg shadow-md"
-      >
-        {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
-      </button>
+      {/* Mobile Menu Button (nur wenn Sidebar geschlossen) */}
+      {!sidebarOpen && (
+        <button
+          onClick={() => setSidebarOpen(true)}
+          className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-white rounded-lg shadow-md"
+        >
+          <Menu size={24} />
+        </button>
+      )}
 
       {/* Sidebar Overlay */}
       {sidebarOpen && (
@@ -69,10 +74,19 @@ export default function Layout({ isAdmin = false }: LayoutProps) {
         `}
       >
         <div className="flex flex-col h-full">
-          {/* Logo */}
-          <div className="p-6 border-b border-gray-200">
-            <h1 className="text-xl font-bold text-primary-600">Handy-Insel</h1>
-            <p className="text-sm text-gray-500">Zeiterfassung</p>
+          {/* Logo + Mobile Close Button */}
+          <div className="p-6 border-b border-gray-200 flex items-start justify-between">
+            <div>
+              <h1 className="text-xl font-bold text-primary-600">Handy-Insel</h1>
+              <p className="text-sm text-gray-500">Zeiterfassung</p>
+            </div>
+            {/* Mobile Close Button */}
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="lg:hidden p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded"
+            >
+              <X size={24} />
+            </button>
           </div>
 
           {/* Navigation */}

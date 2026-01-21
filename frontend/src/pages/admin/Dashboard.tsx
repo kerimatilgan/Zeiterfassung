@@ -6,13 +6,12 @@ import { de } from 'date-fns/locale';
 
 export default function AdminDashboard() {
   const { data: stats } = useQuery({
-    queryKey: ['dashboard-stats'],
+    queryKey: ['dashboardStats'],
     queryFn: () => settingsApi.getDashboardStats().then((r) => r.data),
-    refetchInterval: 30000, // Alle 30 Sekunden
   });
 
   const { data: recentEntries } = useQuery({
-    queryKey: ['recent-entries'],
+    queryKey: ['timeEntries', 'recent'],
     queryFn: () => timeEntriesApi.getAll({ limit: '10' } as any).then((r) => r.data),
   });
 

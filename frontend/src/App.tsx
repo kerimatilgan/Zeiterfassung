@@ -3,7 +3,6 @@ import { useAuthStore } from './store/authStore';
 import Login from './pages/Login';
 import AdminDashboard from './pages/admin/Dashboard';
 import AdminEmployees from './pages/admin/Employees';
-import AdminTimeEntries from './pages/admin/TimeEntries';
 import AdminReports from './pages/admin/Reports';
 import AdminSettings from './pages/admin/Settings';
 import EmployeeDashboard from './pages/employee/Dashboard';
@@ -40,7 +39,7 @@ function App() {
       }>
         <Route index element={<AdminDashboard />} />
         <Route path="employees" element={<AdminEmployees />} />
-        <Route path="time-entries" element={<AdminTimeEntries />} />
+        <Route path="time-entries" element={<Navigate to="/admin/employees" replace />} />
         <Route path="reports" element={<AdminReports />} />
         <Route path="settings" element={<AdminSettings />} />
       </Route>

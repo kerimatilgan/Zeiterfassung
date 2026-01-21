@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from '@zxing/library';
+import { Html5Qrcode } from 'html5-qrcode';
 
 // API Key für Terminal
 const API_KEY = 'handy-insel-terminal-key-2024';
@@ -21,23 +21,16 @@ interface ScanResult {
   error?: string;
 }
 
-interface ActiveEmployee {
-  employeeName: string;
-  employeeNumber: string;
-  clockIn: string;
-}
-
 type AppState = 'idle' | 'scanning' | 'success' | 'error';
 
 export default function App() {
   const [state, setState] = useState<AppState>('idle');
   const [result, setResult] = useState<ScanResult | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [activeEmployees, setActiveEmployees] = useState<ActiveEmployee[]>([]);
   const [cameraError, setCameraError] = useState<string | null>(null);
 
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const readerRef = useRef<BrowserMultiFormatReader | null>(null);
+  const scannerRef = useRef<Html5Qrcode | null>(null);
+  const scannerContainerId = 'qr-reader';
 
   // Uhrzeit aktualisieren
   useEffect(() => {
@@ -45,82 +38,9 @@ export default function App() {
     return () => clearInterval(timer);
   }, []);
 
-  // Aktive Mitarbeiter laden
-  const loadActiveEmployees = useCallback(async () => {
-    try {
-      const response = await fetch(`${API_BASE}/active`, {
-        headers: { 'x-terminal-api-key': API_KEY },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setActiveEmployees(data);
-      }
-    } catch (error) {
-      console.error('Failed to load active employees:', error);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadActiveEmployees();
-    const interval = setInterval(loadActiveEmployees, 30000);
-    return () => clearInterval(interval);
-  }, [loadActiveEmployees]);
-
-  // QR-Code Scanner initialisieren
-  const startScanner = useCallback(async () => {
-    if (!videoRef.current) return;
-
-    try {
-      const hints = new Map();
-      hints.set(DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.QR_CODE]);
-
-      const reader = new BrowserMultiFormatReader(hints);
-      readerRef.current = reader;
-
-      const devices = await BrowserMultiFormatReader.listVideoInputDevices();
-      const backCamera = devices.find(
-        (d) => d.label.toLowerCase().includes('back') || d.label.toLowerCase().includes('rear')
-      );
-      const deviceId = backCamera?.deviceId || devices[0]?.deviceId;
-
-      if (!deviceId) {
-        setCameraError('Keine Kamera gefunden');
-        return;
-      }
-
-      setState('scanning');
-
-      await reader.decodeFromVideoDevice(deviceId, videoRef.current, async (scanResult, error) => {
-        if (scanResult) {
-          const qrCode = scanResult.getText();
-          console.log('Scanned:', qrCode);
-
-          // Scanner stoppen während der Verarbeitung
-          reader.reset();
-          setState('idle');
-
-          await processQRCode(qrCode);
-        }
-        if (error && !(error.name === 'NotFoundException')) {
-          console.error('Scan error:', error);
-        }
-      });
-    } catch (error) {
-      console.error('Camera error:', error);
-      setCameraError('Kamerazugriff verweigert. Bitte Berechtigung erteilen.');
-    }
-  }, []);
-
-  const stopScanner = useCallback(() => {
-    if (readerRef.current) {
-      readerRef.current.reset();
-      readerRef.current = null;
-    }
-    setState('idle');
-  }, []);
-
   // QR-Code verarbeiten
-  const processQRCode = async (qrCode: string) => {
+  const processQRCode = useCallback(async (qrCode: string) => {
+    console.log('Processing QR code:', qrCode);
     try {
       const response = await fetch(`${API_BASE}/scan`, {
         method: 'POST',
@@ -134,11 +54,6 @@ export default function App() {
       const data: ScanResult = await response.json();
       setResult(data);
       setState(data.success ? 'success' : 'error');
-
-      // Nach Erfolg aktive Mitarbeiter aktualisieren
-      if (data.success) {
-        loadActiveEmployees();
-      }
 
       // Nach 5 Sekunden zurücksetzen
       setTimeout(() => {
@@ -158,7 +73,77 @@ export default function App() {
         setState('idle');
       }, 5000);
     }
-  };
+  }, []);
+
+  // Scanner starten
+  const startScanner = useCallback(async () => {
+    setCameraError(null);
+    setState('scanning');
+
+    // Warten bis DOM-Element gerendert ist
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    try {
+      const html5QrCode = new Html5Qrcode(scannerContainerId);
+      scannerRef.current = html5QrCode;
+
+      await html5QrCode.start(
+        { facingMode: 'environment' },
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+        },
+        async (decodedText) => {
+          console.log('QR Code detected:', decodedText);
+          // Scanner stoppen
+          await html5QrCode.stop();
+          scannerRef.current = null;
+          // QR-Code verarbeiten
+          await processQRCode(decodedText);
+        },
+        (errorMessage) => {
+          // Ignoriere "QR code parse error" - das passiert ständig wenn kein QR-Code im Bild ist
+          if (!errorMessage.includes('QR code parse error')) {
+            console.log('Scan info:', errorMessage);
+          }
+        }
+      );
+    } catch (error: unknown) {
+      console.error('Camera error:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+
+      if (errorMessage.includes('Permission') || errorMessage.includes('NotAllowed')) {
+        setCameraError('Kamerazugriff verweigert. Bitte in den Browser-Einstellungen erlauben.');
+      } else if (errorMessage.includes('NotFound')) {
+        setCameraError('Keine Kamera gefunden.');
+      } else {
+        setCameraError(`Kamera-Fehler: ${errorMessage}`);
+      }
+      setState('idle');
+    }
+  }, [processQRCode]);
+
+  // Scanner stoppen
+  const stopScanner = useCallback(async () => {
+    if (scannerRef.current) {
+      try {
+        await scannerRef.current.stop();
+      } catch (e) {
+        console.log('Scanner already stopped');
+      }
+      scannerRef.current = null;
+    }
+    setState('idle');
+  }, []);
+
+  // Cleanup beim Unmount
+  useEffect(() => {
+    return () => {
+      if (scannerRef.current) {
+        scannerRef.current.stop().catch(() => {});
+      }
+    };
+  }, []);
 
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString('de-DE', {
@@ -224,14 +209,8 @@ export default function App() {
 
         {state === 'scanning' && (
           <div className="text-center w-full max-w-md">
-            <div className="relative aspect-square rounded-2xl overflow-hidden bg-black scanner-overlay">
-              <video
-                ref={videoRef}
-                className="w-full h-full object-cover"
-                playsInline
-                muted
-              />
-              <div className="absolute inset-4 border-2 border-white/50 rounded-lg pointer-events-none" />
+            <div className="relative aspect-square rounded-2xl overflow-hidden bg-black">
+              <div id={scannerContainerId} className="w-full h-full" />
             </div>
             <button
               onClick={stopScanner}
@@ -285,24 +264,6 @@ export default function App() {
         )}
       </main>
 
-      {/* Active Employees */}
-      {state === 'idle' && activeEmployees.length > 0 && (
-        <footer className="p-4 bg-black/20">
-          <p className="text-sm text-blue-200 mb-2 text-center">
-            Aktuell eingestempelt ({activeEmployees.length}):
-          </p>
-          <div className="flex flex-wrap justify-center gap-2">
-            {activeEmployees.map((emp) => (
-              <span
-                key={emp.employeeNumber}
-                className="px-3 py-1 bg-green-500/30 rounded-full text-sm"
-              >
-                {emp.employeeName}
-              </span>
-            ))}
-          </div>
-        </footer>
-      )}
     </div>
   );
 }

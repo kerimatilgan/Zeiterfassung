@@ -1,10 +1,17 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { reportsApi, employeesApi } from '../../lib/api';
+import { reportsApi, employeesApi, formatNumber } from '../../lib/api';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import toast from 'react-hot-toast';
 import { FileText, Download, Check, Trash2, Eye, Plus, X } from 'lucide-react';
+
+// Formatiert Dezimalstunden zu H:MM Format
+const formatHoursToTime = (hours: number): string => {
+  const h = Math.floor(hours);
+  const m = Math.floor((hours - h) * 60);
+  return `${h}:${m.toString().padStart(2, '0')}`;
+};
 
 const MONTHS = [
   'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
@@ -168,15 +175,15 @@ export default function AdminReports() {
                       {MONTHS[report.month - 1]} {report.year}
                     </td>
                     <td className="px-6 py-4">
-                      <p className="text-gray-900">{report.totalHours.toFixed(2)} h</p>
+                      <p className="text-gray-900">{formatHoursToTime(report.totalHours)} h</p>
                       {report.overtimeHours > 0 && (
                         <p className="text-sm text-orange-600">
-                          +{report.overtimeHours.toFixed(2)} h Überstunden
+                          +{formatHoursToTime(report.overtimeHours)} h Überstunden
                         </p>
                       )}
                     </td>
                     <td className="px-6 py-4 font-medium text-gray-900">
-                      {report.grossPay.toFixed(2)} EUR
+                      {formatNumber(report.grossPay)} EUR
                     </td>
                     <td className="px-6 py-4">{getStatusBadge(report.status)}</td>
                     <td className="px-6 py-4">
@@ -326,7 +333,7 @@ export default function AdminReports() {
               <div className="p-4 bg-gray-50 rounded-lg">
                 <h3 className="font-medium text-gray-900">{previewData.employee.name}</h3>
                 <p className="text-sm text-gray-500">
-                  #{previewData.employee.employeeNumber} | {previewData.employee.hourlyRate.toFixed(2)} EUR/h
+                  #{previewData.employee.employeeNumber} | {formatNumber(previewData.employee.hourlyRate)} EUR/h
                 </p>
               </div>
 
@@ -335,25 +342,25 @@ export default function AdminReports() {
                 <div className="p-4 bg-blue-50 rounded-lg">
                   <p className="text-sm text-blue-600">Gesamtstunden</p>
                   <p className="text-2xl font-bold text-blue-700">
-                    {previewData.summary.totalHours.toFixed(2)}
+                    {formatHoursToTime(previewData.summary.totalHours)} h
                   </p>
                 </div>
                 <div className="p-4 bg-gray-50 rounded-lg">
                   <p className="text-sm text-gray-600">Soll-Stunden</p>
                   <p className="text-2xl font-bold text-gray-700">
-                    {previewData.summary.targetHours.toFixed(2)}
+                    {formatHoursToTime(previewData.summary.targetHours)} h
                   </p>
                 </div>
                 <div className="p-4 bg-orange-50 rounded-lg">
                   <p className="text-sm text-orange-600">Überstunden</p>
                   <p className="text-2xl font-bold text-orange-700">
-                    {previewData.summary.overtimeHours.toFixed(2)}
+                    {formatHoursToTime(previewData.summary.overtimeHours)} h
                   </p>
                 </div>
                 <div className="p-4 bg-green-50 rounded-lg">
                   <p className="text-sm text-green-600">Bruttolohn</p>
                   <p className="text-2xl font-bold text-green-700">
-                    {previewData.summary.grossPay.toFixed(2)} EUR
+                    {formatNumber(previewData.summary.grossPay)} EUR
                   </p>
                 </div>
               </div>
@@ -377,7 +384,7 @@ export default function AdminReports() {
                               {format(new Date(day.date), 'EEEE, dd.MM.', { locale: de })}
                             </td>
                             <td className="px-4 py-2 text-right font-medium">
-                              {day.hours.toFixed(2)} h
+                              {formatHoursToTime(day.hours)} h
                             </td>
                           </tr>
                         ))}

@@ -6,6 +6,13 @@ import { de } from 'date-fns/locale';
 import toast from 'react-hot-toast';
 import { Plus, Edit2, Trash2, Filter, X } from 'lucide-react';
 
+// Formatiert Dezimalstunden zu H:MM Format
+const formatHoursToTime = (hours: number): string => {
+  const h = Math.floor(hours);
+  const m = Math.floor((hours - h) * 60);
+  return `${h}:${m.toString().padStart(2, '0')}`;
+};
+
 interface TimeEntry {
   id: string;
   employeeId: string;
@@ -106,10 +113,15 @@ export default function AdminTimeEntries() {
 
   const openEditModal = (entry: TimeEntry) => {
     setEditingEntry(entry);
+    // Formatiere in lokaler Zeitzone für datetime-local input
+    const clockInLocal = format(new Date(entry.clockIn), "yyyy-MM-dd'T'HH:mm");
+    const clockOutLocal = entry.clockOut
+      ? format(new Date(entry.clockOut), "yyyy-MM-dd'T'HH:mm")
+      : '';
     setFormData({
       employeeId: entry.employeeId,
-      clockIn: entry.clockIn.slice(0, 16),
-      clockOut: entry.clockOut ? entry.clockOut.slice(0, 16) : '',
+      clockIn: clockInLocal,
+      clockOut: clockOutLocal,
       breakMinutes: entry.breakMinutes,
       note: entry.note || '',
     });
@@ -148,7 +160,7 @@ export default function AdminTimeEntries() {
     if (!entry.clockOut) return '-';
     const ms = new Date(entry.clockOut).getTime() - new Date(entry.clockIn).getTime();
     const hours = ms / (1000 * 60 * 60) - entry.breakMinutes / 60;
-    return hours.toFixed(2);
+    return formatHoursToTime(hours);
   };
 
   return (

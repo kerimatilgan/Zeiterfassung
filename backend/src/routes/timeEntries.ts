@@ -1,5 +1,5 @@
 import { Router, Response } from 'express';
-import { prisma } from '../index.js';
+import { prisma, io } from '../index.js';
 import { authMiddleware, adminMiddleware, AuthRequest } from '../middleware/auth.js';
 import { z } from 'zod';
 
@@ -99,9 +99,9 @@ router.post('/manual', authMiddleware, adminMiddleware, async (req: AuthRequest,
     const schema = z.object({
       employeeId: z.string().uuid(),
       clockIn: z.string().datetime(),
-      clockOut: z.string().datetime().optional(),
+      clockOut: z.string().datetime().nullable().optional(),
       breakMinutes: z.number().min(0).optional(),
-      note: z.string().optional(),
+      note: z.string().nullable().optional(),
     });
 
     const data = schema.parse(req.body);
@@ -124,6 +124,18 @@ router.post('/manual', authMiddleware, adminMiddleware, async (req: AuthRequest,
       },
     });
 
+    // WebSocket Event für manuell erstellten Eintrag
+    io.emit('time-entry-updated', {
+      type: 'manual_create',
+      employeeId: employee.id,
+      entry,
+      employee: {
+        id: employee.id,
+        name: `${employee.firstName} ${employee.lastName}`,
+        employeeNumber: employee.employeeNumber,
+      },
+    });
+
     res.status(201).json(entry);
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -141,9 +153,9 @@ router.put('/:id', authMiddleware, adminMiddleware, async (req: AuthRequest, res
 
     const schema = z.object({
       clockIn: z.string().datetime().optional(),
-      clockOut: z.string().datetime().optional().nullable(),
+      clockOut: z.union([z.string().datetime(), z.null()]).optional(),
       breakMinutes: z.number().min(0).optional(),
-      note: z.string().optional(),
+      note: z.union([z.string(), z.null()]).optional(),
     });
 
     const data = schema.parse(req.body);
@@ -162,6 +174,28 @@ router.put('/:id', authMiddleware, adminMiddleware, async (req: AuthRequest, res
         ...(data.note !== undefined && { note: data.note }),
         editedBy: `${req.employee!.firstName} ${req.employee!.lastName}`,
       },
+      include: {
+        employee: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            employeeNumber: true,
+          },
+        },
+      },
+    });
+
+    // WebSocket Event für aktualisierten Eintrag
+    io.emit('time-entry-updated', {
+      type: 'update',
+      employeeId: entry.employeeId,
+      entry,
+      employee: {
+        id: entry.employee.id,
+        name: `${entry.employee.firstName} ${entry.employee.lastName}`,
+        employeeNumber: entry.employee.employeeNumber,
+      },
     });
 
     res.json(entry);
@@ -179,12 +213,36 @@ router.delete('/:id', authMiddleware, adminMiddleware, async (req: AuthRequest, 
   try {
     const { id } = req.params;
 
-    const existing = await prisma.timeEntry.findUnique({ where: { id } });
+    const existing = await prisma.timeEntry.findUnique({
+      where: { id },
+      include: {
+        employee: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            employeeNumber: true,
+          },
+        },
+      },
+    });
     if (!existing) {
       return res.status(404).json({ error: 'Zeiteintrag nicht gefunden' });
     }
 
     await prisma.timeEntry.delete({ where: { id } });
+
+    // WebSocket Event für gelöschten Eintrag
+    io.emit('time-entry-updated', {
+      type: 'delete',
+      employeeId: existing.employeeId,
+      entryId: id,
+      employee: {
+        id: existing.employee.id,
+        name: `${existing.employee.firstName} ${existing.employee.lastName}`,
+        employeeNumber: existing.employee.employeeNumber,
+      },
+    });
 
     res.json({ message: 'Zeiteintrag gelöscht' });
   } catch (error) {

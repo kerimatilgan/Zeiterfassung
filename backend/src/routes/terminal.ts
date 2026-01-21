@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { prisma } from '../index.js';
+import { prisma, io } from '../index.js';
 import { terminalAuthMiddleware } from '../middleware/auth.js';
 
 const router = Router();
@@ -78,6 +78,18 @@ router.post('/scan', async (req, res) => {
 
       const netHours = hoursWorked - (breakMinutes / 60);
 
+      // WebSocket Event für Ausstempeln
+      io.emit('time-entry-updated', {
+        type: 'clock_out',
+        employeeId: employee.id,
+        entry: updatedEntry,
+        employee: {
+          id: employee.id,
+          name: `${employee.firstName} ${employee.lastName}`,
+          employeeNumber: employee.employeeNumber,
+        },
+      });
+
       return res.json({
         success: true,
         action: 'clock_out',
@@ -99,6 +111,18 @@ router.post('/scan', async (req, res) => {
         data: {
           employeeId: employee.id,
           clockIn: new Date(),
+        },
+      });
+
+      // WebSocket Event für Einstempeln
+      io.emit('time-entry-updated', {
+        type: 'clock_in',
+        employeeId: employee.id,
+        entry: newEntry,
+        employee: {
+          id: employee.id,
+          name: `${employee.firstName} ${employee.lastName}`,
+          employeeNumber: employee.employeeNumber,
         },
       });
 

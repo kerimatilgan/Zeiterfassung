@@ -32,10 +32,12 @@ export default defineConfig({
     }),
   ],
   server: {
-    port: 5174,
+    port: 5176,
+    host: '0.0.0.0',
+    allowedHosts: ['terminal.zeit.kerimatilgan.de'],
     proxy: {
       '/api': {
-        target: 'http://localhost:3001',
+        target: 'http://localhost:3004',
         changeOrigin: true,
       },
     },

@@ -28,6 +28,7 @@ model Employee {
 
   timeEntries     TimeEntry[]
   monthlyReports  MonthlyReport[]
+  absences        EmployeeAbsence[]
 }
 
 // Zeiteinträge (Stempeln)
@@ -100,4 +101,36 @@ model Holiday {
   isRecurring Boolean  @default(false) // Jährlich wiederkehrend
 
   createdAt   DateTime @default(now())
+}
+
+// Abwesenheitstypen (konfigurierbar: Urlaub, Schule, etc.)
+model AbsenceType {
+  id              String   @id @default(uuid())
+  name            String   // z.B. "Urlaub", "Berufsschule (ganztags)", "Berufsschule (halbtags)"
+  shortName       String   // z.B. "U", "BS", "BS½"
+  requiredHours   Float    @default(0) // Pflichtstunden an diesem Tag (0 = keine Pflicht)
+  color           String   @default("#3B82F6") // Farbe für Anzeige im Kalender
+  isActive        Boolean  @default(true)
+  sortOrder       Int      @default(0) // Reihenfolge in Dropdowns
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  absences        EmployeeAbsence[]
+}
+
+// Mitarbeiter-Abwesenheiten
+model EmployeeAbsence {
+  id              String      @id @default(uuid())
+  employeeId      String
+  employee        Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  absenceTypeId   String
+  absenceType     AbsenceType @relation(fields: [absenceTypeId], references: [id], onDelete: Cascade)
+  date            DateTime    // Das Datum der Abwesenheit
+  note            String?     // Optionale Notiz
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@unique([employeeId, date]) // Ein Mitarbeiter kann pro Tag nur eine Abwesenheit haben
 }

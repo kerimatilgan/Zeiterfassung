@@ -1,5 +1,7 @@
 import express from 'express';
 import cors from 'cors';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
 import { PrismaClient } from '@prisma/client';
 
 import employeeRoutes from './routes/employees.js';
@@ -12,6 +14,25 @@ import settingsRoutes from './routes/settings.js';
 export const prisma = new PrismaClient();
 
 const app = express();
+const httpServer = createServer(app);
+
+// Socket.io Setup
+export const io = new Server(httpServer, {
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST'],
+  },
+});
+
+// Socket.io Connection Handler
+io.on('connection', (socket) => {
+  console.log(`🔌 Client connected: ${socket.id}`);
+
+  socket.on('disconnect', () => {
+    console.log(`🔌 Client disconnected: ${socket.id}`);
+  });
+});
+
 const PORT = process.env.PORT || 3001;
 
 // Middleware
@@ -57,8 +78,9 @@ async function main() {
     console.log('Standard-Einstellungen erstellt');
   }
 
-  app.listen(Number(PORT), '0.0.0.0', () => {
+  httpServer.listen(Number(PORT), '0.0.0.0', () => {
     console.log(`🚀 Zeiterfassung Backend läuft auf http://0.0.0.0:${PORT}`);
+    console.log(`🔌 WebSocket Server bereit`);
   });
 }
 

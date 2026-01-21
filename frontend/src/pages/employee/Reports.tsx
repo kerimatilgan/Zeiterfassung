@@ -1,7 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
-import { reportsApi } from '../../lib/api';
+import { reportsApi, formatNumber } from '../../lib/api';
 import { FileText, Download, Clock, TrendingUp } from 'lucide-react';
 import toast from 'react-hot-toast';
+
+// Formatiert Dezimalstunden zu H:MM Format (nur volle Minuten, keine Sekunden)
+const formatHoursToTime = (hours: number): string => {
+  const h = Math.floor(hours);
+  const m = Math.floor((hours - h) * 60);
+  return `${h}:${m.toString().padStart(2, '0')}`;
+};
 
 const MONTHS = [
   'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
@@ -90,7 +97,7 @@ export default function EmployeeReports() {
                       <span>Arbeitsstunden</span>
                     </div>
                     <span className="font-medium text-gray-900">
-                      {report.totalHours.toFixed(2)} h
+                      {formatHoursToTime(report.totalHours)} h
                     </span>
                   </div>
 
@@ -105,7 +112,7 @@ export default function EmployeeReports() {
                       }`}
                     >
                       {report.overtimeHours > 0 ? '+' : ''}
-                      {report.overtimeHours.toFixed(2)} h
+                      {formatHoursToTime(report.overtimeHours)} h
                     </span>
                   </div>
 
@@ -113,7 +120,7 @@ export default function EmployeeReports() {
                     <div className="flex items-center justify-between">
                       <span className="text-gray-500">Bruttolohn</span>
                       <span className="text-xl font-bold text-gray-900">
-                        {report.grossPay.toFixed(2)} EUR
+                        {formatNumber(report.grossPay)} EUR
                       </span>
                     </div>
                   </div>

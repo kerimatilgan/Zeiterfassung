@@ -5,6 +5,13 @@ import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from '
 import { de } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, Clock } from 'lucide-react';
 
+// Formatiert Dezimalstunden zu H:MM Format (nur volle Minuten, keine Sekunden)
+const formatHoursToTime = (hours: number): string => {
+  const h = Math.floor(hours);
+  const m = Math.floor((hours - h) * 60);
+  return `${h}:${m.toString().padStart(2, '0')}`;
+};
+
 interface TimeEntry {
   id: string;
   clockIn: string;
@@ -98,7 +105,7 @@ export default function EmployeeTimesheet() {
           </div>
           <div>
             <p className="text-primary-100">Gesamtstunden {format(currentDate, 'MMMM', { locale: de })}</p>
-            <p className="text-3xl font-bold">{totalMonthHours.toFixed(2)} Stunden</p>
+            <p className="text-3xl font-bold">{formatHoursToTime(totalMonthHours)} Stunden</p>
           </div>
         </div>
       </div>
@@ -176,7 +183,7 @@ export default function EmployeeTimesheet() {
                     <td className="px-4 py-3 text-right">
                       {dayHours > 0 ? (
                         <span className="font-medium text-gray-900">
-                          {dayHours.toFixed(2)} h
+                          {formatHoursToTime(dayHours)} h
                         </span>
                       ) : (
                         <span className="text-gray-400">-</span>
@@ -192,7 +199,7 @@ export default function EmployeeTimesheet() {
                   Gesamt
                 </td>
                 <td className="px-4 py-3 text-right font-bold text-gray-900">
-                  {totalMonthHours.toFixed(2)} h
+                  {formatHoursToTime(totalMonthHours)} h
                 </td>
               </tr>
             </tfoot>

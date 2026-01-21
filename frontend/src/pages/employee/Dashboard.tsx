@@ -4,35 +4,50 @@ import { useAuthStore } from '../../store/authStore';
 import { Clock, TrendingUp, Calendar, Timer } from 'lucide-react';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
+import { useState, useEffect, useCallback } from 'react';
+
+// Formatiert Dezimalstunden zu H:MM Format (nur volle Minuten, keine Sekunden)
+const formatHoursToTime = (hours: number): string => {
+  const h = Math.floor(hours);
+  const m = Math.floor((hours - h) * 60);
+  return `${h}:${m.toString().padStart(2, '0')}`;
+};
 
 export default function EmployeeDashboard() {
   const { employee } = useAuthStore();
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Echtzeit-Uhr für Arbeitszeit-Anzeige (aktualisiert jede Minute)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000); // Jede Minute
+    return () => clearInterval(interval);
+  }, []);
 
   const { data: status } = useQuery({
-    queryKey: ['my-status'],
+    queryKey: ['myStatus'],
     queryFn: () => timeEntriesApi.getMyStatus().then((r) => r.data),
-    refetchInterval: 30000,
   });
 
   const { data: stats } = useQuery({
-    queryKey: ['my-stats'],
+    queryKey: ['myStats'],
     queryFn: () => timeEntriesApi.getMyStats().then((r) => r.data),
   });
 
   const { data: recentEntries } = useQuery({
-    queryKey: ['my-entries'],
+    queryKey: ['myTimeEntries'],
     queryFn: () => timeEntriesApi.getMy().then((r) => r.data.slice(0, 5)),
   });
 
-  const calculateCurrentDuration = () => {
+  const calculateCurrentDuration = useCallback(() => {
     if (!status?.activeEntry) return null;
     const start = new Date(status.activeEntry.clockIn);
-    const now = new Date();
-    const diffMs = now.getTime() - start.getTime();
+    const diffMs = currentTime.getTime() - start.getTime();
     const hours = Math.floor(diffMs / (1000 * 60 * 60));
     const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
     return `${hours}h ${minutes}m`;
-  };
+  }, [status?.activeEntry, currentTime]);
 
   return (
     <div className="space-y-6">
@@ -85,7 +100,7 @@ export default function EmployeeDashboard() {
             </div>
             <div>
               <p className="text-2xl font-bold text-gray-900">
-                {stats?.weekHours?.toFixed(1) ?? '-'} h
+                {stats?.weekHours != null ? formatHoursToTime(stats.weekHours) : '-'} h
               </p>
               <p className="text-sm text-gray-500">Diese Woche</p>
             </div>
@@ -99,7 +114,7 @@ export default function EmployeeDashboard() {
             </div>
             <div>
               <p className="text-2xl font-bold text-gray-900">
-                {stats?.monthHours?.toFixed(1) ?? '-'} h
+                {stats?.monthHours != null ? formatHoursToTime(stats.monthHours) : '-'} h
               </p>
               <p className="text-sm text-gray-500">Dieser Monat</p>
             </div>
@@ -113,7 +128,7 @@ export default function EmployeeDashboard() {
             </div>
             <div>
               <p className="text-2xl font-bold text-gray-900">
-                {stats?.weekOvertime?.toFixed(1) ?? '-'} h
+                {stats?.weekOvertime != null ? formatHoursToTime(stats.weekOvertime) : '-'} h
               </p>
               <p className="text-sm text-gray-500">Überstunden (Woche)</p>
             </div>
@@ -143,12 +158,12 @@ export default function EmployeeDashboard() {
         <div className="divide-y divide-gray-100">
           {recentEntries?.length ? (
             recentEntries.map((entry: any) => {
-              const hours = entry.clockOut
-                ? ((new Date(entry.clockOut).getTime() - new Date(entry.clockIn).getTime()) /
-                    (1000 * 60 * 60) -
-                    entry.breakMinutes / 60
-                  ).toFixed(2)
+              // Berechne nur volle Minuten (keine Sekunden)
+              const totalMinutes = entry.clockOut
+                ? Math.floor((new Date(entry.clockOut).getTime() - new Date(entry.clockIn).getTime()) / (1000 * 60)) -
+                    entry.breakMinutes
                 : null;
+              const hours = totalMinutes != null ? formatHoursToTime(totalMinutes / 60) : null;
 
               return (
                 <div key={entry.id} className="p-4 flex items-center justify-between">
