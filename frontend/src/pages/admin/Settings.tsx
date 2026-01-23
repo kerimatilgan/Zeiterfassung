@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { settingsApi } from '../../lib/api';
 import toast from 'react-hot-toast';
-import { Save, Building2, Clock, Calendar, Trash2, Plus, X, Briefcase, Edit2, Wand2, MapPin, AlertCircle } from 'lucide-react';
+import { Save, Building2, Clock, Calendar, Trash2, Plus, X, Briefcase, Edit2, Wand2, MapPin, AlertCircle, Database, Download, Upload, HardDrive } from 'lucide-react';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 
@@ -51,6 +51,11 @@ export default function AdminSettings() {
     queryFn: () => settingsApi.getBundeslaender().then((r) => r.data as { code: string; name: string }[]),
   });
 
+  const { data: databaseInfo, refetch: refetchDatabaseInfo } = useQuery({
+    queryKey: ['database-info'],
+    queryFn: () => settingsApi.getDatabaseInfo().then((r) => r.data),
+  });
+
   const [formData, setFormData] = useState({
     companyName: '',
     companyAddress: '',
@@ -72,6 +77,9 @@ export default function AdminSettings() {
 
   const [showAbsenceTypeModal, setShowAbsenceTypeModal] = useState(false);
   const [editingAbsenceType, setEditingAbsenceType] = useState<AbsenceType | null>(null);
+  const [showRestoreModal, setShowRestoreModal] = useState(false);
+  const [restoreFile, setRestoreFile] = useState<File | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
   const [absenceTypeForm, setAbsenceTypeForm] = useState({
     name: '',
     shortName: '',
@@ -177,6 +185,55 @@ export default function AdminSettings() {
       toast.error(error.response?.data?.error || 'Fehler beim Löschen');
     },
   });
+
+  const restoreDatabaseMutation = useMutation({
+    mutationFn: (file: File) => settingsApi.restoreDatabase(file),
+    onSuccess: () => {
+      queryClient.invalidateQueries();
+      toast.success('Datenbank erfolgreich wiederhergestellt');
+      setShowRestoreModal(false);
+      setRestoreFile(null);
+      refetchDatabaseInfo();
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error || 'Fehler bei der Wiederherstellung');
+    },
+  });
+
+  const handleBackupDownload = async () => {
+    setIsDownloading(true);
+    try {
+      const response = await settingsApi.downloadBackup();
+      const blob = new Blob([response.data], { type: 'application/octet-stream' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      // Dateiname aus Content-Disposition Header oder Fallback
+      const contentDisposition = response.headers['content-disposition'];
+      let filename = 'zeiterfassung_backup.db';
+      if (contentDisposition) {
+        const match = contentDisposition.match(/filename="(.+)"/);
+        if (match) filename = match[1];
+      }
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      toast.success('Backup heruntergeladen');
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Fehler beim Download');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  const handleRestoreSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (restoreFile) {
+      restoreDatabaseMutation.mutate(restoreFile);
+    }
+  };
 
   const openCreateAbsenceTypeModal = () => {
     setEditingAbsenceType(null);
@@ -403,6 +460,89 @@ export default function AdminSettings() {
             ) : (
               <div className="p-8 text-center text-gray-500">Keine Feiertage eingetragen</div>
             )}
+          </div>
+        </div>
+
+        {/* Database Management */}
+        <div className="card">
+          <div className="p-6 border-b border-gray-100">
+            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <Database size={20} />
+              Datenbank
+            </h2>
+          </div>
+          <div className="p-6 space-y-4">
+            {/* DB Info */}
+            {databaseInfo && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <HardDrive size={20} className="text-gray-500" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">Datenbank-Größe</p>
+                      <p className="text-xs text-gray-500">SQLite Datenbank</p>
+                    </div>
+                  </div>
+                  <span className="text-lg font-semibold text-gray-900">
+                    {databaseInfo.sizeFormatted}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="p-2 bg-gray-50 rounded">
+                    <span className="text-gray-500">Mitarbeiter:</span>
+                    <span className="ml-2 font-medium">{databaseInfo.stats?.employees ?? 0}</span>
+                  </div>
+                  <div className="p-2 bg-gray-50 rounded">
+                    <span className="text-gray-500">Zeiteinträge:</span>
+                    <span className="ml-2 font-medium">{databaseInfo.stats?.timeEntries ?? 0}</span>
+                  </div>
+                  <div className="p-2 bg-gray-50 rounded">
+                    <span className="text-gray-500">Abrechnungen:</span>
+                    <span className="ml-2 font-medium">{databaseInfo.stats?.monthlyReports ?? 0}</span>
+                  </div>
+                  <div className="p-2 bg-gray-50 rounded">
+                    <span className="text-gray-500">Feiertage:</span>
+                    <span className="ml-2 font-medium">{databaseInfo.stats?.holidays ?? 0}</span>
+                  </div>
+                </div>
+
+                {databaseInfo.lastModified && (
+                  <p className="text-xs text-gray-500">
+                    Letzte Änderung: {format(new Date(databaseInfo.lastModified), 'dd.MM.yyyy HH:mm', { locale: de })}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="pt-4 border-t border-gray-100 space-y-3">
+              <button
+                onClick={handleBackupDownload}
+                disabled={isDownloading}
+                className="w-full btn btn-secondary flex items-center justify-center gap-2"
+              >
+                {isDownloading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-gray-600 border-t-transparent rounded-full animate-spin" />
+                    Lade herunter...
+                  </>
+                ) : (
+                  <>
+                    <Download size={18} />
+                    Backup herunterladen
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={() => setShowRestoreModal(true)}
+                className="w-full btn btn-secondary flex items-center justify-center gap-2 text-amber-700 border-amber-300 hover:bg-amber-50"
+              >
+                <Upload size={18} />
+                Backup wiederherstellen
+              </button>
+            </div>
           </div>
         </div>
 
@@ -796,6 +936,95 @@ export default function AdminSettings() {
                     <>
                       <Wand2 size={16} />
                       Feiertage generieren
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Restore Database Modal */}
+      {showRestoreModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+              <h2 className="text-xl font-semibold flex items-center gap-2">
+                <Upload size={20} />
+                Backup wiederherstellen
+              </h2>
+              <button
+                onClick={() => {
+                  setShowRestoreModal(false);
+                  setRestoreFile(null);
+                }}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleRestoreSubmit} className="p-6 space-y-4">
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <AlertCircle size={20} className="text-amber-600 mt-0.5 flex-shrink-0" />
+                  <div className="text-sm text-amber-800">
+                    <p className="font-semibold mb-1">Achtung!</p>
+                    <p>
+                      Diese Aktion ersetzt die aktuelle Datenbank komplett.
+                      Alle aktuellen Daten werden überschrieben.
+                      Ein automatisches Backup wird vor der Wiederherstellung erstellt.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="label">Backup-Datei auswählen</label>
+                <input
+                  type="file"
+                  accept=".db"
+                  onChange={(e) => setRestoreFile(e.target.files?.[0] || null)}
+                  className="w-full text-sm text-gray-500
+                    file:mr-4 file:py-2 file:px-4
+                    file:rounded-lg file:border-0
+                    file:text-sm file:font-medium
+                    file:bg-primary-50 file:text-primary-700
+                    hover:file:bg-primary-100
+                    cursor-pointer"
+                />
+                {restoreFile && (
+                  <p className="mt-2 text-sm text-gray-600">
+                    Ausgewählt: <span className="font-medium">{restoreFile.name}</span> ({(restoreFile.size / (1024 * 1024)).toFixed(2)} MB)
+                  </p>
+                )}
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowRestoreModal(false);
+                    setRestoreFile(null);
+                  }}
+                  className="btn btn-secondary"
+                >
+                  Abbrechen
+                </button>
+                <button
+                  type="submit"
+                  disabled={!restoreFile || restoreDatabaseMutation.isPending}
+                  className="btn bg-amber-600 text-white hover:bg-amber-700 flex items-center gap-2"
+                >
+                  {restoreDatabaseMutation.isPending ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Stelle wieder her...
+                    </>
+                  ) : (
+                    <>
+                      <Upload size={16} />
+                      Wiederherstellen
                     </>
                   )}
                 </button>

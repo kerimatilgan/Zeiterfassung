@@ -2,6 +2,10 @@ import { Router, Response } from 'express';
 import { prisma } from '../index.js';
 import { authMiddleware, adminMiddleware, AuthRequest } from '../middleware/auth.js';
 import { z } from 'zod';
+import fs from 'fs';
+import path from 'path';
+import multer from 'multer';
+import { createAuditLog } from '../utils/auditLog.js';
 import {
   getGermanHolidays,
   getBundeslandFromPLZ,
@@ -9,6 +13,19 @@ import {
   BUNDESLAND_NAMES,
   type Bundesland,
 } from '../utils/germanHolidays.js';
+
+// Multer für Datei-Upload konfigurieren
+const upload = multer({
+  dest: 'temp-uploads/',
+  limits: { fileSize: 100 * 1024 * 1024 }, // Max 100MB
+  fileFilter: (_req, file, cb) => {
+    if (file.originalname.endsWith('.db') || file.mimetype === 'application/octet-stream') {
+      cb(null, true);
+    } else {
+      cb(new Error('Nur .db Dateien sind erlaubt'));
+    }
+  },
+});
 
 const router = Router();
 
@@ -40,6 +57,9 @@ router.put('/', authMiddleware, adminMiddleware, async (req: AuthRequest, res: R
 
     const data = schema.parse(req.body);
 
+    // Alte Werte für Audit Log
+    const oldSettings = await prisma.settings.findUnique({ where: { id: 'default' } });
+
     const settings = await prisma.settings.upsert({
       where: { id: 'default' },
       update: data,
@@ -47,6 +67,16 @@ router.put('/', authMiddleware, adminMiddleware, async (req: AuthRequest, res: R
         id: 'default',
         ...data,
       },
+    });
+
+    // Audit Log
+    await createAuditLog({
+      req,
+      action: 'UPDATE',
+      entityType: 'Settings',
+      entityId: 'default',
+      oldValues: oldSettings,
+      newValues: settings,
     });
 
     res.json(settings);
@@ -586,6 +616,188 @@ router.get('/dashboard-stats', authMiddleware, adminMiddleware, async (_req: Aut
   } catch (error) {
     console.error('Get dashboard stats error:', error);
     res.status(500).json({ error: 'Fehler beim Laden der Statistiken' });
+  }
+});
+
+// ==================== DATENBANK-VERWALTUNG ====================
+
+// Datenbank-Info abrufen (Admin)
+router.get('/database/info', authMiddleware, adminMiddleware, async (_req: AuthRequest, res: Response) => {
+  try {
+    const dbPath = path.join(process.cwd(), 'prisma', 'zeiterfassung.db');
+
+    // DB-Größe ermitteln
+    let dbSize = 0;
+    let dbSizeFormatted = '0 KB';
+    let dbExists = false;
+
+    if (fs.existsSync(dbPath)) {
+      dbExists = true;
+      const stats = fs.statSync(dbPath);
+      dbSize = stats.size;
+
+      if (dbSize < 1024) {
+        dbSizeFormatted = `${dbSize} Bytes`;
+      } else if (dbSize < 1024 * 1024) {
+        dbSizeFormatted = `${(dbSize / 1024).toFixed(2)} KB`;
+      } else {
+        dbSizeFormatted = `${(dbSize / (1024 * 1024)).toFixed(2)} MB`;
+      }
+    }
+
+    // Statistiken aus der DB
+    const [
+      employeeCount,
+      timeEntryCount,
+      monthlyReportCount,
+      holidayCount,
+      absenceCount,
+      absenceTypeCount,
+    ] = await Promise.all([
+      prisma.employee.count(),
+      prisma.timeEntry.count(),
+      prisma.monthlyReport.count(),
+      prisma.holiday.count(),
+      prisma.employeeAbsence.count(),
+      prisma.absenceType.count(),
+    ]);
+
+    // Letzte Änderung
+    let lastModified: Date | null = null;
+    if (dbExists) {
+      const stats = fs.statSync(dbPath);
+      lastModified = stats.mtime;
+    }
+
+    res.json({
+      exists: dbExists,
+      path: dbPath,
+      size: dbSize,
+      sizeFormatted: dbSizeFormatted,
+      lastModified,
+      stats: {
+        employees: employeeCount,
+        timeEntries: timeEntryCount,
+        monthlyReports: monthlyReportCount,
+        holidays: holidayCount,
+        absences: absenceCount,
+        absenceTypes: absenceTypeCount,
+      },
+    });
+  } catch (error) {
+    console.error('Get database info error:', error);
+    res.status(500).json({ error: 'Fehler beim Laden der Datenbank-Informationen' });
+  }
+});
+
+// Datenbank-Backup herunterladen (Admin)
+router.get('/database/backup', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const dbPath = path.join(process.cwd(), 'prisma', 'zeiterfassung.db');
+
+    if (!fs.existsSync(dbPath)) {
+      return res.status(404).json({ error: 'Datenbank-Datei nicht gefunden' });
+    }
+
+    // Dateiname mit Datum
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}`;
+    const filename = `zeiterfassung_backup_${dateStr}.db`;
+
+    // Audit Log
+    await createAuditLog({
+      req,
+      action: 'DB_BACKUP',
+      entityType: 'Database',
+      newValues: {
+        filename,
+        size: fs.statSync(dbPath).size,
+      },
+    });
+
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+    const fileStream = fs.createReadStream(dbPath);
+    fileStream.pipe(res);
+  } catch (error) {
+    console.error('Database backup error:', error);
+    res.status(500).json({ error: 'Fehler beim Erstellen des Backups' });
+  }
+});
+
+// Datenbank wiederherstellen (Admin)
+router.post('/database/restore', authMiddleware, adminMiddleware, upload.single('database'), async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'Keine Datei hochgeladen' });
+    }
+
+    const uploadedPath = req.file.path;
+    const dbPath = path.join(process.cwd(), 'prisma', 'zeiterfassung.db');
+    const backupPath = path.join(process.cwd(), 'prisma', `zeiterfassung_before_restore_${Date.now()}.db.bak`);
+
+    // Prisma-Verbindung schließen
+    await prisma.$disconnect();
+
+    try {
+      // Aktuelle DB sichern
+      if (fs.existsSync(dbPath)) {
+        fs.copyFileSync(dbPath, backupPath);
+      }
+
+      // Hochgeladene Datei als neue DB einsetzen
+      fs.copyFileSync(uploadedPath, dbPath);
+
+      // Temp-Datei löschen
+      fs.unlinkSync(uploadedPath);
+
+      // Prisma neu verbinden
+      await prisma.$connect();
+
+      // Test-Query um sicherzustellen, dass die DB valide ist
+      await prisma.employee.count();
+
+      // Audit Log
+      await createAuditLog({
+        req,
+        action: 'DB_RESTORE',
+        entityType: 'Database',
+        newValues: {
+          filename: req.file.originalname,
+          backupPath,
+        },
+        note: 'Datenbank erfolgreich wiederhergestellt',
+      });
+
+      res.json({
+        success: true,
+        message: 'Datenbank erfolgreich wiederhergestellt',
+        backupPath: backupPath,
+      });
+    } catch (restoreError) {
+      // Bei Fehler: Backup wiederherstellen
+      console.error('Restore failed, reverting:', restoreError);
+
+      if (fs.existsSync(backupPath)) {
+        fs.copyFileSync(backupPath, dbPath);
+      }
+
+      // Temp-Datei löschen falls noch vorhanden
+      if (fs.existsSync(uploadedPath)) {
+        fs.unlinkSync(uploadedPath);
+      }
+
+      // Prisma neu verbinden
+      await prisma.$connect();
+
+      return res.status(400).json({
+        error: 'Datenbank-Wiederherstellung fehlgeschlagen. Die hochgeladene Datei ist keine gültige Zeiterfassung-Datenbank.',
+      });
+    }
+  } catch (error) {
+    console.error('Database restore error:', error);
+    res.status(500).json({ error: 'Fehler bei der Datenbank-Wiederherstellung' });
   }
 });
 

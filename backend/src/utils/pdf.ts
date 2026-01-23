@@ -69,6 +69,12 @@ const MONTH_NAMES = [
 const DAY_NAMES_FULL = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
 const DAY_NAMES_SHORT = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
 
+// Konvertiert Date zu lokalem Datum-String (YYYY-MM-DD) - wichtig für Zeitzonenkorrektur
+function toLocalDateString(date: Date): string {
+  const d = new Date(date);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 // Formatiert Minuten zu HH:MM Format
 function formatMinutes(minutes: number): string {
   const sign = minutes < 0 ? '-' : '';
@@ -120,15 +126,16 @@ export async function generateMonthlyReportPDF(data: ReportData): Promise<void> 
       }[] = [];
 
       // Absences und Holidays in Maps für schnellen Zugriff
+      // WICHTIG: toLocalDateString verwenden, nicht toISOString, wegen Zeitzonenverschiebung!
       const absenceMap = new Map<string, Absence>();
       absences.forEach(a => {
-        const dateStr = new Date(a.date).toISOString().split('T')[0];
+        const dateStr = toLocalDateString(new Date(a.date));
         absenceMap.set(dateStr, a);
       });
 
       const holidayMap = new Map<string, Holiday>();
       holidays.forEach(h => {
-        const dateStr = new Date(h.date).toISOString().split('T')[0];
+        const dateStr = toLocalDateString(new Date(h.date));
         holidayMap.set(dateStr, h);
       });
 
@@ -191,10 +198,16 @@ export async function generateMonthlyReportPDF(data: ReportData): Promise<void> 
         // Target für den Tag (nur an Arbeitstagen ohne Feiertag)
         let targetMinutes = 0;
         if (isWorkDay && !holiday) {
-          targetMinutes = dailyTargetMinutes;
+          // Bei Abwesenheit mit requiredHours = 0: kein Soll (z.B. Urlaub, Krank)
+          // Der Mitarbeiter muss an diesem Tag nicht arbeiten
+          if (absence && absence.absenceType.requiredHours === 0) {
+            targetMinutes = 0;
+          } else {
+            targetMinutes = dailyTargetMinutes;
+          }
         }
 
-        // Bei Abwesenheit: requiredHours anrechnen
+        // Bei Abwesenheit: requiredHours anrechnen (z.B. Berufsschule = halber Tag)
         if (absence && absence.absenceType.requiredHours > 0) {
           netMinutes = absence.absenceType.requiredHours * 60;
         }

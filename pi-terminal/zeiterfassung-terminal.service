@@ -1,0 +1,21 @@
+[Unit]
+Description=Zeiterfassung RFID Terminal
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+WorkingDirectory=/home/pi/zeiterfassung-terminal
+ExecStart=/usr/bin/python3 /home/pi/zeiterfassung-terminal/terminal.py
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# Environment
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

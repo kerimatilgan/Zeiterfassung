@@ -1,0 +1,19 @@
+[Unit]
+Description=Zeiterfassung HDMI Display
+After=network.target graphical-session.target
+Wants=graphical-session.target
+
+[Service]
+Type=simple
+User=pi
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=/home/pi/.Xauthority
+Environment=SDL_VIDEODRIVER=x11
+WorkingDirectory=/home/pi/zeiterfassung-terminal
+ExecStartPre=/bin/sleep 10
+ExecStart=/usr/bin/python3 /home/pi/zeiterfassung-terminal/hdmi_display.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=graphical.target

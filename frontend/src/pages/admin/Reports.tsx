@@ -225,38 +225,33 @@ export default function AdminReports() {
                     <td className="px-6 py-4">{getStatusBadge(report.status)}</td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-end gap-2">
+                        {/* Bearbeiten - immer verfügbar */}
+                        <button
+                          onClick={() => openEditModal(report)}
+                          className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
+                          title="Bearbeiten"
+                        >
+                          <Edit2 size={18} />
+                        </button>
+                        {/* PDF-Vorschau - immer verfügbar */}
+                        <button
+                          onClick={() => handlePreviewPdf(report)}
+                          className="p-2 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
+                          title="PDF-Vorschau"
+                        >
+                          <Eye size={18} />
+                        </button>
+                        {/* Finalisieren - nur bei draft */}
                         {report.status === 'draft' && (
-                          <>
-                            <button
-                              onClick={() => openEditModal(report)}
-                              className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
-                              title="Bearbeiten"
-                            >
-                              <Edit2 size={18} />
-                            </button>
-                            <button
-                              onClick={() => handlePreviewPdf(report)}
-                              className="p-2 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
-                              title="PDF-Vorschau"
-                            >
-                              <Eye size={18} />
-                            </button>
-                            <button
-                              onClick={() => finalizeMutation.mutate(report.id)}
-                              className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-lg"
-                              title="Finalisieren"
-                            >
-                              <Check size={18} />
-                            </button>
-                            <button
-                              onClick={() => deleteMutation.mutate(report.id)}
-                              className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg"
-                              title="Löschen"
-                            >
-                              <Trash2 size={18} />
-                            </button>
-                          </>
+                          <button
+                            onClick={() => finalizeMutation.mutate(report.id)}
+                            className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-lg"
+                            title="Finalisieren"
+                          >
+                            <Check size={18} />
+                          </button>
                         )}
+                        {/* PDF herunterladen - nur bei finalisiert */}
                         {report.pdfPath && (
                           <button
                             onClick={() =>
@@ -268,6 +263,22 @@ export default function AdminReports() {
                             <Download size={18} />
                           </button>
                         )}
+                        {/* Löschen - immer verfügbar mit Bestätigung */}
+                        <button
+                          onClick={() => {
+                            if (report.status === 'finalized') {
+                              if (confirm('Diese Abrechnung ist bereits finalisiert. Wirklich löschen?')) {
+                                deleteMutation.mutate(report.id);
+                              }
+                            } else {
+                              deleteMutation.mutate(report.id);
+                            }
+                          }}
+                          className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                          title="Löschen"
+                        >
+                          <Trash2 size={18} />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -493,12 +504,17 @@ export default function AdminReports() {
             <div className="p-6 space-y-4">
               {/* Report Info */}
               <div className="p-4 bg-gray-50 rounded-lg">
-                <h3 className="font-medium text-gray-900">
-                  {editingReport.employee.firstName} {editingReport.employee.lastName}
-                </h3>
-                <p className="text-sm text-gray-500">
-                  #{editingReport.employee.employeeNumber} | {MONTHS[editingReport.month - 1]} {editingReport.year}
-                </p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-medium text-gray-900">
+                      {editingReport.employee.firstName} {editingReport.employee.lastName}
+                    </h3>
+                    <p className="text-sm text-gray-500">
+                      #{editingReport.employee.employeeNumber} | {MONTHS[editingReport.month - 1]} {editingReport.year}
+                    </p>
+                  </div>
+                  {getStatusBadge(editingReport.status)}
+                </div>
               </div>
 
               {/* Current Values */}
@@ -530,11 +546,14 @@ export default function AdminReports() {
               </div>
 
               {/* Instructions */}
-              <div className="p-4 bg-amber-50 rounded-lg text-sm text-amber-700">
-                <p className="font-medium mb-1">Hinweis:</p>
+              <div className={`p-4 rounded-lg text-sm ${editingReport.status === 'finalized' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'}`}>
+                <p className="font-medium mb-1">
+                  {editingReport.status === 'finalized' ? 'Achtung - Finalisierte Abrechnung:' : 'Hinweis:'}
+                </p>
                 <p>
-                  Zeiteinträge können in der Mitarbeiter-Verwaltung bearbeitet werden.
-                  Nach Änderungen hier "Neu berechnen" klicken, um die Abrechnung zu aktualisieren.
+                  {editingReport.status === 'finalized'
+                    ? 'Diese Abrechnung ist bereits finalisiert. "Neu berechnen" setzt den Status zurück auf Entwurf und löscht die bestehende PDF.'
+                    : 'Zeiteinträge können in der Mitarbeiter-Verwaltung bearbeitet werden. Nach Änderungen hier "Neu berechnen" klicken.'}
                 </p>
               </div>
 

@@ -16,6 +16,7 @@ model Employee {
   email               String?  @unique
   phone               String?
   qrCode              String   @unique // Eindeutiger QR-Code für Zeiterfassung
+  rfidCard            String?  @unique // RFID-Karten-ID für Stempelterminal
   pin                 String?  // Optional: PIN für manuelle Eingabe
   weeklyHours         Float    @default(40.0) // Vertraglich vereinbarte Wochenstunden
   vacationDaysPerYear Int      @default(30) // Urlaubsanspruch pro Jahr
@@ -136,4 +137,24 @@ model EmployeeAbsence {
   updatedAt       DateTime    @updatedAt
 
   @@unique([employeeId, date]) // Ein Mitarbeiter kann pro Tag nur eine Abwesenheit haben
+}
+
+// Audit-Log für Nachvollziehbarkeit aller Aktionen
+model AuditLog {
+  id          String   @id @default(uuid())
+  timestamp   DateTime @default(now())
+
+  userId      String?  // Wer hat die Aktion ausgeführt (Employee-ID)
+  userName    String?  // Name des Users für schnelle Anzeige
+
+  action      String   // LOGIN, LOGOUT, CLOCK_IN, CLOCK_OUT, CREATE, UPDATE, DELETE
+  entityType  String   // Employee, TimeEntry, Report, Settings, Holiday, AbsenceType, Absence
+  entityId    String?  // ID des betroffenen Datensatzes
+
+  oldValues   String?  // JSON der alten Werte (bei UPDATE/DELETE)
+  newValues   String?  // JSON der neuen Werte (bei CREATE/UPDATE)
+
+  ipAddress   String?  // IP-Adresse des Clients
+  userAgent   String?  // Browser/Client Info
+  note        String?  // Zusätzliche Info
 }

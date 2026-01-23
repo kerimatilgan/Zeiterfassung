@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '../index.js';
 import { generateToken, authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { z } from 'zod';
+import { createAuditLog } from '../utils/auditLog.js';
 
 const router = Router();
 
@@ -21,15 +22,40 @@ router.post('/login', async (req, res) => {
     });
 
     if (!employee || !employee.passwordHash || !employee.isActive) {
+      await createAuditLog({
+        req,
+        action: 'LOGIN_FAILED',
+        entityType: 'Employee',
+        note: `Fehlgeschlagener Login-Versuch für Mitarbeiternummer: ${employeeNumber}`,
+      });
       return res.status(401).json({ error: 'Ungültige Anmeldedaten' });
     }
 
     const isValid = await bcrypt.compare(password, employee.passwordHash);
     if (!isValid) {
+      await createAuditLog({
+        req,
+        userId: employee.id,
+        userName: `${employee.firstName} ${employee.lastName}`,
+        action: 'LOGIN_FAILED',
+        entityType: 'Employee',
+        entityId: employee.id,
+        note: 'Falsches Passwort',
+      });
       return res.status(401).json({ error: 'Ungültige Anmeldedaten' });
     }
 
     const token = generateToken(employee);
+
+    // Erfolgreiche Anmeldung loggen
+    await createAuditLog({
+      req,
+      userId: employee.id,
+      userName: `${employee.firstName} ${employee.lastName}`,
+      action: 'LOGIN',
+      entityType: 'Employee',
+      entityId: employee.id,
+    });
 
     res.json({
       token,
@@ -107,6 +133,16 @@ router.post('/change-password', authMiddleware, async (req: AuthRequest, res: Re
     await prisma.employee.update({
       where: { id: employee.id },
       data: { passwordHash: newHash },
+    });
+
+    // Passwortänderung loggen
+    await createAuditLog({
+      req,
+      userId: employee.id,
+      userName: `${employee.firstName} ${employee.lastName}`,
+      action: 'PASSWORD_CHANGE',
+      entityType: 'Employee',
+      entityId: employee.id,
     });
 
     res.json({ message: 'Passwort erfolgreich geändert' });

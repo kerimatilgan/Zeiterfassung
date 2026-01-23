@@ -1,8 +1,50 @@
 import { Router } from 'express';
 import { prisma, io } from '../index.js';
-import { terminalAuthMiddleware } from '../middleware/auth.js';
+import { terminalAuthMiddleware, authMiddleware, adminMiddleware, AuthRequest } from '../middleware/auth.js';
+import { createAuditLog } from '../utils/auditLog.js';
 
 const router = Router();
+
+// ============================================
+// RFID Registrierungs-Modus
+// ============================================
+interface RegistrationSession {
+  employeeId: string;
+  employeeName: string;
+  socketId: string;
+  startedAt: Date;
+  timeoutId: NodeJS.Timeout;
+}
+
+let activeRegistrationSession: RegistrationSession | null = null;
+const REGISTRATION_TIMEOUT = 30000; // 30 Sekunden
+
+// Aufräumen einer Registration Session
+const clearRegistrationSession = () => {
+  if (activeRegistrationSession) {
+    clearTimeout(activeRegistrationSession.timeoutId);
+    activeRegistrationSession = null;
+  }
+};
+
+// Prüft ob eine Registration Session aktiv ist und verarbeitet die Karte
+const checkRegistrationMode = (rfidCard: string): boolean => {
+  if (!activeRegistrationSession) return false;
+
+  const session = activeRegistrationSession;
+  clearRegistrationSession();
+
+  // Sende die Karten-ID an den wartenden Client
+  io.to(session.socketId).emit('rfid-card-scanned', {
+    success: true,
+    rfidCard: rfidCard,
+    employeeId: session.employeeId,
+    employeeName: session.employeeName,
+  });
+
+  console.log(`📋 RFID-Registrierung: Karte ${rfidCard} für ${session.employeeName} übermittelt`);
+  return true;
+};
 
 // Formatiert Minuten zu H:MM Format
 const formatMinutesToTime = (totalMinutes: number): string => {
@@ -11,37 +53,161 @@ const formatMinutesToTime = (totalMinutes: number): string => {
   return `${h}:${m.toString().padStart(2, '0')}`;
 };
 
-// Terminal authentifizieren
-router.use(terminalAuthMiddleware);
+// ============================================
+// RFID Registrierungs-Modus Endpoints (JWT Auth für Admin-UI)
+// ============================================
 
-// QR-Code scannen / Ein- oder Ausstempeln
-router.post('/scan', async (req, res) => {
+// Startet den Registrierungs-Modus (wartet auf nächsten RFID-Scan)
+router.post('/register-rfid/start', authMiddleware, adminMiddleware, async (req: AuthRequest, res) => {
   try {
-    const { qrCode } = req.body;
+    const { employeeId, socketId } = req.body;
 
-    if (!qrCode) {
+    if (!employeeId || !socketId) {
       return res.status(400).json({
         success: false,
-        error: 'Kein QR-Code übermittelt'
+        error: 'employeeId und socketId erforderlich'
       });
     }
 
-    // Mitarbeiter anhand QR-Code finden
+    // Mitarbeiter prüfen
     const employee = await prisma.employee.findUnique({
-      where: { qrCode },
-      select: {
-        id: true,
-        employeeNumber: true,
-        firstName: true,
-        lastName: true,
-        isActive: true,
-      },
+      where: { id: employeeId },
+      select: { id: true, firstName: true, lastName: true }
     });
 
     if (!employee) {
       return res.status(404).json({
         success: false,
-        error: 'Unbekannter QR-Code',
+        error: 'Mitarbeiter nicht gefunden'
+      });
+    }
+
+    // Alte Session beenden falls vorhanden
+    clearRegistrationSession();
+
+    // Neue Session starten
+    const timeoutId = setTimeout(() => {
+      if (activeRegistrationSession) {
+        // Timeout - informiere Client
+        io.to(socketId).emit('rfid-card-scanned', {
+          success: false,
+          error: 'Timeout - keine Karte gescannt',
+          employeeId: employeeId,
+        });
+        clearRegistrationSession();
+        console.log(`⏱️ RFID-Registrierung Timeout für ${employee.firstName} ${employee.lastName}`);
+      }
+    }, REGISTRATION_TIMEOUT);
+
+    activeRegistrationSession = {
+      employeeId,
+      employeeName: `${employee.firstName} ${employee.lastName}`,
+      socketId,
+      startedAt: new Date(),
+      timeoutId,
+    };
+
+    console.log(`📋 RFID-Registrierung gestartet für ${employee.firstName} ${employee.lastName}`);
+
+    res.json({
+      success: true,
+      message: 'Registrierungs-Modus aktiv',
+      timeout: REGISTRATION_TIMEOUT,
+      employeeName: `${employee.firstName} ${employee.lastName}`,
+    });
+  } catch (error) {
+    console.error('Start registration error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Fehler beim Starten des Registrierungs-Modus'
+    });
+  }
+});
+
+// Stoppt den Registrierungs-Modus
+router.post('/register-rfid/stop', authMiddleware, adminMiddleware, (_req, res) => {
+  clearRegistrationSession();
+  res.json({ success: true, message: 'Registrierungs-Modus beendet' });
+});
+
+// Status des Registrierungs-Modus
+router.get('/register-rfid/status', authMiddleware, adminMiddleware, (_req, res) => {
+  if (activeRegistrationSession) {
+    res.json({
+      active: true,
+      employeeId: activeRegistrationSession.employeeId,
+      employeeName: activeRegistrationSession.employeeName,
+      startedAt: activeRegistrationSession.startedAt,
+    });
+  } else {
+    res.json({ active: false });
+  }
+});
+
+// ============================================
+// Terminal-Endpoints (Terminal API Key Auth)
+// ============================================
+
+// Terminal authentifizieren
+router.use(terminalAuthMiddleware);
+
+// QR-Code oder RFID-Karte scannen / Ein- oder Ausstempeln
+router.post('/scan', async (req, res) => {
+  try {
+    const { qrCode, rfidCard } = req.body;
+
+    if (!qrCode && !rfidCard) {
+      return res.status(400).json({
+        success: false,
+        error: 'Kein QR-Code oder RFID-Karte übermittelt'
+      });
+    }
+
+    // Prüfe ob Registrierungs-Modus aktiv ist
+    if (rfidCard && checkRegistrationMode(rfidCard)) {
+      return res.json({
+        success: true,
+        action: 'registration',
+        message: 'RFID-Karte zur Registrierung übermittelt'
+      });
+    }
+
+    // Mitarbeiter anhand RFID-Karte oder QR-Code finden
+    let employee = null;
+    let authMethod = '';
+
+    if (rfidCard) {
+      employee = await prisma.employee.findUnique({
+        where: { rfidCard },
+        select: {
+          id: true,
+          employeeNumber: true,
+          firstName: true,
+          lastName: true,
+          isActive: true,
+        },
+      });
+      authMethod = 'rfid';
+    }
+
+    if (!employee && qrCode) {
+      employee = await prisma.employee.findUnique({
+        where: { qrCode },
+        select: {
+          id: true,
+          employeeNumber: true,
+          firstName: true,
+          lastName: true,
+          isActive: true,
+        },
+      });
+      authMethod = 'qrcode';
+    }
+
+    if (!employee) {
+      return res.status(404).json({
+        success: false,
+        error: rfidCard ? 'Unbekannte RFID-Karte' : 'Unbekannter QR-Code',
         message: 'Mitarbeiter nicht gefunden'
       });
     }
@@ -118,6 +284,21 @@ router.post('/scan', async (req, res) => {
       const netWorkMinutes = totalWorkMinutes - totalBreakMinutes;
       const formattedTime = formatMinutesToTime(netWorkMinutes);
 
+      // Audit Log für Ausstempeln
+      await createAuditLog({
+        req,
+        userId: employee.id,
+        userName: `${employee.firstName} ${employee.lastName}`,
+        action: 'CLOCK_OUT',
+        entityType: 'TimeEntry',
+        entityId: updatedEntry.id,
+        newValues: {
+          clockOut: updatedEntry.clockOut,
+          breakMinutes,
+          hoursWorked: formattedTime,
+        },
+      });
+
       // WebSocket Event für Ausstempeln
       io.emit('time-entry-updated', {
         type: 'clock_out',
@@ -151,6 +332,19 @@ router.post('/scan', async (req, res) => {
         data: {
           employeeId: employee.id,
           clockIn: new Date(),
+        },
+      });
+
+      // Audit Log für Einstempeln
+      await createAuditLog({
+        req,
+        userId: employee.id,
+        userName: `${employee.firstName} ${employee.lastName}`,
+        action: 'CLOCK_IN',
+        entityType: 'TimeEntry',
+        entityId: newEntry.id,
+        newValues: {
+          clockIn: newEntry.clockIn,
         },
       });
 

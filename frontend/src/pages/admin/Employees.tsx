@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { employeesApi, timeEntriesApi, settingsApi } from '../../lib/api';
+import { employeesApi, timeEntriesApi, settingsApi, terminalApi } from '../../lib/api';
 import toast from 'react-hot-toast';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths } from 'date-fns';
 import { de } from 'date-fns/locale';
+import { io, Socket } from 'socket.io-client';
 import {
   Plus,
   Edit2,
@@ -17,6 +18,9 @@ import {
   ChevronRight,
   Briefcase,
   Star,
+  CreditCard,
+  Wifi,
+  Loader2,
 } from 'lucide-react';
 
 interface Employee {
@@ -32,6 +36,7 @@ interface Employee {
   isActive: boolean;
   isAdmin: boolean;
   qrCode: string;
+  rfidCard: string | null;
 }
 
 interface EmployeeFormData {
@@ -131,6 +136,15 @@ export default function AdminEmployees() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showQrModal, setShowQrModal] = useState<string | null>(null);
 
+  // RFID Modal State
+  const [showRfidModal, setShowRfidModal] = useState(false);
+  const [rfidEmployee, setRfidEmployee] = useState<Employee | null>(null);
+  const [rfidInput, setRfidInput] = useState('');
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanCountdown, setScanCountdown] = useState(0);
+  const [isSocketConnected, setIsSocketConnected] = useState(false);
+  const socketRef = useRef<Socket | null>(null);
+
   // Time Entries Modal State
   const [showTimeEntriesModal, setShowTimeEntriesModal] = useState(false);
   const [selectedEmployeeForTime, setSelectedEmployeeForTime] = useState<Employee | null>(null);
@@ -217,6 +231,31 @@ export default function AdminEmployees() {
     },
   });
 
+  const registerRfidMutation = useMutation({
+    mutationFn: ({ id, rfidCard }: { id: string; rfidCard: string }) =>
+      employeesApi.registerRfid(id, rfidCard),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      toast.success('RFID-Karte registriert');
+      closeRfidModal();
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error || 'Fehler beim Registrieren');
+    },
+  });
+
+  const removeRfidMutation = useMutation({
+    mutationFn: (id: string) => employeesApi.removeRfid(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      toast.success('RFID-Karte entfernt');
+      closeRfidModal();
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error || 'Fehler beim Entfernen');
+    },
+  });
+
   const openCreateModal = () => {
     setEditingEmployee(null);
     setFormData(initialFormData);
@@ -261,6 +300,138 @@ export default function AdminEmployees() {
     if (confirm(`Möchten Sie ${employee.firstName} ${employee.lastName} wirklich deaktivieren?`)) {
       deleteMutation.mutate(employee.id);
     }
+  };
+
+  // RFID Modal Functions
+  const openRfidModal = (employee: Employee) => {
+    setRfidEmployee(employee);
+    setRfidInput(employee.rfidCard || '');
+    setShowRfidModal(true);
+  };
+
+  const closeRfidModal = useCallback(() => {
+    // Stop scanning if active
+    if (isScanning) {
+      terminalApi.stopRfidRegistration().catch(() => {});
+    }
+    setIsScanning(false);
+    setScanCountdown(0);
+    setShowRfidModal(false);
+    setRfidEmployee(null);
+    setRfidInput('');
+  }, [isScanning]);
+
+  const handleRfidSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!rfidEmployee || !rfidInput.trim()) return;
+    registerRfidMutation.mutate({ id: rfidEmployee.id, rfidCard: rfidInput.trim() });
+  };
+
+  const handleRfidRemove = () => {
+    if (!rfidEmployee) return;
+    if (confirm('RFID-Karte wirklich entfernen?')) {
+      removeRfidMutation.mutate(rfidEmployee.id);
+    }
+  };
+
+  // WebSocket für RFID-Scanning
+  useEffect(() => {
+    // Verbinde nur wenn Modal offen
+    if (!showRfidModal) {
+      setIsSocketConnected(false);
+      return;
+    }
+
+    // Verbinde zum Backend-Server (nicht zum Frontend-Dev-Server)
+    const backendUrl = window.location.origin.replace(':5175', ':3004');
+    const socket = io(backendUrl, {
+      transports: ['websocket', 'polling'],
+      timeout: 5000,
+    });
+    socketRef.current = socket;
+
+    socket.on('connect', () => {
+      console.log('RFID WebSocket connected:', socket.id);
+      setIsSocketConnected(true);
+    });
+
+    socket.on('disconnect', () => {
+      console.log('RFID WebSocket disconnected');
+      setIsSocketConnected(false);
+    });
+
+    socket.on('connect_error', (error) => {
+      console.error('RFID WebSocket connection error:', error);
+      setIsSocketConnected(false);
+    });
+
+    socket.on('rfid-card-scanned', (data: { success: boolean; rfidCard?: string; error?: string }) => {
+      setIsScanning(false);
+      setScanCountdown(0);
+
+      if (data.success && data.rfidCard) {
+        setRfidInput(data.rfidCard);
+        toast.success(`Karte gescannt: ${data.rfidCard}`);
+      } else {
+        toast.error(data.error || 'Scan fehlgeschlagen');
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+      socketRef.current = null;
+      setIsSocketConnected(false);
+    };
+  }, [showRfidModal]);
+
+  // Countdown Timer
+  useEffect(() => {
+    if (!isScanning || scanCountdown <= 0) return;
+
+    const timer = setInterval(() => {
+      setScanCountdown((prev) => {
+        if (prev <= 1) {
+          setIsScanning(false);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [isScanning, scanCountdown]);
+
+  const startRfidScan = async () => {
+    if (!rfidEmployee) {
+      toast.error('Kein Mitarbeiter ausgewählt');
+      return;
+    }
+
+    if (!isSocketConnected || !socketRef.current?.id) {
+      toast.error('WebSocket nicht verbunden - bitte warten...');
+      return;
+    }
+
+    try {
+      const response = await terminalApi.startRfidRegistration(rfidEmployee.id, socketRef.current.id);
+      if (response.data.success) {
+        setIsScanning(true);
+        setScanCountdown(30); // 30 Sekunden Timeout
+        toast.success('Bitte Karte am Terminal scannen...');
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Fehler beim Starten des Scans');
+    }
+  };
+
+  const stopRfidScan = async () => {
+    try {
+      await terminalApi.stopRfidRegistration();
+    } catch {
+      // Ignore errors
+    }
+    setIsScanning(false);
+    setScanCountdown(0);
   };
 
   const generateQrCodeUrl = (qrCode: string) => {
@@ -887,6 +1058,17 @@ export default function AdminEmployees() {
                           <QrCode size={18} />
                         </button>
                         <button
+                          onClick={() => openRfidModal(employee)}
+                          className={`p-2 rounded-lg ${
+                            employee.rfidCard
+                              ? 'text-green-600 hover:text-green-700 hover:bg-green-50'
+                              : 'text-gray-500 hover:text-primary-600 hover:bg-primary-50'
+                          }`}
+                          title={employee.rfidCard ? `RFID: ${employee.rfidCard}` : 'RFID-Karte zuweisen'}
+                        >
+                          <CreditCard size={18} />
+                        </button>
+                        <button
                           onClick={() => openTimeEntriesModal(employee)}
                           className="p-2 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
                           title="Zeiteinträge"
@@ -1117,6 +1299,123 @@ export default function AdminEmployees() {
                 Download
               </a>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* RFID Modal */}
+      {showRfidModal && rfidEmployee && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <CreditCard size={20} />
+                RFID-Karte
+              </h3>
+              <button onClick={closeRfidModal} className="p-2 hover:bg-gray-100 rounded-lg">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="mb-4">
+              <p className="text-sm text-gray-600">
+                Mitarbeiter: <strong>{rfidEmployee.firstName} {rfidEmployee.lastName}</strong>
+              </p>
+              <p className="text-sm text-gray-500">#{rfidEmployee.employeeNumber}</p>
+            </div>
+
+            {rfidEmployee.rfidCard ? (
+              <div className="mb-4 p-3 bg-green-50 rounded-lg">
+                <p className="text-sm text-green-700 font-medium">Aktuelle RFID-Karte:</p>
+                <p className="font-mono text-green-800">{rfidEmployee.rfidCard}</p>
+              </div>
+            ) : (
+              <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                <p className="text-sm text-gray-500">Keine RFID-Karte zugewiesen</p>
+              </div>
+            )}
+
+            {/* Scanning Status */}
+            {isScanning && (
+              <div className="mb-4 p-4 bg-blue-50 rounded-lg border-2 border-blue-200 animate-pulse">
+                <div className="flex items-center justify-center gap-3 text-blue-700">
+                  <Loader2 size={24} className="animate-spin" />
+                  <div>
+                    <p className="font-medium">Warte auf Karten-Scan...</p>
+                    <p className="text-sm text-blue-600">
+                      Bitte Karte am Terminal vorhalten ({scanCountdown}s)
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={stopRfidScan}
+                  className="mt-3 w-full text-sm text-blue-600 hover:text-blue-800"
+                >
+                  Abbrechen
+                </button>
+              </div>
+            )}
+
+            <form onSubmit={handleRfidSubmit} className="space-y-4">
+              <div>
+                <label className="label">
+                  {rfidEmployee.rfidCard ? 'Neue RFID-Karten-ID' : 'RFID-Karten-ID'}
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={rfidInput}
+                    onChange={(e) => setRfidInput(e.target.value.toUpperCase())}
+                    className="input font-mono flex-1"
+                    placeholder="z.B. 1234567890"
+                    autoFocus
+                    disabled={isScanning}
+                  />
+                  <button
+                    type="button"
+                    onClick={startRfidScan}
+                    disabled={isScanning || !isSocketConnected}
+                    className={`btn ${isScanning ? 'btn-secondary' : isSocketConnected ? 'btn-primary' : 'btn-secondary opacity-50'} flex items-center gap-2`}
+                    title={isSocketConnected ? 'Karte am Pi-Terminal scannen' : 'Verbinde zum Server...'}
+                  >
+                    {!isSocketConnected ? (
+                      <Loader2 size={18} className="animate-spin" />
+                    ) : (
+                      <Wifi size={18} />
+                    )}
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  {isSocketConnected ? (
+                    <>ID manuell eingeben oder <strong>Wifi-Button</strong> klicken und Karte am Pi scannen</>
+                  ) : (
+                    <span className="text-orange-500">Verbinde zum Terminal-Server...</span>
+                  )}
+                </p>
+              </div>
+
+              <div className="flex gap-3">
+                {rfidEmployee.rfidCard && (
+                  <button
+                    type="button"
+                    onClick={handleRfidRemove}
+                    className="btn btn-secondary text-red-600 hover:bg-red-50 flex-1"
+                    disabled={removeRfidMutation.isPending || isScanning}
+                  >
+                    <Trash2 size={18} className="mr-2" />
+                    Entfernen
+                  </button>
+                )}
+                <button
+                  type="submit"
+                  className="btn btn-primary flex-1"
+                  disabled={!rfidInput.trim() || registerRfidMutation.isPending || isScanning}
+                >
+                  {rfidEmployee.rfidCard ? 'Aktualisieren' : 'Registrieren'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

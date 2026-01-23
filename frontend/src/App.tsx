@@ -5,6 +5,7 @@ import AdminDashboard from './pages/admin/Dashboard';
 import AdminEmployees from './pages/admin/Employees';
 import AdminReports from './pages/admin/Reports';
 import AdminSettings from './pages/admin/Settings';
+import AdminAuditLogs from './pages/admin/AuditLogs';
 import EmployeeDashboard from './pages/employee/Dashboard';
 import EmployeeTimesheet from './pages/employee/Timesheet';
 import EmployeeReports from './pages/employee/Reports';
@@ -43,6 +44,7 @@ function App() {
         <Route path="time-entries" element={<Navigate to="/admin/employees" replace />} />
         <Route path="reports" element={<AdminReports />} />
         <Route path="settings" element={<AdminSettings />} />
+        <Route path="audit-logs" element={<AdminAuditLogs />} />
       </Route>
 
       {/* Employee Routes */}

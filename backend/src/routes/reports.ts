@@ -127,11 +127,15 @@ router.get('/preview/:employeeId/:year/:month', authMiddleware, adminMiddleware,
       endDate
     );
 
-    // Soll-Stunden berechnen (Arbeitstage * tägliche Soll-Stunden)
-    const workDays = parseWorkDays(employee.workDays);
+    // Soll-Stunden berechnen (berücksichtigt Feiertage und Abwesenheiten)
     const workingDays = countWorkingDays(yearNum, monthNum, employee.workDays);
-    const dailyTargetHours = workDays.length > 0 ? employee.weeklyHours / workDays.length : 0;
-    const targetHours = workingDays * dailyTargetHours;
+    const targetHours = await calculateAdjustedTargetHours(
+      employeeId,
+      yearNum,
+      monthNum,
+      employee.workDays,
+      employee.weeklyHours
+    );
 
     const overtimeHours = Math.max(0, totalHours - targetHours);
 
@@ -210,10 +214,14 @@ router.post('/create', authMiddleware, adminMiddleware, async (req: AuthRequest,
 
     const { totalHours } = await calculateHoursForPeriod(data.employeeId, startDate, endDate);
 
-    const workDays = parseWorkDays(employee.workDays);
-    const workingDays = countWorkingDays(data.year, data.month, employee.workDays);
-    const dailyTargetHours = workDays.length > 0 ? employee.weeklyHours / workDays.length : 0;
-    const targetHours = workingDays * dailyTargetHours;
+    // Soll-Stunden berechnen (berücksichtigt Feiertage und Abwesenheiten)
+    const targetHours = await calculateAdjustedTargetHours(
+      data.employeeId,
+      data.year,
+      data.month,
+      employee.workDays,
+      employee.weeklyHours
+    );
     const overtimeHours = Math.max(0, totalHours - targetHours);
 
     // Urlaubstage berechnen
@@ -427,7 +435,7 @@ router.get('/:id/preview-pdf', authMiddleware, adminMiddleware, async (req: Auth
   }
 });
 
-// Abrechnung neu berechnen (nur Drafts)
+// Abrechnung neu berechnen (auch finalisierte - setzt Status auf draft zurück)
 router.post('/:id/recalculate', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
@@ -441,24 +449,32 @@ router.post('/:id/recalculate', authMiddleware, adminMiddleware, async (req: Aut
       return res.status(404).json({ error: 'Abrechnung nicht gefunden' });
     }
 
-    if (report.status !== 'draft') {
-      return res.status(400).json({ error: 'Nur Entwürfe können neu berechnet werden' });
-    }
-
     const startDate = new Date(report.year, report.month - 1, 1);
     const endDate = new Date(report.year, report.month, 0, 23, 59, 59);
 
     const { totalHours } = await calculateHoursForPeriod(report.employeeId, startDate, endDate);
 
-    const workDays = parseWorkDays(report.employee.workDays);
-    const workingDays = countWorkingDays(report.year, report.month, report.employee.workDays);
-    const dailyTargetHours = workDays.length > 0 ? report.employee.weeklyHours / workDays.length : 0;
-    const targetHours = workingDays * dailyTargetHours;
+    // Soll-Stunden berechnen (berücksichtigt Feiertage und Abwesenheiten)
+    const targetHours = await calculateAdjustedTargetHours(
+      report.employeeId,
+      report.year,
+      report.month,
+      report.employee.workDays,
+      report.employee.weeklyHours
+    );
     const overtimeHours = Math.max(0, totalHours - targetHours);
 
     // Urlaubstage neu berechnen
     const vacationDaysUsed = await calculateVacationDaysUsed(report.employeeId, report.year, report.month);
     const vacationDaysRemaining = report.employee.vacationDaysPerYear - vacationDaysUsed;
+
+    // Bei finalisierten Abrechnungen: Alte PDF löschen und Status zurücksetzen
+    if (report.status === 'finalized' && report.pdfPath) {
+      const pdfFullPath = path.join(process.cwd(), 'reports', report.pdfPath);
+      if (fs.existsSync(pdfFullPath)) {
+        fs.unlinkSync(pdfFullPath);
+      }
+    }
 
     const updatedReport = await prisma.monthlyReport.update({
       where: { id },
@@ -468,6 +484,9 @@ router.post('/:id/recalculate', authMiddleware, adminMiddleware, async (req: Aut
         overtimeHours,
         vacationDaysUsed,
         vacationDaysRemaining,
+        status: 'draft', // Immer auf draft setzen nach Neuberechnung
+        pdfPath: null,
+        finalizedAt: null,
       },
       include: {
         employee: {
@@ -487,7 +506,7 @@ router.post('/:id/recalculate', authMiddleware, adminMiddleware, async (req: Aut
   }
 });
 
-// Abrechnung löschen (nur Drafts)
+// Abrechnung löschen (auch finalisierte - löscht zugehörige PDF)
 router.delete('/:id', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
@@ -498,8 +517,12 @@ router.delete('/:id', authMiddleware, adminMiddleware, async (req: AuthRequest, 
       return res.status(404).json({ error: 'Abrechnung nicht gefunden' });
     }
 
-    if (report.status !== 'draft') {
-      return res.status(400).json({ error: 'Nur Entwürfe können gelöscht werden' });
+    // PDF löschen falls vorhanden
+    if (report.pdfPath) {
+      const pdfFullPath = path.join(process.cwd(), 'reports', report.pdfPath);
+      if (fs.existsSync(pdfFullPath)) {
+        fs.unlinkSync(pdfFullPath);
+      }
     }
 
     await prisma.monthlyReport.delete({ where: { id } });
@@ -513,12 +536,18 @@ router.delete('/:id', authMiddleware, adminMiddleware, async (req: AuthRequest, 
 
 // Hilfsfunktionen
 
+// Konvertiert Date zu lokalem Datum-String (YYYY-MM-DD) - wichtig für Zeitzonenkorrektur
+function toLocalDateString(date: Date): string {
+  const d = new Date(date);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 // Parst workDays String zu Array von Zahlen (0=So, 1=Mo, ..., 6=Sa)
 function parseWorkDays(workDaysStr: string): number[] {
   return workDaysStr.split(',').map(d => parseInt(d.trim())).filter(d => !isNaN(d));
 }
 
-// Zählt Arbeitstage basierend auf employee.workDays
+// Zählt Arbeitstage basierend auf employee.workDays (ohne Feiertage/Abwesenheiten)
 function countWorkingDays(year: number, month: number, workDaysStr: string = '1,2,3,4,5'): number {
   const firstDay = new Date(year, month - 1, 1);
   const lastDay = new Date(year, month, 0);
@@ -533,6 +562,66 @@ function countWorkingDays(year: number, month: number, workDaysStr: string = '1,
   }
 
   return count;
+}
+
+// Berechnet die tatsächlichen Soll-Stunden unter Berücksichtigung von Feiertagen und Abwesenheiten
+async function calculateAdjustedTargetHours(
+  employeeId: string,
+  year: number,
+  month: number,
+  workDaysStr: string,
+  weeklyHours: number
+): Promise<number> {
+  const workDays = parseWorkDays(workDaysStr);
+  const dailyTargetHours = workDays.length > 0 ? weeklyHours / workDays.length : 0;
+
+  const startDate = new Date(year, month - 1, 1);
+  const endDate = new Date(year, month, 0, 23, 59, 59);
+
+  // Feiertage laden
+  const holidays = await prisma.holiday.findMany({
+    where: {
+      date: { gte: startDate, lte: endDate }
+    }
+  });
+  const holidayDates = new Set(holidays.map(h => toLocalDateString(h.date)));
+
+  // Alle Abwesenheiten laden
+  const absences = await prisma.employeeAbsence.findMany({
+    where: {
+      employeeId,
+      date: { gte: startDate, lte: endDate }
+    },
+    include: { absenceType: true }
+  });
+  const absenceMap = new Map<string, number>();
+  absences.forEach(a => absenceMap.set(toLocalDateString(a.date), a.absenceType.requiredHours));
+
+  let targetHours = 0;
+
+  for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+    const dateStr = toLocalDateString(d);
+    const dayOfWeek = d.getDay();
+
+    // Kein Arbeitstag? → 0 Soll
+    if (!workDays.includes(dayOfWeek)) continue;
+
+    // Feiertag? → 0 Soll
+    if (holidayDates.has(dateStr)) continue;
+
+    // Abwesenheit?
+    if (absenceMap.has(dateStr)) {
+      const requiredHours = absenceMap.get(dateStr)!;
+      // Bei requiredHours = 0 (Urlaub, Krank): kein Soll
+      // Bei requiredHours > 0 (Berufsschule): nur diese Stunden als Soll
+      targetHours += requiredHours;
+    } else {
+      // Normaler Arbeitstag
+      targetHours += dailyTargetHours;
+    }
+  }
+
+  return Math.round(targetHours * 100) / 100;
 }
 
 // Berechnet verbrauchte Urlaubstage im Jahr bis einschließlich Monat

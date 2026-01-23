@@ -9,6 +9,7 @@ import {
   LogOut,
   Menu,
   X,
+  Shield,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useSocket } from '../hooks/useSocket';
@@ -35,6 +36,7 @@ export default function Layout({ isAdmin = false }: LayoutProps) {
     { to: '/admin/employees', icon: Users, label: 'Mitarbeiter' },
     { to: '/admin/reports', icon: FileText, label: 'Abrechnungen' },
     { to: '/admin/settings', icon: Settings, label: 'Einstellungen' },
+    { to: '/admin/audit-logs', icon: Shield, label: 'Audit-Log' },
   ];
 
   const employeeLinks = [

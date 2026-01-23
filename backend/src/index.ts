@@ -10,6 +10,7 @@ import reportRoutes from './routes/reports.js';
 import authRoutes from './routes/auth.js';
 import terminalRoutes from './routes/terminal.js';
 import settingsRoutes from './routes/settings.js';
+import auditLogRoutes from './routes/auditLogs.js';
 
 export const prisma = new PrismaClient();
 
@@ -52,6 +53,7 @@ app.use('/api/time-entries', timeEntryRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/terminal', terminalRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/audit-logs', auditLogRoutes);
 
 // Health Check
 app.get('/api/health', (_req, res) => {

@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import { prisma, io } from '../index.js';
 import { authMiddleware, adminMiddleware, AuthRequest } from '../middleware/auth.js';
 import { z } from 'zod';
+import { createAuditLog } from '../utils/auditLog.js';
 
 const router = Router();
 
@@ -124,6 +125,23 @@ router.post('/manual', authMiddleware, adminMiddleware, async (req: AuthRequest,
       },
     });
 
+    // Audit Log
+    await createAuditLog({
+      req,
+      action: 'CREATE',
+      entityType: 'TimeEntry',
+      entityId: entry.id,
+      newValues: {
+        employeeName: `${employee.firstName} ${employee.lastName}`,
+        clockIn: entry.clockIn,
+        clockOut: entry.clockOut,
+        breakMinutes: entry.breakMinutes,
+        note: entry.note,
+        isManual: true,
+      },
+      note: 'Manuell erstellt',
+    });
+
     // WebSocket Event für manuell erstellten Eintrag
     io.emit('time-entry-updated', {
       type: 'manual_create',
@@ -186,6 +204,27 @@ router.put('/:id', authMiddleware, adminMiddleware, async (req: AuthRequest, res
       },
     });
 
+    // Audit Log
+    await createAuditLog({
+      req,
+      action: 'UPDATE',
+      entityType: 'TimeEntry',
+      entityId: entry.id,
+      oldValues: {
+        employeeName: `${entry.employee.firstName} ${entry.employee.lastName}`,
+        clockIn: existing.clockIn,
+        clockOut: existing.clockOut,
+        breakMinutes: existing.breakMinutes,
+        note: existing.note,
+      },
+      newValues: {
+        clockIn: entry.clockIn,
+        clockOut: entry.clockOut,
+        breakMinutes: entry.breakMinutes,
+        note: entry.note,
+      },
+    });
+
     // WebSocket Event für aktualisierten Eintrag
     io.emit('time-entry-updated', {
       type: 'update',
@@ -231,6 +270,21 @@ router.delete('/:id', authMiddleware, adminMiddleware, async (req: AuthRequest, 
     }
 
     await prisma.timeEntry.delete({ where: { id } });
+
+    // Audit Log
+    await createAuditLog({
+      req,
+      action: 'DELETE',
+      entityType: 'TimeEntry',
+      entityId: id,
+      oldValues: {
+        employeeName: `${existing.employee.firstName} ${existing.employee.lastName}`,
+        clockIn: existing.clockIn,
+        clockOut: existing.clockOut,
+        breakMinutes: existing.breakMinutes,
+        note: existing.note,
+      },
+    });
 
     // WebSocket Event für gelöschten Eintrag
     io.emit('time-entry-updated', {

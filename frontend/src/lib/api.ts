@@ -51,6 +51,17 @@ export const employeesApi = {
   update: (id: string, data: any) => api.put(`/employees/${id}`, data),
   delete: (id: string) => api.delete(`/employees/${id}`),
   regenerateQr: (id: string) => api.post(`/employees/${id}/regenerate-qr`),
+  // RFID-Karten
+  registerRfid: (id: string, rfidCard: string) => api.post(`/employees/${id}/register-rfid`, { rfidCard }),
+  removeRfid: (id: string) => api.delete(`/employees/${id}/rfid`),
+};
+
+// Terminal (RFID Registration)
+export const terminalApi = {
+  startRfidRegistration: (employeeId: string, socketId: string) =>
+    api.post('/terminal/register-rfid/start', { employeeId, socketId }),
+  stopRfidRegistration: () => api.post('/terminal/register-rfid/stop'),
+  getRegistrationStatus: () => api.get('/terminal/register-rfid/status'),
 };
 
 // Time Entries
@@ -105,6 +116,33 @@ export const settingsApi = {
   createAbsence: (data: any) => api.post('/settings/absences', data),
   updateAbsence: (id: string, data: any) => api.put(`/settings/absences/${id}`, data),
   deleteAbsence: (id: string) => api.delete(`/settings/absences/${id}`),
+  // Datenbank-Verwaltung
+  getDatabaseInfo: () => api.get('/settings/database/info'),
+  downloadBackup: () => api.get('/settings/database/backup', { responseType: 'blob' }),
+  restoreDatabase: (file: File) => {
+    const formData = new FormData();
+    formData.append('database', file);
+    return api.post('/settings/database/restore', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+};
+
+// Audit Logs
+export const auditLogsApi = {
+  getAll: (params?: {
+    page?: number;
+    limit?: number;
+    action?: string;
+    entityType?: string;
+    userId?: string;
+    from?: string;
+    to?: string;
+    search?: string;
+  }) => api.get('/audit-logs', { params }),
+  getOne: (id: string) => api.get(`/audit-logs/${id}`),
+  getStats: () => api.get('/audit-logs/stats/summary'),
+  getFilterOptions: () => api.get('/audit-logs/filters/options'),
 };
 
 export default api;

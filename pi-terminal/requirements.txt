@@ -1,0 +1,7 @@
+# Zeiterfassung RFID Terminal - Python Dependencies
+evdev>=1.6.0
+requests>=2.28.0
+
+# HDMI Display Dependencies
+python-socketio[client]>=5.7.0
+pygame>=2.1.0
