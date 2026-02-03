@@ -1,10 +1,45 @@
 import { Router, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 import { prisma } from '../index.js';
 import { authMiddleware, adminMiddleware, AuthRequest } from '../middleware/auth.js';
 import { z } from 'zod';
 import { createAuditLog } from '../utils/auditLog.js';
+
+// Multer-Konfiguration für Foto-Uploads
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    const uploadDir = path.join(process.cwd(), 'uploads', 'photos');
+    // Verzeichnis erstellen falls nicht vorhanden
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (_req, file, cb) => {
+    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1E9)}`;
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `photo-${uniqueSuffix}${ext}`);
+  },
+});
+
+const fileFilter = (_req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Nur Bilder erlaubt (JPEG, PNG, GIF, WebP)'));
+  }
+};
+
+const upload = multer({
+  storage,
+  fileFilter,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
+});
 
 const router = Router();
 
@@ -32,6 +67,7 @@ router.get('/', authMiddleware, adminMiddleware, async (_req: AuthRequest, res: 
         lastName: true,
         email: true,
         phone: true,
+        photoUrl: true,
         weeklyHours: true,
         vacationDaysPerYear: true,
         workDays: true,
@@ -70,6 +106,7 @@ router.get('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
         lastName: true,
         email: true,
         phone: true,
+        photoUrl: true,
         weeklyHours: true,
         vacationDaysPerYear: true,
         workDays: true,
@@ -137,6 +174,7 @@ router.post('/', authMiddleware, adminMiddleware, async (req: AuthRequest, res: 
         lastName: true,
         email: true,
         phone: true,
+        photoUrl: true,
         weeklyHours: true,
         vacationDaysPerYear: true,
         workDays: true,
@@ -236,6 +274,7 @@ router.put('/:id', authMiddleware, adminMiddleware, async (req: AuthRequest, res
         lastName: true,
         email: true,
         phone: true,
+        photoUrl: true,
         weeklyHours: true,
         vacationDaysPerYear: true,
         workDays: true,
@@ -408,6 +447,113 @@ router.post('/:id/register-rfid', authMiddleware, adminMiddleware, async (req: A
   } catch (error) {
     console.error('Register RFID error:', error);
     res.status(500).json({ error: 'Fehler beim Registrieren der RFID-Karte' });
+  }
+});
+
+// Foto hochladen (nur Admin)
+router.post('/:id/photo', authMiddleware, adminMiddleware, upload.single('photo'), async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'Kein Foto hochgeladen' });
+    }
+
+    const employee = await prisma.employee.findUnique({ where: { id } });
+    if (!employee) {
+      // Lösche hochgeladene Datei wenn Mitarbeiter nicht existiert
+      fs.unlinkSync(req.file.path);
+      return res.status(404).json({ error: 'Mitarbeiter nicht gefunden' });
+    }
+
+    // Altes Foto löschen falls vorhanden
+    if (employee.photoUrl) {
+      const oldPhotoPath = path.join(process.cwd(), employee.photoUrl);
+      if (fs.existsSync(oldPhotoPath)) {
+        fs.unlinkSync(oldPhotoPath);
+      }
+    }
+
+    // Relativer Pfad für die Datenbank
+    const photoUrl = `/uploads/photos/${req.file.filename}`;
+
+    const updated = await prisma.employee.update({
+      where: { id },
+      data: { photoUrl },
+      select: {
+        id: true,
+        photoUrl: true,
+        firstName: true,
+        lastName: true,
+      },
+    });
+
+    // Audit Log
+    await createAuditLog({
+      req,
+      action: 'UPDATE',
+      entityType: 'Employee',
+      entityId: id,
+      oldValues: { photoUrl: employee.photoUrl },
+      newValues: { photoUrl },
+      note: 'Foto hochgeladen',
+    });
+
+    res.json({
+      message: 'Foto erfolgreich hochgeladen',
+      photoUrl: updated.photoUrl,
+    });
+  } catch (error) {
+    // Bei Fehler hochgeladene Datei löschen
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    console.error('Upload photo error:', error);
+    res.status(500).json({ error: 'Fehler beim Hochladen des Fotos' });
+  }
+});
+
+// Foto löschen (nur Admin)
+router.delete('/:id/photo', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const employee = await prisma.employee.findUnique({ where: { id } });
+    if (!employee) {
+      return res.status(404).json({ error: 'Mitarbeiter nicht gefunden' });
+    }
+
+    if (!employee.photoUrl) {
+      return res.status(400).json({ error: 'Kein Foto vorhanden' });
+    }
+
+    // Foto-Datei löschen
+    const photoPath = path.join(process.cwd(), employee.photoUrl);
+    if (fs.existsSync(photoPath)) {
+      fs.unlinkSync(photoPath);
+    }
+
+    // Datenbank aktualisieren
+    await prisma.employee.update({
+      where: { id },
+      data: { photoUrl: null },
+    });
+
+    // Audit Log
+    await createAuditLog({
+      req,
+      action: 'UPDATE',
+      entityType: 'Employee',
+      entityId: id,
+      oldValues: { photoUrl: employee.photoUrl },
+      newValues: { photoUrl: null },
+      note: 'Foto gelöscht',
+    });
+
+    res.json({ message: 'Foto erfolgreich gelöscht' });
+  } catch (error) {
+    console.error('Delete photo error:', error);
+    res.status(500).json({ error: 'Fehler beim Löschen des Fotos' });
   }
 });
 

@@ -15,6 +15,7 @@ model Employee {
   lastName            String
   email               String?  @unique
   phone               String?
+  photoUrl            String?  // Pfad zum Mitarbeiterfoto
   qrCode              String   @unique // Eindeutiger QR-Code für Zeiterfassung
   rfidCard            String?  @unique // RFID-Karten-ID für Stempelterminal
   pin                 String?  // Optional: PIN für manuelle Eingabe

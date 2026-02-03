@@ -54,6 +54,15 @@ export const employeesApi = {
   // RFID-Karten
   registerRfid: (id: string, rfidCard: string) => api.post(`/employees/${id}/register-rfid`, { rfidCard }),
   removeRfid: (id: string) => api.delete(`/employees/${id}/rfid`),
+  // Fotos
+  uploadPhoto: (id: string, file: File) => {
+    const formData = new FormData();
+    formData.append('photo', file);
+    return api.post(`/employees/${id}/photo`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+  deletePhoto: (id: string) => api.delete(`/employees/${id}/photo`),
 };
 
 // Terminal (RFID Registration)

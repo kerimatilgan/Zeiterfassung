@@ -53,6 +53,117 @@ const formatMinutesToTime = (totalMinutes: number): string => {
   return `${h}:${m.toString().padStart(2, '0')}`;
 };
 
+// Teilt einen mehrtägigen Zeiteintrag in einzelne Tage auf (CET/CEST-basiert für Deutschland)
+interface DayEntry {
+  clockIn: Date;
+  clockOut: Date;
+  isFirstDay: boolean;
+  isLastDay: boolean;
+}
+
+// Hilfsfunktion: Gibt den UTC-Offset für Deutschland zurück (1 für CET, 2 für CEST)
+const getGermanTimezoneOffset = (date: Date): number => {
+  // Sommerzeit: letzter Sonntag im März bis letzter Sonntag im Oktober
+  const year = date.getUTCFullYear();
+  const month = date.getUTCMonth();
+
+  if (month > 2 && month < 9) return 2; // April bis September = CEST
+  if (month < 2 || month > 9) return 1; // November bis Februar = CET
+
+  if (month === 2) { // März
+    const lastSunday = new Date(Date.UTC(year, 2, 31));
+    while (lastSunday.getUTCDay() !== 0) lastSunday.setUTCDate(lastSunday.getUTCDate() - 1);
+    lastSunday.setUTCHours(1, 0, 0, 0);
+    return date >= lastSunday ? 2 : 1;
+  } else { // Oktober
+    const lastSunday = new Date(Date.UTC(year, 9, 31));
+    while (lastSunday.getUTCDay() !== 0) lastSunday.setUTCDate(lastSunday.getUTCDate() - 1);
+    lastSunday.setUTCHours(1, 0, 0, 0);
+    return date < lastSunday ? 2 : 1;
+  }
+};
+
+// Konvertiert lokale deutsche Zeit zu UTC
+const germanLocalToUTC = (year: number, month: number, day: number, hour: number, minute: number, second: number, ms: number): Date => {
+  const tempDate = new Date(Date.UTC(year, month, day, 12, 0, 0)); // Mittag für stabile Offset-Berechnung
+  const offset = getGermanTimezoneOffset(tempDate);
+  return new Date(Date.UTC(year, month, day, hour - offset, minute, second, ms));
+};
+
+// Gibt das lokale deutsche Datum zurück (Jahr, Monat, Tag)
+const getGermanLocalDate = (utcDate: Date): { year: number; month: number; day: number } => {
+  const offset = getGermanTimezoneOffset(utcDate);
+  const localTime = new Date(utcDate.getTime() + offset * 3600000);
+  return {
+    year: localTime.getUTCFullYear(),
+    month: localTime.getUTCMonth(),
+    day: localTime.getUTCDate()
+  };
+};
+
+const splitMultiDayEntry = (clockIn: Date, clockOut: Date): DayEntry[] => {
+  const entries: DayEntry[] = [];
+
+  // Lokale deutsche Tage berechnen
+  const startLocal = getGermanLocalDate(clockIn);
+  const endLocal = getGermanLocalDate(clockOut);
+
+  const startLocalTime = Date.UTC(startLocal.year, startLocal.month, startLocal.day);
+  const endLocalTime = Date.UTC(endLocal.year, endLocal.month, endLocal.day);
+
+  // Wenn gleicher lokaler Tag, keine Aufteilung nötig
+  if (startLocalTime === endLocalTime) {
+    return [{
+      clockIn: clockIn,
+      clockOut: clockOut,
+      isFirstDay: true,
+      isLastDay: true,
+    }];
+  }
+
+  // Erster Tag: von clockIn bis 23:59:59 lokaler Zeit
+  const firstDayEnd = germanLocalToUTC(startLocal.year, startLocal.month, startLocal.day, 23, 59, 59, 999);
+  entries.push({
+    clockIn: clockIn,
+    clockOut: firstDayEnd,
+    isFirstDay: true,
+    isLastDay: false,
+  });
+
+  // Mittlere Tage: 00:00:00 bis 23:59:59 lokaler Zeit
+  const currentLocalDate = new Date(startLocalTime);
+  currentLocalDate.setUTCDate(currentLocalDate.getUTCDate() + 1);
+
+  while (currentLocalDate.getTime() < endLocalTime) {
+    const y = currentLocalDate.getUTCFullYear();
+    const m = currentLocalDate.getUTCMonth();
+    const d = currentLocalDate.getUTCDate();
+
+    const dayStart = germanLocalToUTC(y, m, d, 0, 0, 0, 0);
+    const dayEnd = germanLocalToUTC(y, m, d, 23, 59, 59, 999);
+
+    entries.push({
+      clockIn: dayStart,
+      clockOut: dayEnd,
+      isFirstDay: false,
+      isLastDay: false,
+    });
+
+    currentLocalDate.setUTCDate(currentLocalDate.getUTCDate() + 1);
+  }
+
+  // Letzter Tag: 00:00:00 lokaler Zeit bis clockOut
+  const lastDayStart = germanLocalToUTC(endLocal.year, endLocal.month, endLocal.day, 0, 0, 0, 0);
+  entries.push({
+    clockIn: lastDayStart,
+    clockOut: clockOut,
+    isFirstDay: false,
+    isLastDay: true,
+  });
+
+  return entries;
+};
+
 // ============================================
 // RFID Registrierungs-Modus Endpoints (JWT Auth für Admin-UI)
 // ============================================
@@ -152,15 +263,35 @@ router.get('/register-rfid/status', authMiddleware, adminMiddleware, (_req, res)
 router.use(terminalAuthMiddleware);
 
 // QR-Code oder RFID-Karte scannen / Ein- oder Ausstempeln
+// Unterstützt optionalen timestamp-Parameter für Offline-Synchronisation
 router.post('/scan', async (req, res) => {
   try {
-    const { qrCode, rfidCard } = req.body;
+    const { qrCode, rfidCard, timestamp } = req.body;
 
     if (!qrCode && !rfidCard) {
       return res.status(400).json({
         success: false,
         error: 'Kein QR-Code oder RFID-Karte übermittelt'
       });
+    }
+
+    // Zeitstempel für die Stempelung (für Offline-Sync)
+    let scanTime = new Date();
+    let isOfflineSync = false;
+
+    if (timestamp) {
+      const parsedTime = new Date(timestamp);
+      // Validiere Timestamp (nicht älter als 7 Tage, nicht in der Zukunft)
+      const now = new Date();
+      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+      if (!isNaN(parsedTime.getTime()) && parsedTime >= sevenDaysAgo && parsedTime <= now) {
+        scanTime = parsedTime;
+        isOfflineSync = true;
+        console.log(`📡 Offline-Sync: Stempelung von ${timestamp}`);
+      } else {
+        console.warn(`⚠️ Ungültiger Offline-Timestamp ignoriert: ${timestamp}`);
+      }
     }
 
     // Prüfe ob Registrierungs-Modus aktiv ist
@@ -184,6 +315,7 @@ router.post('/scan', async (req, res) => {
           employeeNumber: true,
           firstName: true,
           lastName: true,
+          photoUrl: true,
           isActive: true,
         },
       });
@@ -198,6 +330,7 @@ router.post('/scan', async (req, res) => {
           employeeNumber: true,
           firstName: true,
           lastName: true,
+          photoUrl: true,
           isActive: true,
         },
       });
@@ -231,23 +364,68 @@ router.post('/scan', async (req, res) => {
 
     if (activeEntry) {
       // Ausstempeln
-      const now = new Date();
-      const currentEntryHours = (now.getTime() - activeEntry.clockIn.getTime()) / (1000 * 60 * 60);
+      const now = scanTime;  // Verwende scanTime für Offline-Sync
 
-      // Automatische Pause nach 6 Stunden (30 min)
-      let breakMinutes = activeEntry.breakMinutes;
-      if (currentEntryHours > 6 && breakMinutes === 0) {
-        const settings = await prisma.settings.findUnique({ where: { id: 'default' } });
-        breakMinutes = settings?.defaultBreakMinutes ?? 30;
+      // Prüfe ob der Eintrag mehrere Tage umspannt
+      const dayEntries = splitMultiDayEntry(activeEntry.clockIn, now);
+      const isMultiDay = dayEntries.length > 1;
+
+      // Settings für automatische Pause laden
+      const settings = await prisma.settings.findUnique({ where: { id: 'default' } });
+      const defaultBreakMinutes = settings?.defaultBreakMinutes ?? 30;
+
+      let updatedEntry;
+      let lastDayBreakMinutes = 0;
+
+      if (isMultiDay) {
+        // Mehrtägiger Eintrag - aufteilen
+        console.log(`[MULTI-DAY] Eintrag umspannt ${dayEntries.length} Tage, teile auf...`);
+
+        // Ursprünglichen Eintrag löschen
+        await prisma.timeEntry.delete({
+          where: { id: activeEntry.id },
+        });
+
+        // Neue Einträge für jeden Tag erstellen
+        for (const dayEntry of dayEntries) {
+          const entryHours = (dayEntry.clockOut.getTime() - dayEntry.clockIn.getTime()) / (1000 * 60 * 60);
+          // Automatische Pause wenn > 6 Stunden an diesem Tag
+          const dayBreakMinutes = entryHours > 6 ? defaultBreakMinutes : 0;
+
+          const created = await prisma.timeEntry.create({
+            data: {
+              employeeId: employee.id,
+              clockIn: dayEntry.clockIn,
+              clockOut: dayEntry.clockOut,
+              breakMinutes: dayBreakMinutes,
+            },
+          });
+
+          // Letzter Eintrag für die Antwort merken
+          if (dayEntry.isLastDay) {
+            updatedEntry = created;
+            lastDayBreakMinutes = dayBreakMinutes;
+          }
+
+          console.log(`[MULTI-DAY] Tag erstellt: ${dayEntry.clockIn.toISOString()} - ${dayEntry.clockOut.toISOString()} (${entryHours.toFixed(1)}h, Pause: ${dayBreakMinutes}min)`);
+        }
+      } else {
+        // Eintägiger Eintrag - normales Update
+        const currentEntryHours = (now.getTime() - activeEntry.clockIn.getTime()) / (1000 * 60 * 60);
+        let breakMinutes = activeEntry.breakMinutes;
+        if (currentEntryHours > 6 && breakMinutes === 0) {
+          breakMinutes = defaultBreakMinutes;
+        }
+        lastDayBreakMinutes = breakMinutes;
+
+        updatedEntry = await prisma.timeEntry.update({
+          where: { id: activeEntry.id },
+          data: {
+            clockOut: now,
+            breakMinutes,
+          },
+        });
       }
-
-      const updatedEntry = await prisma.timeEntry.update({
-        where: { id: activeEntry.id },
-        data: {
-          clockOut: now,
-          breakMinutes,
-        },
-      });
 
       // Alle Einträge des heutigen Tages abrufen (für Gesamtarbeitszeit)
       const todayStart = new Date(now);
@@ -291,11 +469,12 @@ router.post('/scan', async (req, res) => {
         userName: `${employee.firstName} ${employee.lastName}`,
         action: 'CLOCK_OUT',
         entityType: 'TimeEntry',
-        entityId: updatedEntry.id,
+        entityId: updatedEntry!.id,
         newValues: {
-          clockOut: updatedEntry.clockOut,
-          breakMinutes,
+          clockOut: updatedEntry!.clockOut,
+          breakMinutes: lastDayBreakMinutes,
           hoursWorked: formattedTime,
+          multiDaySplit: isMultiDay ? dayEntries.length : undefined,
         },
       });
 
@@ -308,30 +487,44 @@ router.post('/scan', async (req, res) => {
           id: employee.id,
           name: `${employee.firstName} ${employee.lastName}`,
           employeeNumber: employee.employeeNumber,
+          photoUrl: employee.photoUrl,
         },
       });
+
+      // Nachricht erstellen
+      let message: string;
+      if (isOfflineSync) {
+        message = `Offline-Sync: ${employee.firstName} ausgestempelt (${formattedTime}h)`;
+      } else if (isMultiDay) {
+        message = `Auf Wiedersehen, ${employee.firstName}! Einträge auf ${dayEntries.length} Tage aufgeteilt. Heute: ${formattedTime} Stunden.`;
+      } else {
+        message = `Auf Wiedersehen, ${employee.firstName}! Du hast heute ${formattedTime} Stunden gearbeitet.`;
+      }
 
       return res.json({
         success: true,
         action: 'clock_out',
+        offlineSync: isOfflineSync,
+        multiDaySplit: isMultiDay ? dayEntries.length : undefined,
         employee: {
           name: `${employee.firstName} ${employee.lastName}`,
           employeeNumber: employee.employeeNumber,
+          photoUrl: employee.photoUrl,
         },
         entry: {
-          clockIn: activeEntry.clockIn,
-          clockOut: updatedEntry.clockOut,
-          breakMinutes,
+          clockIn: updatedEntry!.clockIn,
+          clockOut: updatedEntry!.clockOut,
+          breakMinutes: lastDayBreakMinutes,
           hoursWorked: formattedTime,
         },
-        message: `Auf Wiedersehen, ${employee.firstName}! Du hast heute ${formattedTime} Stunden gearbeitet.`,
+        message,
       });
     } else {
       // Einstempeln
       const newEntry = await prisma.timeEntry.create({
         data: {
           employeeId: employee.id,
-          clockIn: new Date(),
+          clockIn: scanTime,  // Verwende scanTime für Offline-Sync
         },
       });
 
@@ -357,20 +550,25 @@ router.post('/scan', async (req, res) => {
           id: employee.id,
           name: `${employee.firstName} ${employee.lastName}`,
           employeeNumber: employee.employeeNumber,
+          photoUrl: employee.photoUrl,
         },
       });
 
       return res.json({
         success: true,
         action: 'clock_in',
+        offlineSync: isOfflineSync,
         employee: {
           name: `${employee.firstName} ${employee.lastName}`,
           employeeNumber: employee.employeeNumber,
+          photoUrl: employee.photoUrl,
         },
         entry: {
           clockIn: newEntry.clockIn,
         },
-        message: `Guten Tag, ${employee.firstName}! Du bist jetzt eingestempelt.`,
+        message: isOfflineSync
+          ? `Offline-Sync: ${employee.firstName} eingestempelt`
+          : `Guten Tag, ${employee.firstName}! Du bist jetzt eingestempelt.`,
       });
     }
   } catch (error) {

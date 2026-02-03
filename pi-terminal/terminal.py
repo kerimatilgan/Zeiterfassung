@@ -16,6 +16,7 @@ from evdev import ecodes, InputDevice
 
 from api_client import ZeiterfassungAPI
 from display import Display
+from offline_queue import init_queue, get_queue
 
 # Scancodes zu Zeichen mapping (US keyboard layout)
 SCANCODES = {
@@ -144,7 +145,7 @@ def find_rfid_reader(quiet=False):
     return None
 
 
-def process_card(card_id, api, display):
+def process_card(card_id, api, display, hdmi_display=None):
     """Verarbeitet gescannte Karte"""
     print(f"\n{'='*50}")
     print(f"Karte gescannt: {card_id}")
@@ -153,17 +154,50 @@ def process_card(card_id, api, display):
     result = api.clock_in_out(rfid_card=card_id)
 
     if result.get('success'):
-        name = result['employee']['name']
-        action = result['action']
-
-        if action == 'clock_in':
-            print(f"✓ EINGESTEMPELT: {name}")
-            display.show("Eingestempelt", name, duration=1)
+        # Prüfe ob offline gespeichert
+        if result.get('offline') or result.get('queued'):
+            queue_pos = result.get('queue_position', '?')
+            print(f"⏳ OFFLINE GESPEICHERT: Karte {card_id[-4:]}")
+            print(f"  Position in Queue: {queue_pos}")
+            print(f"  Wird synchronisiert sobald Server erreichbar")
+            display.show("Offline gesp.", f"Queue #{queue_pos}", duration=2)
+            if hdmi_display:
+                hdmi_display.show_scan_result(
+                    success=True,
+                    name=f"Karte {card_id[-4:]}",
+                    action='queued',
+                    error=None
+                )
         else:
-            hours_worked = result.get('entry', {}).get('hoursWorked', '?')
-            print(f"✓ AUSGESTEMPELT: {name}")
-            print(f"  Arbeitszeit heute: {hours_worked} Stunden")
-            display.show(f"Ausgestempelt", f"{name} ({hours_worked}h)", duration=1)
+            # Normal online verarbeitet
+            employee = result.get('employee', {})
+            name = employee.get('name', 'Unbekannt')
+            photo_url = employee.get('photoUrl')
+            action = result['action']
+
+            if action == 'clock_in':
+                print(f"✓ EINGESTEMPELT: {name}")
+                display.show("Eingestempelt", name, duration=1)
+                if hdmi_display:
+                    hdmi_display.show_scan_result(
+                        success=True,
+                        name=name,
+                        action='clock_in',
+                        photo_url=photo_url
+                    )
+            else:
+                hours_worked = result.get('entry', {}).get('hoursWorked', '?')
+                print(f"✓ AUSGESTEMPELT: {name}")
+                print(f"  Arbeitszeit heute: {hours_worked} Stunden")
+                display.show(f"Ausgestempelt", f"{name} ({hours_worked}h)", duration=1)
+                if hdmi_display:
+                    hdmi_display.show_scan_result(
+                        success=True,
+                        name=name,
+                        action='clock_out',
+                        hours=hours_worked,
+                        photo_url=photo_url
+                    )
     else:
         error = result.get('error', 'Unbekannter Fehler')
         message = result.get('message', '')
@@ -171,6 +205,18 @@ def process_card(card_id, api, display):
         if message:
             print(f"  {message}")
         display.show("FEHLER", error[:16], duration=1)
+        if hdmi_display:
+            hdmi_display.show_scan_result(
+                success=False,
+                name=None,
+                action=None,
+                error=error
+            )
+
+    # Queue-Status anzeigen
+    queue_status = api.get_queue_status()
+    if queue_status['pending_count'] > 0:
+        print(f"  [Queue: {queue_status['pending_count']} ausstehend]")
 
     print(f"{'='*50}\n")
 
@@ -185,16 +231,25 @@ def main():
     config = load_config()
     print(f"Backend-URL: {config['backend_url']}")
 
+    # Offline-Queue initialisieren
+    print("Initialisiere Offline-Queue...")
+    offline_queue = init_queue()
+    offline_queue.start_sync_thread()
+
     # API-Client initialisieren
     api = ZeiterfassungAPI(config['backend_url'], config['api_key'])
+    api.set_offline_queue(offline_queue)
 
     # Verbindung prüfen
     print("Prüfe Backend-Verbindung...")
     if api.health_check():
         print("✓ Backend erreichbar")
+        offline_queue.set_online_status(True)
     else:
         print("✗ WARNUNG: Backend nicht erreichbar!")
-        print("  Terminal läuft trotzdem - Verbindung wird bei jedem Scan geprüft")
+        print("  Terminal läuft im OFFLINE-MODUS")
+        print("  Stempelungen werden lokal gespeichert und später synchronisiert")
+        offline_queue.set_online_status(False)
 
     # Display initialisieren
     display = Display(enabled=config.get('display_enabled', False))

@@ -21,6 +21,8 @@ import {
   CreditCard,
   Wifi,
   Loader2,
+  Camera,
+  User,
 } from 'lucide-react';
 
 interface Employee {
@@ -30,6 +32,7 @@ interface Employee {
   lastName: string;
   email: string | null;
   phone: string | null;
+  photoUrl: string | null;
   weeklyHours: number;
   vacationDaysPerYear: number;
   workDays: string;
@@ -255,6 +258,53 @@ export default function AdminEmployees() {
       toast.error(error.response?.data?.error || 'Fehler beim Entfernen');
     },
   });
+
+  const uploadPhotoMutation = useMutation({
+    mutationFn: ({ id, file }: { id: string; file: File }) => employeesApi.uploadPhoto(id, file),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      toast.success('Foto hochgeladen');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error || 'Fehler beim Hochladen');
+    },
+  });
+
+  const deletePhotoMutation = useMutation({
+    mutationFn: (id: string) => employeesApi.deletePhoto(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      toast.success('Foto gelöscht');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error || 'Fehler beim Löschen');
+    },
+  });
+
+  const handlePhotoUpload = (employee: Employee, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validiere Dateityp
+    if (!['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(file.type)) {
+      toast.error('Nur Bilder erlaubt (JPEG, PNG, GIF, WebP)');
+      return;
+    }
+
+    // Validiere Dateigröße (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Maximale Dateigröße: 5MB');
+      return;
+    }
+
+    uploadPhotoMutation.mutate({ id: employee.id, file });
+  };
+
+  const handlePhotoDelete = (employee: Employee) => {
+    if (confirm('Foto wirklich löschen?')) {
+      deletePhotoMutation.mutate(employee.id);
+    }
+  };
 
   const openCreateModal = () => {
     setEditingEmployee(null);
@@ -1015,11 +1065,48 @@ export default function AdminEmployees() {
                 filteredEmployees.map((employee) => (
                   <tr key={employee.id} className={!employee.isActive ? 'bg-gray-50 opacity-60' : ''}>
                     <td className="px-6 py-4">
-                      <div>
-                        <p className="font-medium text-gray-900">
-                          {employee.firstName} {employee.lastName}
-                        </p>
-                        <p className="text-sm text-gray-500">#{employee.employeeNumber}</p>
+                      <div className="flex items-center gap-3">
+                        {/* Avatar/Foto */}
+                        <div className="relative group">
+                          {employee.photoUrl ? (
+                            <img
+                              src={employee.photoUrl}
+                              alt={`${employee.firstName} ${employee.lastName}`}
+                              className="w-10 h-10 rounded-full object-cover border-2 border-gray-200"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500">
+                              <User size={20} />
+                            </div>
+                          )}
+                          {/* Foto-Upload Overlay */}
+                          <label className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                            <Camera size={16} className="text-white" />
+                            <input
+                              type="file"
+                              accept="image/jpeg,image/png,image/gif,image/webp"
+                              className="hidden"
+                              onChange={(e) => handlePhotoUpload(employee, e)}
+                              disabled={uploadPhotoMutation.isPending}
+                            />
+                          </label>
+                          {/* Löschen-Button wenn Foto vorhanden */}
+                          {employee.photoUrl && (
+                            <button
+                              onClick={() => handlePhotoDelete(employee)}
+                              className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                              title="Foto löschen"
+                            >
+                              <X size={12} className="text-white" />
+                            </button>
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900">
+                            {employee.firstName} {employee.lastName}
+                          </p>
+                          <p className="text-sm text-gray-500">#{employee.employeeNumber}</p>
+                        </div>
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -1471,7 +1558,7 @@ export default function AdminEmployees() {
             </div>
 
             {/* Calendar Table */}
-            <div className="flex-1 overflow-y-auto p-4">
+            <div className="flex-1 overflow-y-auto px-4 pb-4">
               {loadingTimeEntries ? (
                 <div className="text-center text-gray-500 py-8">Laden...</div>
               ) : (
