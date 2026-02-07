@@ -25,6 +25,8 @@ model Employee {
   isActive            Boolean  @default(true)
   isAdmin             Boolean  @default(false)
   passwordHash        String?  // Für Dashboard-Login
+  workCategoryId      String?       // Arbeitskategorie (früheste Einstempelzeit)
+  workCategory        WorkCategory? @relation(fields: [workCategoryId], references: [id], onDelete: SetNull)
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -48,6 +50,17 @@ model TimeEntry {
   note        String?   // Optionale Notiz
   isManual    Boolean   @default(false) // Manuell eingetragen vs. gescannt
   editedBy    String?   // Falls bearbeitet: von wem
+
+  // Reklamation durch Mitarbeiter
+  complaintMessage     String?    // Nachricht des Mitarbeiters
+  complaintAt          DateTime?  // Zeitpunkt der Reklamation
+  complaintResolvedAt  DateTime?  // Zeitpunkt der Bearbeitung durch Admin
+  complaintResolvedBy  String?    // Admin-ID der bearbeitet hat
+  complaintResponse    String?    // Antwort des Admins (optional)
+  // Originalwerte bei Reklamation (für vorher/nachher Vergleich)
+  complaintOriginalClockIn     DateTime?
+  complaintOriginalClockOut    DateTime?
+  complaintOriginalBreakMinutes Int?
 
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -94,6 +107,15 @@ model Settings {
   defaultBreakMinutes   Int     @default(30) // Standard-Pause bei > 6h
   overtimeThreshold     Float   @default(40.0) // Ab wann Überstunden zählen (Wochenstunden)
 
+  // Mail-Server Konfiguration
+  smtpHost              String?
+  smtpPort              Int?     @default(587)
+  smtpUser              String?
+  smtpPassword          String?
+  smtpFromAddress       String?
+  smtpFromName          String?  @default("Zeiterfassung")
+  smtpSecure            Boolean  @default(false) // true für TLS
+
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 }
@@ -138,6 +160,20 @@ model EmployeeAbsence {
   updatedAt       DateTime    @updatedAt
 
   @@unique([employeeId, date]) // Ein Mitarbeiter kann pro Tag nur eine Abwesenheit haben
+}
+
+// Arbeitskategorien (z.B. Backoffice, Büro, Verkauf)
+model WorkCategory {
+  id              String   @id @default(uuid())
+  name            String   // z.B. "Backoffice", "Büro", "Verkauf"
+  earliestClockIn String   // Früheste Einstempelzeit im Format "HH:mm", z.B. "08:00"
+  isActive        Boolean  @default(true)
+  sortOrder       Int      @default(0)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  employees       Employee[]
 }
 
 // Audit-Log für Nachvollziehbarkeit aller Aktionen

@@ -12,7 +12,7 @@ import EmployeeReports from './pages/employee/Reports';
 import EmployeeSettings from './pages/employee/Settings';
 import Layout from './components/Layout';
 
-function ProtectedRoute({ children, adminOnly = false }: { children: React.ReactNode; adminOnly?: boolean }) {
+function ProtectedRoute({ children, adminOnly = false, employeeOnly = false }: { children: React.ReactNode; adminOnly?: boolean; employeeOnly?: boolean }) {
   const { isAuthenticated, employee } = useAuthStore();
 
   if (!isAuthenticated) {
@@ -21,6 +21,11 @@ function ProtectedRoute({ children, adminOnly = false }: { children: React.React
 
   if (adminOnly && !employee?.isAdmin) {
     return <Navigate to="/dashboard" replace />;
+  }
+
+  // Admins haben keinen Zugang zum Mitarbeiter-Dashboard
+  if (employeeOnly && employee?.isAdmin) {
+    return <Navigate to="/admin" replace />;
   }
 
   return <>{children}</>;
@@ -47,9 +52,9 @@ function App() {
         <Route path="audit-logs" element={<AdminAuditLogs />} />
       </Route>
 
-      {/* Employee Routes */}
+      {/* Employee Routes - nicht für Admins */}
       <Route path="/dashboard" element={
-        <ProtectedRoute>
+        <ProtectedRoute employeeOnly>
           <Layout />
         </ProtectedRoute>
       }>

@@ -83,6 +83,16 @@ export const timeEntriesApi = {
   createManual: (data: any) => api.post('/time-entries/manual', data),
   update: (id: string, data: any) => api.put(`/time-entries/${id}`, data),
   delete: (id: string) => api.delete(`/time-entries/${id}`),
+  // Reklamationen
+  createComplaint: (id: string, message: string) =>
+    api.post(`/time-entries/${id}/complaint`, { message }),
+  deleteComplaint: (id: string) => api.delete(`/time-entries/${id}/complaint`),
+  resolveComplaint: (id: string, response?: string) =>
+    api.post(`/time-entries/${id}/complaint/resolve`, { response }),
+  getFlagged: (params?: { resolved?: boolean; from?: string; to?: string }) =>
+    api.get('/time-entries/flagged', { params }),
+  getPendingComplaints: (limit?: number) =>
+    api.get('/time-entries/complaints/pending', { params: { limit } }),
 };
 
 // Reports
@@ -119,6 +129,12 @@ export const settingsApi = {
   createAbsenceType: (data: any) => api.post('/settings/absence-types', data),
   updateAbsenceType: (id: string, data: any) => api.put(`/settings/absence-types/${id}`, data),
   deleteAbsenceType: (id: string) => api.delete(`/settings/absence-types/${id}`),
+  // Arbeitskategorien
+  getWorkCategories: () => api.get('/settings/work-categories'),
+  getAllWorkCategories: () => api.get('/settings/work-categories/all'),
+  createWorkCategory: (data: any) => api.post('/settings/work-categories', data),
+  updateWorkCategory: (id: string, data: any) => api.put(`/settings/work-categories/${id}`, data),
+  deleteWorkCategory: (id: string) => api.delete(`/settings/work-categories/${id}`),
   // Mitarbeiter-Abwesenheiten
   getAbsences: (params?: { employeeId?: string; from?: string; to?: string }) =>
     api.get('/settings/absences', { params }),
@@ -135,6 +151,10 @@ export const settingsApi = {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },
+  // Mail-Server Einstellungen
+  getMailSettings: () => api.get('/settings/mail'),
+  updateMailSettings: (data: any) => api.put('/settings/mail', data),
+  testMailSettings: (testEmail: string) => api.post('/settings/mail/test', { testEmail }),
 };
 
 // Audit Logs

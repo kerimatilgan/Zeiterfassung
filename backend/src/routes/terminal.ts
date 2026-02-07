@@ -317,6 +317,8 @@ router.post('/scan', async (req, res) => {
           lastName: true,
           photoUrl: true,
           isActive: true,
+          isAdmin: true,
+          workCategory: { select: { earliestClockIn: true, name: true } },
         },
       });
       authMethod = 'rfid';
@@ -332,6 +334,8 @@ router.post('/scan', async (req, res) => {
           lastName: true,
           photoUrl: true,
           isActive: true,
+          isAdmin: true,
+          workCategory: { select: { earliestClockIn: true, name: true } },
         },
       });
       authMethod = 'qrcode';
@@ -350,6 +354,15 @@ router.post('/scan', async (req, res) => {
         success: false,
         error: 'Mitarbeiter inaktiv',
         message: `${employee.firstName} ${employee.lastName} ist nicht mehr aktiv`
+      });
+    }
+
+    // Admins können nicht am Terminal stempeln
+    if (employee.isAdmin) {
+      return res.status(403).json({
+        success: false,
+        error: 'Admin-Account',
+        message: 'Administrator-Accounts können nicht am Terminal stempeln'
       });
     }
 
@@ -521,10 +534,29 @@ router.post('/scan', async (req, res) => {
       });
     } else {
       // Einstempeln
+      // Arbeitskategorie: früheste Einstempelzeit prüfen
+      let effectiveClockIn = scanTime;
+      if (employee.workCategory?.earliestClockIn) {
+        const [earlyHour, earlyMinute] = employee.workCategory.earliestClockIn.split(':').map(Number);
+        const scanLocal = getGermanLocalDate(scanTime);
+        const offset = getGermanTimezoneOffset(scanTime);
+        const scanLocalTime = new Date(scanTime.getTime() + offset * 3600000);
+        const scanHour = scanLocalTime.getUTCHours();
+        const scanMinute = scanLocalTime.getUTCMinutes();
+
+        if (scanHour < earlyHour || (scanHour === earlyHour && scanMinute < earlyMinute)) {
+          effectiveClockIn = germanLocalToUTC(
+            scanLocal.year, scanLocal.month, scanLocal.day,
+            earlyHour, earlyMinute, 0, 0
+          );
+          console.log(`⏰ Arbeitskategorie "${employee.workCategory.name}": Einstempelzeit angepasst auf ${employee.workCategory.earliestClockIn} (war ${scanHour}:${String(scanMinute).padStart(2, '0')})`);
+        }
+      }
+
       const newEntry = await prisma.timeEntry.create({
         data: {
           employeeId: employee.id,
-          clockIn: scanTime,  // Verwende scanTime für Offline-Sync
+          clockIn: effectiveClockIn,
         },
       });
 

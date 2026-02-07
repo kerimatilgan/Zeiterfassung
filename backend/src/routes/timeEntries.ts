@@ -3,6 +3,7 @@ import { prisma, io } from '../index.js';
 import { authMiddleware, adminMiddleware, AuthRequest } from '../middleware/auth.js';
 import { z } from 'zod';
 import { createAuditLog } from '../utils/auditLog.js';
+import { sendComplaintNotification, sendComplaintResolvedNotification } from '../utils/emailService.js';
 
 const router = Router();
 
@@ -390,6 +391,349 @@ router.get('/my/stats', authMiddleware, async (req: AuthRequest, res: Response) 
   } catch (error) {
     console.error('Get stats error:', error);
     res.status(500).json({ error: 'Fehler beim Laden der Statistiken' });
+  }
+});
+
+// ==================== REKLAMATIONEN ====================
+
+// Reklamation erstellen/aktualisieren (eigener Eintrag)
+router.post('/:id/complaint', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const schema = z.object({
+      message: z.string().min(1, 'Bitte geben Sie eine Nachricht ein').max(1000),
+    });
+
+    const { message } = schema.parse(req.body);
+
+    // Eintrag suchen
+    const entry = await prisma.timeEntry.findUnique({
+      where: { id },
+      include: {
+        employee: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+    });
+
+    if (!entry) {
+      return res.status(404).json({ error: 'Zeiteintrag nicht gefunden' });
+    }
+
+    // Prüfen ob der Eintrag dem Benutzer gehört (außer Admin)
+    if (entry.employeeId !== req.employee!.id && !req.employee!.isAdmin) {
+      return res.status(403).json({ error: 'Keine Berechtigung für diesen Eintrag' });
+    }
+
+    // Prüfen ob bereits bearbeitet (dann kann nicht mehr geändert werden)
+    if (entry.complaintResolvedAt && !req.employee!.isAdmin) {
+      return res.status(400).json({ error: 'Diese Reklamation wurde bereits bearbeitet' });
+    }
+
+    // Reklamation speichern (bei neuer Reklamation auch Originalwerte speichern)
+    const isNewComplaint = !entry.complaintMessage;
+    const updatedEntry = await prisma.timeEntry.update({
+      where: { id },
+      data: {
+        complaintMessage: message,
+        complaintAt: isNewComplaint ? new Date() : entry.complaintAt,
+        // Originalwerte nur bei neuer Reklamation speichern
+        ...(isNewComplaint && {
+          complaintOriginalClockIn: entry.clockIn,
+          complaintOriginalClockOut: entry.clockOut,
+          complaintOriginalBreakMinutes: entry.breakMinutes,
+        }),
+      },
+    });
+
+    // Audit Log
+    await createAuditLog({
+      req,
+      action: isNewComplaint ? 'COMPLAINT_CREATE' : 'COMPLAINT_UPDATE',
+      entityType: 'TimeEntry',
+      entityId: id,
+      oldValues: entry.complaintMessage ? { complaintMessage: entry.complaintMessage } : null,
+      newValues: { complaintMessage: message },
+    });
+
+    // E-Mail an Admins senden (nur bei neuer Reklamation)
+    if (isNewComplaint) {
+      const clockInDate = new Date(entry.clockIn);
+      const clockInTime = clockInDate.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+      const clockOutTime = entry.clockOut
+        ? new Date(entry.clockOut).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
+        : null;
+
+      sendComplaintNotification(
+        `${entry.employee.firstName} ${entry.employee.lastName}`,
+        clockInDate,
+        clockInTime,
+        clockOutTime,
+        message
+      ).catch((err) => {
+        console.error('Fehler beim Senden der Reklamations-E-Mail:', err);
+      });
+    }
+
+    res.json(updatedEntry);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: error.errors[0].message });
+    }
+    console.error('Create complaint error:', error);
+    res.status(500).json({ error: 'Fehler beim Erstellen der Reklamation' });
+  }
+});
+
+// Reklamation zurückziehen (nur wenn noch nicht bearbeitet)
+router.delete('/:id/complaint', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const entry = await prisma.timeEntry.findUnique({ where: { id } });
+
+    if (!entry) {
+      return res.status(404).json({ error: 'Zeiteintrag nicht gefunden' });
+    }
+
+    // Prüfen ob der Eintrag dem Benutzer gehört
+    if (entry.employeeId !== req.employee!.id && !req.employee!.isAdmin) {
+      return res.status(403).json({ error: 'Keine Berechtigung für diesen Eintrag' });
+    }
+
+    // Prüfen ob Reklamation existiert
+    if (!entry.complaintMessage) {
+      return res.status(400).json({ error: 'Keine Reklamation vorhanden' });
+    }
+
+    // Prüfen ob bereits bearbeitet
+    if (entry.complaintResolvedAt && !req.employee!.isAdmin) {
+      return res.status(400).json({ error: 'Diese Reklamation wurde bereits bearbeitet und kann nicht mehr zurückgezogen werden' });
+    }
+
+    // Reklamation löschen (inkl. Originalwerte)
+    const updatedEntry = await prisma.timeEntry.update({
+      where: { id },
+      data: {
+        complaintMessage: null,
+        complaintAt: null,
+        complaintResolvedAt: null,
+        complaintResolvedBy: null,
+        complaintResponse: null,
+        complaintOriginalClockIn: null,
+        complaintOriginalClockOut: null,
+        complaintOriginalBreakMinutes: null,
+      },
+    });
+
+    // Audit Log
+    await createAuditLog({
+      req,
+      action: 'COMPLAINT_DELETE',
+      entityType: 'TimeEntry',
+      entityId: id,
+      oldValues: { complaintMessage: entry.complaintMessage },
+    });
+
+    res.json(updatedEntry);
+  } catch (error) {
+    console.error('Delete complaint error:', error);
+    res.status(500).json({ error: 'Fehler beim Löschen der Reklamation' });
+  }
+});
+
+// Reklamation bearbeiten/lösen (Admin)
+router.post('/:id/complaint/resolve', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const schema = z.object({
+      response: z.string().max(1000).optional().nullable(),
+    });
+
+    const { response } = schema.parse(req.body);
+
+    const entry = await prisma.timeEntry.findUnique({
+      where: { id },
+      include: {
+        employee: {
+          select: { firstName: true, lastName: true, email: true },
+        },
+      },
+    });
+
+    if (!entry) {
+      return res.status(404).json({ error: 'Zeiteintrag nicht gefunden' });
+    }
+
+    if (!entry.complaintMessage) {
+      return res.status(400).json({ error: 'Keine Reklamation vorhanden' });
+    }
+
+    // Reklamation als bearbeitet markieren
+    const updatedEntry = await prisma.timeEntry.update({
+      where: { id },
+      data: {
+        complaintResolvedAt: new Date(),
+        complaintResolvedBy: req.employee!.id,
+        complaintResponse: response || null,
+      },
+    });
+
+    // Audit Log
+    await createAuditLog({
+      req,
+      action: 'COMPLAINT_RESOLVE',
+      entityType: 'TimeEntry',
+      entityId: id,
+      oldValues: {
+        employeeName: `${entry.employee.firstName} ${entry.employee.lastName}`,
+        complaintMessage: entry.complaintMessage,
+      },
+      newValues: {
+        complaintResolvedAt: updatedEntry.complaintResolvedAt,
+        complaintResponse: updatedEntry.complaintResponse,
+      },
+    });
+
+    // Bestätigungs-E-Mail an Mitarbeiter senden (wenn E-Mail vorhanden)
+    if (entry.employee.email) {
+      const formatTime = (date: Date) =>
+        date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+
+      // Originalwerte (bei Reklamationserstellung gespeichert) vs. aktuelle Werte
+      const oldClockIn = entry.complaintOriginalClockIn
+        ? formatTime(new Date(entry.complaintOriginalClockIn))
+        : formatTime(new Date(entry.clockIn));
+      const oldClockOut = entry.complaintOriginalClockOut
+        ? formatTime(new Date(entry.complaintOriginalClockOut))
+        : entry.clockOut
+          ? formatTime(new Date(entry.clockOut))
+          : null;
+      const oldBreakMinutes = entry.complaintOriginalBreakMinutes ?? entry.breakMinutes;
+
+      const newClockIn = formatTime(new Date(entry.clockIn));
+      const newClockOut = entry.clockOut ? formatTime(new Date(entry.clockOut)) : null;
+
+      sendComplaintResolvedNotification(
+        entry.employee.email,
+        `${entry.employee.firstName} ${entry.employee.lastName}`,
+        `${req.employee!.firstName} ${req.employee!.lastName}`,
+        new Date(entry.clockIn),
+        entry.complaintMessage,
+        response || null,
+        {
+          oldClockIn,
+          oldClockOut,
+          newClockIn,
+          newClockOut,
+          oldBreakMinutes,
+          newBreakMinutes: entry.breakMinutes,
+        }
+      ).catch((err) => {
+        console.error('Fehler beim Senden der Bestätigungs-E-Mail:', err);
+      });
+    }
+
+    res.json(updatedEntry);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: error.errors[0].message });
+    }
+    console.error('Resolve complaint error:', error);
+    res.status(500).json({ error: 'Fehler beim Bearbeiten der Reklamation' });
+  }
+});
+
+// Offene Reklamationen abrufen (Admin) - für Dashboard und Badge
+router.get('/complaints/pending', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { limit = '5' } = req.query;
+
+    const entries = await prisma.timeEntry.findMany({
+      where: {
+        complaintMessage: { not: null },
+        complaintResolvedAt: null,
+      },
+      include: {
+        employee: {
+          select: {
+            id: true,
+            employeeNumber: true,
+            firstName: true,
+            lastName: true,
+            photoUrl: true,
+          },
+        },
+      },
+      orderBy: { complaintAt: 'desc' },
+      take: parseInt(limit as string),
+    });
+
+    // Gesamtanzahl für Badge
+    const totalCount = await prisma.timeEntry.count({
+      where: {
+        complaintMessage: { not: null },
+        complaintResolvedAt: null,
+      },
+    });
+
+    res.json({
+      count: totalCount,
+      entries,
+    });
+  } catch (error) {
+    console.error('Get pending complaints error:', error);
+    res.status(500).json({ error: 'Fehler beim Laden der offenen Reklamationen' });
+  }
+});
+
+// Alle reklamierten Einträge abrufen (Admin)
+router.get('/flagged', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { resolved, from, to } = req.query;
+
+    const where: any = {
+      complaintMessage: { not: null },
+    };
+
+    // Filter: nur gelöste oder nur offene
+    if (resolved === 'true') {
+      where.complaintResolvedAt = { not: null };
+    } else if (resolved === 'false') {
+      where.complaintResolvedAt = null;
+    }
+
+    // Datumsfilter
+    if (from) {
+      where.clockIn = { ...where.clockIn, gte: new Date(from as string) };
+    }
+    if (to) {
+      where.clockIn = { ...where.clockIn, lte: new Date(to as string) };
+    }
+
+    const entries = await prisma.timeEntry.findMany({
+      where,
+      include: {
+        employee: {
+          select: {
+            id: true,
+            employeeNumber: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+      orderBy: { complaintAt: 'desc' },
+    });
+
+    res.json(entries);
+  } catch (error) {
+    console.error('Get flagged entries error:', error);
+    res.status(500).json({ error: 'Fehler beim Laden der reklamierten Einträge' });
   }
 });
 

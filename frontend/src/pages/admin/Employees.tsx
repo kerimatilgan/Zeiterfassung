@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { employeesApi, timeEntriesApi, settingsApi, terminalApi } from '../../lib/api';
 import toast from 'react-hot-toast';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths } from 'date-fns';
@@ -23,6 +24,9 @@ import {
   Loader2,
   Camera,
   User,
+  AlertTriangle,
+  CheckCircle,
+  MessageSquare,
 } from 'lucide-react';
 
 interface Employee {
@@ -40,6 +44,8 @@ interface Employee {
   isAdmin: boolean;
   qrCode: string;
   rfidCard: string | null;
+  workCategoryId: string | null;
+  workCategory?: { id: string; name: string; earliestClockIn: string } | null;
 }
 
 interface EmployeeFormData {
@@ -53,6 +59,7 @@ interface EmployeeFormData {
   workDays: string;
   isAdmin: boolean;
   password: string;
+  workCategoryId: string;
 }
 
 const initialFormData: EmployeeFormData = {
@@ -66,6 +73,7 @@ const initialFormData: EmployeeFormData = {
   workDays: '1,2,3,4,5',
   isAdmin: false,
   password: '',
+  workCategoryId: '',
 };
 
 // Wochentage für Checkbox-Auswahl
@@ -88,6 +96,12 @@ interface TimeEntry {
   note: string | null;
   isManual: boolean;
   editedBy: string | null;
+  // Reklamation
+  complaintMessage?: string | null;
+  complaintAt?: string | null;
+  complaintResolvedAt?: string | null;
+  complaintResolvedBy?: string | null;
+  complaintResponse?: string | null;
 }
 
 interface TimeEntryFormData {
@@ -169,6 +183,11 @@ export default function AdminEmployees() {
   const clockInInputRef = useRef<HTMLInputElement>(null);
   const clockOutInputRef = useRef<HTMLInputElement>(null);
 
+  // Reklamation State
+  const [showComplaintModal, setShowComplaintModal] = useState(false);
+  const [complaintResponse, setComplaintResponse] = useState('');
+  const [isResolvingComplaint, setIsResolvingComplaint] = useState(false);
+
   // Absences State
   const [absences, setAbsences] = useState<EmployeeAbsence[]>([]);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
@@ -179,6 +198,7 @@ export default function AdminEmployees() {
     note: '',
   });
   const absencePopupRef = useRef<HTMLDivElement>(null);
+  const complaintModalRef = useRef<HTMLDivElement>(null);
 
   // Multi-Select State für Abwesenheiten (Drag-Auswahl)
   const [isSelecting, setIsSelecting] = useState(false);
@@ -187,6 +207,7 @@ export default function AdminEmployees() {
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);
 
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const { data: employees, isLoading } = useQuery({
     queryKey: ['employees'],
@@ -197,6 +218,91 @@ export default function AdminEmployees() {
     queryKey: ['absence-types'],
     queryFn: () => settingsApi.getAbsenceTypes().then((r) => r.data as AbsenceType[]),
   });
+
+  const { data: workCategories } = useQuery({
+    queryKey: ['work-categories'],
+    queryFn: () => settingsApi.getWorkCategories().then((r) => r.data),
+  });
+
+  // Offene Reklamationen für Badge
+  const { data: pendingComplaints } = useQuery({
+    queryKey: ['pendingComplaints'],
+    queryFn: () => timeEntriesApi.getPendingComplaints(100).then((r) => r.data),
+    refetchInterval: 30000,
+  });
+
+  // Zähle offene Reklamationen pro Mitarbeiter
+  const complaintsByEmployee = useMemo(() => {
+    const counts: Record<string, number> = {};
+    if (pendingComplaints?.entries) {
+      for (const entry of pendingComplaints.entries) {
+        counts[entry.employeeId] = (counts[entry.employeeId] || 0) + 1;
+      }
+    }
+    return counts;
+  }, [pendingComplaints]);
+
+  // URL-Parameter "openEmployee" auswerten - Modal automatisch öffnen
+  useEffect(() => {
+    const openEmployeeId = searchParams.get('openEmployee');
+    const entryId = searchParams.get('entryId');
+    const dateParam = searchParams.get('date');
+
+    if (openEmployeeId && employees && !showTimeEntriesModal) {
+      const employee = employees.find((e) => e.id === openEmployeeId);
+      if (employee) {
+        // Parameter entfernen und Modal öffnen
+        setSearchParams({});
+        setSelectedEmployeeForTime(employee);
+
+        // Monat basierend auf dem Datum setzen (falls vorhanden)
+        const targetDate = dateParam ? new Date(dateParam) : new Date();
+        setSelectedMonth(targetDate);
+        setShowTimeEntriesModal(true);
+
+        // Inline load time entries
+        const loadEntries = async () => {
+          setLoadingTimeEntries(true);
+          try {
+            const from = startOfMonth(targetDate).toISOString();
+            const to = endOfMonth(targetDate).toISOString();
+            const year = targetDate.getFullYear();
+            const [entriesResponse, absencesResponse, holidaysResponse] = await Promise.all([
+              timeEntriesApi.getAll({ employeeId: employee.id, from, to }),
+              settingsApi.getAbsences({ employeeId: employee.id, from, to }),
+              settingsApi.getHolidays(year),
+            ]);
+            const loadedEntries = entriesResponse.data as TimeEntry[];
+            setTimeEntries(loadedEntries);
+            setAbsences(absencesResponse.data as EmployeeAbsence[]);
+            setHolidays(holidaysResponse.data as Holiday[]);
+
+            // Falls entryId vorhanden, direkt das Popup für diesen Eintrag öffnen
+            if (entryId) {
+              const targetEntry = loadedEntries.find((e) => e.id === entryId);
+              if (targetEntry) {
+                const entryDate = new Date(targetEntry.clockIn);
+                setEditingDate(entryDate);
+                setEditingTimeEntry(targetEntry);
+                setShowCreateEntry(false);
+                setTimeEntryFormData({
+                  clockIn: format(new Date(targetEntry.clockIn), 'HH:mm'),
+                  clockOut: targetEntry.clockOut ? format(new Date(targetEntry.clockOut), 'HH:mm') : '',
+                  breakMinutes: 0,
+                  note: targetEntry.note || '',
+                });
+              }
+            }
+          } catch (error) {
+            console.error('Error loading time entries:', error);
+          } finally {
+            setLoadingTimeEntries(false);
+          }
+        };
+        loadEntries();
+      }
+    }
+  }, [searchParams, employees, showTimeEntriesModal]);
 
   const createMutation = useMutation({
     mutationFn: (data: EmployeeFormData) => employeesApi.create(data),
@@ -325,6 +431,7 @@ export default function AdminEmployees() {
       workDays: employee.workDays,
       isAdmin: employee.isAdmin,
       password: '',
+      workCategoryId: employee.workCategoryId || '',
     });
     setShowModal(true);
   };
@@ -337,12 +444,12 @@ export default function AdminEmployees() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const submitData: any = { ...formData, workCategoryId: formData.workCategoryId || null };
     if (editingEmployee) {
-      const updateData: any = { ...formData };
-      if (!updateData.password) delete updateData.password;
-      updateMutation.mutate({ id: editingEmployee.id, data: updateData });
+      if (!submitData.password) delete submitData.password;
+      updateMutation.mutate({ id: editingEmployee.id, data: submitData });
     } else {
-      createMutation.mutate(formData);
+      createMutation.mutate(submitData);
     }
   };
 
@@ -741,6 +848,27 @@ export default function AdminEmployees() {
     }
   };
 
+  // Reklamation bearbeiten
+  const handleResolveComplaint = async () => {
+    if (!editingTimeEntry) return;
+    setIsResolvingComplaint(true);
+    try {
+      const response = await timeEntriesApi.resolveComplaint(editingTimeEntry.id, complaintResponse || undefined);
+      // Optimistic Update
+      setTimeEntries(prev => prev.map(entry =>
+        entry.id === editingTimeEntry.id ? response.data : entry
+      ));
+      setEditingTimeEntry(response.data);
+      toast.success('Reklamation als bearbeitet markiert');
+      setShowComplaintModal(false);
+      setComplaintResponse('');
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Fehler beim Bearbeiten der Reklamation');
+    } finally {
+      setIsResolvingComplaint(false);
+    }
+  };
+
   // Absence Functions
   const openAbsencePopup = (date: Date, absence?: EmployeeAbsence) => {
     setEditingDate(date);
@@ -965,6 +1093,10 @@ export default function AdminEmployees() {
   // Close popup when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      // Wenn Reklamations-Modal offen ist, nicht das QuickEdit schließen
+      if (complaintModalRef.current?.contains(event.target as Node)) {
+        return;
+      }
       if (popupRef.current && !popupRef.current.contains(event.target as Node)) {
         closeQuickEdit();
       }
@@ -1102,9 +1234,17 @@ export default function AdminEmployees() {
                           )}
                         </div>
                         <div>
-                          <p className="font-medium text-gray-900">
-                            {employee.firstName} {employee.lastName}
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-gray-900">
+                              {employee.firstName} {employee.lastName}
+                            </p>
+                            {complaintsByEmployee[employee.id] > 0 && (
+                              <span className="flex items-center gap-1 px-1.5 py-0.5 text-xs font-bold text-orange-700 bg-orange-100 rounded-full">
+                                <AlertTriangle size={12} />
+                                {complaintsByEmployee[employee.id]}
+                              </span>
+                            )}
+                          </div>
                           <p className="text-sm text-gray-500">#{employee.employeeNumber}</p>
                         </div>
                       </div>
@@ -1116,6 +1256,9 @@ export default function AdminEmployees() {
                     <td className="px-6 py-4">
                       <p className="text-gray-900">{employee.vacationDaysPerYear} Tage/Jahr</p>
                       <p className="text-sm text-gray-500">{employee.weeklyHours}h/Woche</p>
+                      {employee.workCategory && (
+                        <p className="text-xs text-primary-600">{employee.workCategory.name}</p>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-col gap-1">
@@ -1316,6 +1459,21 @@ export default function AdminEmployees() {
                     );
                   })}
                 </div>
+              </div>
+              <div>
+                <label className="label">Arbeitskategorie</label>
+                <select
+                  value={formData.workCategoryId}
+                  onChange={(e) => setFormData({ ...formData, workCategoryId: e.target.value })}
+                  className="input"
+                >
+                  <option value="">Keine Kategorie</option>
+                  {workCategories?.map((cat: any) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name} (ab {cat.earliestClockIn} Uhr)
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="label">
@@ -1688,9 +1846,17 @@ export default function AdminEmployees() {
                                   {summary.entries.map((entry) => (
                                     <div
                                       key={entry.id}
-                                      className="entry-item flex items-center gap-2 cursor-pointer hover:bg-gray-100 rounded px-1 -mx-1"
+                                      className={`entry-item flex items-center gap-2 cursor-pointer hover:bg-gray-100 rounded px-1 -mx-1 ${entry.complaintMessage && !entry.complaintResolvedAt ? 'bg-amber-50' : ''}`}
                                       onClick={() => handleDayClick(date, entry)}
                                     >
+                                      {/* Reklamations-Icon */}
+                                      {entry.complaintMessage && (
+                                        entry.complaintResolvedAt ? (
+                                          <CheckCircle size={14} className="text-green-500 flex-shrink-0" title="Reklamation bearbeitet" />
+                                        ) : (
+                                          <AlertTriangle size={14} className="text-amber-500 flex-shrink-0" title="Offene Reklamation" />
+                                        )
+                                      )}
                                       <span className="text-gray-900">
                                         {format(new Date(entry.clockIn), 'HH:mm')} -{' '}
                                         {entry.clockOut ? (
@@ -1825,6 +1991,40 @@ export default function AdminEmployees() {
                         <p className="text-xs text-gray-400">
                           Pausen werden automatisch berechnet (Zeit zwischen Aus- und Einstempeln)
                         </p>
+
+                        {/* Reklamations-Anzeige */}
+                        {editingTimeEntry?.complaintMessage && (
+                          <div className={`p-3 rounded-lg border ${editingTimeEntry.complaintResolvedAt ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
+                            <div className="flex items-start gap-2">
+                              {editingTimeEntry.complaintResolvedAt ? (
+                                <CheckCircle size={16} className="text-green-600 flex-shrink-0 mt-0.5" />
+                              ) : (
+                                <AlertTriangle size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium text-gray-700">
+                                  {editingTimeEntry.complaintResolvedAt ? 'Reklamation bearbeitet' : 'Offene Reklamation'}
+                                </p>
+                                <p className="text-sm text-gray-600 mt-1">{editingTimeEntry.complaintMessage}</p>
+                                {editingTimeEntry.complaintResponse && (
+                                  <p className="text-xs text-gray-500 mt-2 border-t border-gray-200 pt-2">
+                                    <span className="font-medium">Antwort:</span> {editingTimeEntry.complaintResponse}
+                                  </p>
+                                )}
+                                {!editingTimeEntry.complaintResolvedAt && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setShowComplaintModal(true)}
+                                    className="text-xs text-amber-700 hover:text-amber-800 font-medium mt-2"
+                                  >
+                                    Als bearbeitet markieren →
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
                         <div className="flex items-center justify-between pt-2">
                           {editingTimeEntry && (
                             <button
@@ -1874,6 +2074,70 @@ export default function AdminEmployees() {
                           </div>
                         </div>
                       </form>
+                    </div>
+                  )}
+
+                  {/* Reklamation bearbeiten Modal */}
+                  {showComplaintModal && editingTimeEntry?.complaintMessage && (
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                      <div ref={complaintModalRef} className="bg-white rounded-xl shadow-2xl p-6 w-96 max-w-[90vw]">
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className="p-2 bg-amber-100 rounded-lg">
+                            <MessageSquare size={20} className="text-amber-600" />
+                          </div>
+                          <div>
+                            <h3 className="font-semibold text-gray-900">Reklamation bearbeiten</h3>
+                            <p className="text-sm text-gray-500">Mitarbeiter-Nachricht beantworten</p>
+                          </div>
+                        </div>
+
+                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+                          <p className="text-sm text-gray-700">{editingTimeEntry.complaintMessage}</p>
+                        </div>
+
+                        <div className="mb-4">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Antwort (optional)
+                          </label>
+                          <textarea
+                            value={complaintResponse}
+                            onChange={(e) => setComplaintResponse(e.target.value)}
+                            className="input w-full"
+                            rows={3}
+                            placeholder="z.B. Pause wurde nachgetragen, Zeit korrigiert..."
+                          />
+                        </div>
+
+                        <div className="flex justify-end gap-3">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowComplaintModal(false);
+                              setComplaintResponse('');
+                            }}
+                            className="btn btn-secondary"
+                          >
+                            Abbrechen
+                          </button>
+                          <button
+                            onClick={handleResolveComplaint}
+                            disabled={isResolvingComplaint}
+                            className="btn btn-primary flex items-center gap-2"
+                          >
+                            {isResolvingComplaint ? (
+                              <>
+                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                Speichern...
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle size={16} />
+                                Als bearbeitet markieren
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   )}
 

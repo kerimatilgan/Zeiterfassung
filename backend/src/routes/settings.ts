@@ -6,6 +6,7 @@ import fs from 'fs';
 import path from 'path';
 import multer from 'multer';
 import { createAuditLog } from '../utils/auditLog.js';
+import { testConnection, sendTestEmail } from '../utils/emailService.js';
 import {
   getGermanHolidays,
   getBundeslandFromPLZ,
@@ -798,6 +799,314 @@ router.post('/database/restore', authMiddleware, adminMiddleware, upload.single(
   } catch (error) {
     console.error('Database restore error:', error);
     res.status(500).json({ error: 'Fehler bei der Datenbank-Wiederherstellung' });
+  }
+});
+
+// ==================== MAIL-SERVER EINSTELLUNGEN ====================
+
+// Mail-Einstellungen abrufen (Admin)
+router.get('/mail', authMiddleware, adminMiddleware, async (_req: AuthRequest, res: Response) => {
+  try {
+    const settings = await prisma.settings.findUnique({
+      where: { id: 'default' },
+      select: {
+        smtpHost: true,
+        smtpPort: true,
+        smtpUser: true,
+        smtpPassword: true,
+        smtpFromAddress: true,
+        smtpFromName: true,
+        smtpSecure: true,
+      },
+    });
+
+    if (!settings) {
+      return res.json({
+        smtpHost: null,
+        smtpPort: 587,
+        smtpUser: null,
+        smtpPassword: null,
+        smtpFromAddress: null,
+        smtpFromName: 'Zeiterfassung',
+        smtpSecure: false,
+      });
+    }
+
+    // Passwort maskieren wenn vorhanden
+    const maskedSettings = {
+      ...settings,
+      smtpPassword: settings.smtpPassword ? '********' : null,
+    };
+
+    res.json(maskedSettings);
+  } catch (error) {
+    console.error('Get mail settings error:', error);
+    res.status(500).json({ error: 'Fehler beim Laden der Mail-Einstellungen' });
+  }
+});
+
+// Mail-Einstellungen aktualisieren (Admin)
+router.put('/mail', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const schema = z.object({
+      smtpHost: z.string().min(1).optional().nullable(),
+      smtpPort: z.number().min(1).max(65535).optional().nullable(),
+      smtpUser: z.string().optional().nullable(),
+      smtpPassword: z.string().optional().nullable(),
+      smtpFromAddress: z.string().email().optional().nullable(),
+      smtpFromName: z.string().optional().nullable(),
+      smtpSecure: z.boolean().optional(),
+    });
+
+    const data = schema.parse(req.body);
+
+    // Wenn Passwort maskiert ist (********), behalten wir das alte
+    let passwordToSave = data.smtpPassword;
+    if (data.smtpPassword === '********') {
+      const currentSettings = await prisma.settings.findUnique({
+        where: { id: 'default' },
+        select: { smtpPassword: true },
+      });
+      passwordToSave = currentSettings?.smtpPassword || null;
+    }
+
+    // Alte Werte für Audit Log
+    const oldSettings = await prisma.settings.findUnique({ where: { id: 'default' } });
+
+    const settings = await prisma.settings.upsert({
+      where: { id: 'default' },
+      update: {
+        smtpHost: data.smtpHost,
+        smtpPort: data.smtpPort,
+        smtpUser: data.smtpUser,
+        smtpPassword: passwordToSave,
+        smtpFromAddress: data.smtpFromAddress,
+        smtpFromName: data.smtpFromName,
+        smtpSecure: data.smtpSecure,
+      },
+      create: {
+        id: 'default',
+        smtpHost: data.smtpHost,
+        smtpPort: data.smtpPort,
+        smtpUser: data.smtpUser,
+        smtpPassword: passwordToSave,
+        smtpFromAddress: data.smtpFromAddress,
+        smtpFromName: data.smtpFromName,
+        smtpSecure: data.smtpSecure,
+      },
+    });
+
+    // Audit Log (Passwort nicht loggen)
+    await createAuditLog({
+      req,
+      action: 'UPDATE',
+      entityType: 'MailSettings',
+      entityId: 'default',
+      oldValues: oldSettings ? { ...oldSettings, smtpPassword: oldSettings.smtpPassword ? '[REDACTED]' : null } : null,
+      newValues: { ...settings, smtpPassword: settings.smtpPassword ? '[REDACTED]' : null },
+    });
+
+    // Passwort maskieren in Response
+    res.json({
+      ...settings,
+      smtpPassword: settings.smtpPassword ? '********' : null,
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: error.errors[0].message });
+    }
+    console.error('Update mail settings error:', error);
+    res.status(500).json({ error: 'Fehler beim Speichern der Mail-Einstellungen' });
+  }
+});
+
+// Mail-Verbindung testen (Admin)
+router.post('/mail/test', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const schema = z.object({
+      testEmail: z.string().email('Bitte gültige E-Mail-Adresse eingeben'),
+    });
+
+    const { testEmail } = schema.parse(req.body);
+
+    // Erst Verbindung testen
+    const connectionResult = await testConnection();
+    if (!connectionResult.success) {
+      return res.status(400).json({
+        error: `Verbindung zum Mail-Server fehlgeschlagen: ${connectionResult.error}`,
+      });
+    }
+
+    // Test-E-Mail senden
+    await sendTestEmail(testEmail);
+
+    // Audit Log
+    await createAuditLog({
+      req,
+      action: 'MAIL_TEST',
+      entityType: 'MailSettings',
+      newValues: { testEmail },
+    });
+
+    res.json({
+      success: true,
+      message: `Test-E-Mail wurde an ${testEmail} gesendet`,
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: error.errors[0].message });
+    }
+    console.error('Mail test error:', error);
+    res.status(500).json({
+      error: error instanceof Error ? error.message : 'Fehler beim Senden der Test-E-Mail',
+    });
+  }
+});
+
+// ==================== ARBEITSKATEGORIEN ====================
+
+// Aktive Arbeitskategorien (für Dropdowns)
+router.get('/work-categories', authMiddleware, async (_req: AuthRequest, res: Response) => {
+  try {
+    const categories = await prisma.workCategory.findMany({
+      where: { isActive: true },
+      orderBy: { sortOrder: 'asc' },
+    });
+    res.json(categories);
+  } catch (error) {
+    console.error('Get work categories error:', error);
+    res.status(500).json({ error: 'Fehler beim Laden der Arbeitskategorien' });
+  }
+});
+
+// Alle Arbeitskategorien (Admin-Verwaltung)
+router.get('/work-categories/all', authMiddleware, adminMiddleware, async (_req: AuthRequest, res: Response) => {
+  try {
+    const categories = await prisma.workCategory.findMany({
+      orderBy: { sortOrder: 'asc' },
+    });
+    res.json(categories);
+  } catch (error) {
+    console.error('Get all work categories error:', error);
+    res.status(500).json({ error: 'Fehler beim Laden der Arbeitskategorien' });
+  }
+});
+
+// Arbeitskategorie erstellen
+router.post('/work-categories', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const schema = z.object({
+      name: z.string().min(1, 'Name erforderlich'),
+      earliestClockIn: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Format HH:mm erforderlich'),
+      isActive: z.boolean().optional(),
+      sortOrder: z.number().optional(),
+    });
+
+    const data = schema.parse(req.body);
+
+    const category = await prisma.workCategory.create({
+      data: {
+        name: data.name,
+        earliestClockIn: data.earliestClockIn,
+        isActive: data.isActive ?? true,
+        sortOrder: data.sortOrder ?? 0,
+      },
+    });
+
+    await createAuditLog({
+      req,
+      action: 'CREATE',
+      entityType: 'WorkCategory',
+      entityId: category.id,
+      newValues: { name: data.name, earliestClockIn: data.earliestClockIn },
+    });
+
+    res.status(201).json(category);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: error.errors[0].message });
+    }
+    console.error('Create work category error:', error);
+    res.status(500).json({ error: 'Fehler beim Erstellen der Arbeitskategorie' });
+  }
+});
+
+// Arbeitskategorie bearbeiten
+router.put('/work-categories/:id', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const schema = z.object({
+      name: z.string().min(1).optional(),
+      earliestClockIn: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/).optional(),
+      isActive: z.boolean().optional(),
+      sortOrder: z.number().optional(),
+    });
+
+    const data = schema.parse(req.body);
+
+    const existing = await prisma.workCategory.findUnique({ where: { id } });
+    if (!existing) {
+      return res.status(404).json({ error: 'Arbeitskategorie nicht gefunden' });
+    }
+
+    const category = await prisma.workCategory.update({
+      where: { id },
+      data,
+    });
+
+    await createAuditLog({
+      req,
+      action: 'UPDATE',
+      entityType: 'WorkCategory',
+      entityId: id,
+      oldValues: { name: existing.name, earliestClockIn: existing.earliestClockIn },
+      newValues: { name: category.name, earliestClockIn: category.earliestClockIn },
+    });
+
+    res.json(category);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: error.errors[0].message });
+    }
+    console.error('Update work category error:', error);
+    res.status(500).json({ error: 'Fehler beim Aktualisieren der Arbeitskategorie' });
+  }
+});
+
+// Arbeitskategorie löschen
+router.delete('/work-categories/:id', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const existing = await prisma.workCategory.findUnique({ where: { id } });
+    if (!existing) {
+      return res.status(404).json({ error: 'Arbeitskategorie nicht gefunden' });
+    }
+
+    const employeeCount = await prisma.employee.count({
+      where: { workCategoryId: id },
+    });
+
+    if (employeeCount > 0) {
+      return res.status(400).json({
+        error: `Kann nicht löschen: ${employeeCount} Mitarbeiter verwenden diese Kategorie. Bitte erst deaktivieren oder Mitarbeiter umzuweisen.`,
+      });
+    }
+
+    await prisma.workCategory.delete({ where: { id } });
+
+    await createAuditLog({
+      req,
+      action: 'DELETE',
+      entityType: 'WorkCategory',
+      entityId: id,
+      oldValues: { name: existing.name, earliestClockIn: existing.earliestClockIn },
+    });
+
+    res.json({ message: 'Arbeitskategorie gelöscht' });
+  } catch (error) {
+    console.error('Delete work category error:', error);
+    res.status(500).json({ error: 'Fehler beim Löschen der Arbeitskategorie' });
   }
 });
 

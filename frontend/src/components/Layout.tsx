@@ -1,5 +1,7 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
+import { useQuery } from '@tanstack/react-query';
+import { timeEntriesApi } from '../lib/api';
 import {
   LayoutDashboard,
   Users,
@@ -10,6 +12,7 @@ import {
   Menu,
   X,
   Shield,
+  AlertTriangle,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useSocket } from '../hooks/useSocket';
@@ -26,14 +29,24 @@ export default function Layout({ isAdmin = false }: LayoutProps) {
   // WebSocket-Verbindung für Echtzeit-Updates
   useSocket();
 
+  // Offene Reklamationen abfragen (nur für Admin)
+  const { data: pendingComplaints } = useQuery({
+    queryKey: ['pendingComplaints'],
+    queryFn: () => timeEntriesApi.getPendingComplaints(5).then((r) => r.data),
+    enabled: isAdmin,
+    refetchInterval: 30000, // Alle 30 Sekunden aktualisieren
+  });
+
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
 
+  const pendingCount = pendingComplaints?.count ?? 0;
+
   const adminLinks = [
     { to: '/admin', icon: LayoutDashboard, label: 'Dashboard', end: true },
-    { to: '/admin/employees', icon: Users, label: 'Mitarbeiter' },
+    { to: '/admin/employees', icon: Users, label: 'Mitarbeiter', badge: pendingCount > 0 ? pendingCount : undefined },
     { to: '/admin/reports', icon: FileText, label: 'Abrechnungen' },
     { to: '/admin/settings', icon: Settings, label: 'Einstellungen' },
     { to: '/admin/audit-logs', icon: Shield, label: 'Audit-Log' },
@@ -109,7 +122,12 @@ export default function Layout({ isAdmin = false }: LayoutProps) {
                 }
               >
                 <link.icon size={20} />
-                {link.label}
+                <span className="flex-1">{link.label}</span>
+                {'badge' in link && link.badge !== undefined && (
+                  <span className="flex items-center justify-center min-w-[20px] h-5 px-1.5 text-xs font-bold text-white bg-red-500 rounded-full animate-pulse">
+                    {link.badge > 9 ? '9+' : link.badge}
+                  </span>
+                )}
               </NavLink>
             ))}
           </nav>

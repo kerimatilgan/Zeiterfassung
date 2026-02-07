@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { settingsApi } from '../../lib/api';
 import toast from 'react-hot-toast';
-import { Save, Building2, Clock, Calendar, Trash2, Plus, X, Briefcase, Edit2, Wand2, MapPin, AlertCircle, Database, Download, Upload, HardDrive } from 'lucide-react';
+import { Save, Building2, Clock, Calendar, Trash2, Plus, X, Briefcase, Edit2, Wand2, MapPin, AlertCircle, Database, Download, Upload, HardDrive, Mail, Send, CheckCircle, XCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 
@@ -19,6 +19,14 @@ interface AbsenceType {
   shortName: string;
   requiredHours: number;
   color: string;
+  isActive: boolean;
+  sortOrder: number;
+}
+
+interface WorkCategory {
+  id: string;
+  name: string;
+  earliestClockIn: string;
   isActive: boolean;
   sortOrder: number;
 }
@@ -41,6 +49,11 @@ export default function AdminSettings() {
     queryFn: () => settingsApi.getAllAbsenceTypes().then((r) => r.data as AbsenceType[]),
   });
 
+  const { data: workCategories } = useQuery({
+    queryKey: ['work-categories'],
+    queryFn: () => settingsApi.getAllWorkCategories().then((r) => r.data as WorkCategory[]),
+  });
+
   const { data: bundeslandInfo } = useQuery({
     queryKey: ['bundesland-info'],
     queryFn: () => settingsApi.getBundeslandInfo().then((r) => r.data),
@@ -54,6 +67,11 @@ export default function AdminSettings() {
   const { data: databaseInfo, refetch: refetchDatabaseInfo } = useQuery({
     queryKey: ['database-info'],
     queryFn: () => settingsApi.getDatabaseInfo().then((r) => r.data),
+  });
+
+  const { data: mailSettings, refetch: refetchMailSettings } = useQuery({
+    queryKey: ['mail-settings'],
+    queryFn: () => settingsApi.getMailSettings().then((r) => r.data),
   });
 
   const [formData, setFormData] = useState({
@@ -80,11 +98,34 @@ export default function AdminSettings() {
   const [showRestoreModal, setShowRestoreModal] = useState(false);
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
+
+  // Mail-Server Einstellungen
+  const [mailFormData, setMailFormData] = useState({
+    smtpHost: '',
+    smtpPort: 587,
+    smtpUser: '',
+    smtpPassword: '',
+    smtpFromAddress: '',
+    smtpFromName: 'Zeiterfassung',
+    smtpSecure: false,
+  });
+  const [testEmail, setTestEmail] = useState('');
+  const [isSendingTest, setIsSendingTest] = useState(false);
   const [absenceTypeForm, setAbsenceTypeForm] = useState({
     name: '',
     shortName: '',
     requiredHours: 0,
     color: '#3B82F6',
+    isActive: true,
+    sortOrder: 0,
+  });
+
+  // Arbeitskategorien State
+  const [showWorkCategoryModal, setShowWorkCategoryModal] = useState(false);
+  const [editingWorkCategory, setEditingWorkCategory] = useState<WorkCategory | null>(null);
+  const [workCategoryForm, setWorkCategoryForm] = useState({
+    name: '',
+    earliestClockIn: '08:00',
     isActive: true,
     sortOrder: 0,
   });
@@ -102,6 +143,20 @@ export default function AdminSettings() {
     }
   }, [settings]);
 
+  useEffect(() => {
+    if (mailSettings) {
+      setMailFormData({
+        smtpHost: mailSettings.smtpHost || '',
+        smtpPort: mailSettings.smtpPort || 587,
+        smtpUser: mailSettings.smtpUser || '',
+        smtpPassword: mailSettings.smtpPassword || '',
+        smtpFromAddress: mailSettings.smtpFromAddress || '',
+        smtpFromName: mailSettings.smtpFromName || 'Zeiterfassung',
+        smtpSecure: mailSettings.smtpSecure || false,
+      });
+    }
+  }, [mailSettings]);
+
   const updateMutation = useMutation({
     mutationFn: (data: typeof formData) => settingsApi.update(data),
     onSuccess: () => {
@@ -112,6 +167,33 @@ export default function AdminSettings() {
       toast.error(error.response?.data?.error || 'Fehler beim Speichern');
     },
   });
+
+  const updateMailMutation = useMutation({
+    mutationFn: (data: typeof mailFormData) => settingsApi.updateMailSettings(data),
+    onSuccess: () => {
+      refetchMailSettings();
+      toast.success('Mail-Einstellungen gespeichert');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error || 'Fehler beim Speichern');
+    },
+  });
+
+  const handleTestMail = async () => {
+    if (!testEmail) {
+      toast.error('Bitte Test-E-Mail-Adresse eingeben');
+      return;
+    }
+    setIsSendingTest(true);
+    try {
+      await settingsApi.testMailSettings(testEmail);
+      toast.success(`Test-E-Mail wurde an ${testEmail} gesendet`);
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Fehler beim Senden der Test-E-Mail');
+    } finally {
+      setIsSendingTest(false);
+    }
+  };
 
   const createHolidayMutation = useMutation({
     mutationFn: (data: { date: string; name: string }) =>
@@ -180,6 +262,43 @@ export default function AdminSettings() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['absence-types'] });
       toast.success('Abwesenheitstyp gelöscht');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error || 'Fehler beim Löschen');
+    },
+  });
+
+  // Arbeitskategorien Mutations
+  const createWorkCategoryMutation = useMutation({
+    mutationFn: (data: typeof workCategoryForm) => settingsApi.createWorkCategory(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['work-categories'] });
+      toast.success('Arbeitskategorie erstellt');
+      closeWorkCategoryModal();
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error || 'Fehler beim Erstellen');
+    },
+  });
+
+  const updateWorkCategoryMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: typeof workCategoryForm }) =>
+      settingsApi.updateWorkCategory(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['work-categories'] });
+      toast.success('Arbeitskategorie aktualisiert');
+      closeWorkCategoryModal();
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error || 'Fehler beim Aktualisieren');
+    },
+  });
+
+  const deleteWorkCategoryMutation = useMutation({
+    mutationFn: (id: string) => settingsApi.deleteWorkCategory(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['work-categories'] });
+      toast.success('Arbeitskategorie gelöscht');
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.error || 'Fehler beim Löschen');
@@ -272,6 +391,38 @@ export default function AdminSettings() {
       updateAbsenceTypeMutation.mutate({ id: editingAbsenceType.id, data: absenceTypeForm });
     } else {
       createAbsenceTypeMutation.mutate(absenceTypeForm);
+    }
+  };
+
+  // Arbeitskategorien Helpers
+  const openCreateWorkCategoryModal = () => {
+    setEditingWorkCategory(null);
+    setWorkCategoryForm({ name: '', earliestClockIn: '08:00', isActive: true, sortOrder: workCategories?.length ?? 0 });
+    setShowWorkCategoryModal(true);
+  };
+
+  const openEditWorkCategoryModal = (cat: WorkCategory) => {
+    setEditingWorkCategory(cat);
+    setWorkCategoryForm({
+      name: cat.name,
+      earliestClockIn: cat.earliestClockIn,
+      isActive: cat.isActive,
+      sortOrder: cat.sortOrder,
+    });
+    setShowWorkCategoryModal(true);
+  };
+
+  const closeWorkCategoryModal = () => {
+    setShowWorkCategoryModal(false);
+    setEditingWorkCategory(null);
+  };
+
+  const handleWorkCategorySubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editingWorkCategory) {
+      updateWorkCategoryMutation.mutate({ id: editingWorkCategory.id, data: workCategoryForm });
+    } else {
+      createWorkCategoryMutation.mutate(workCategoryForm);
     }
   };
 
@@ -546,6 +697,165 @@ export default function AdminSettings() {
           </div>
         </div>
 
+        {/* Mail Server Settings */}
+        <div className="card">
+          <div className="p-6 border-b border-gray-100">
+            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <Mail size={20} />
+              Mail-Server
+            </h2>
+            <p className="text-sm text-gray-500 mt-1">
+              SMTP-Konfiguration für E-Mail-Benachrichtigungen
+            </p>
+          </div>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              updateMailMutation.mutate(mailFormData);
+            }}
+            className="p-6 space-y-4"
+          >
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="label">SMTP-Server</label>
+                <input
+                  type="text"
+                  value={mailFormData.smtpHost}
+                  onChange={(e) => setMailFormData({ ...mailFormData, smtpHost: e.target.value })}
+                  className="input"
+                  placeholder="smtp.example.com"
+                />
+              </div>
+              <div>
+                <label className="label">Port</label>
+                <input
+                  type="number"
+                  value={mailFormData.smtpPort}
+                  onChange={(e) => setMailFormData({ ...mailFormData, smtpPort: parseInt(e.target.value) || 587 })}
+                  className="input"
+                  placeholder="587"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="label">Benutzername</label>
+                <input
+                  type="text"
+                  value={mailFormData.smtpUser}
+                  onChange={(e) => setMailFormData({ ...mailFormData, smtpUser: e.target.value })}
+                  className="input"
+                  placeholder="user@example.com"
+                />
+              </div>
+              <div>
+                <label className="label">Passwort</label>
+                <input
+                  type="password"
+                  value={mailFormData.smtpPassword}
+                  onChange={(e) => setMailFormData({ ...mailFormData, smtpPassword: e.target.value })}
+                  className="input"
+                  placeholder="••••••••"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="label">Absender-Adresse</label>
+                <input
+                  type="email"
+                  value={mailFormData.smtpFromAddress}
+                  onChange={(e) => setMailFormData({ ...mailFormData, smtpFromAddress: e.target.value })}
+                  className="input"
+                  placeholder="zeiterfassung@example.com"
+                />
+              </div>
+              <div>
+                <label className="label">Absender-Name</label>
+                <input
+                  type="text"
+                  value={mailFormData.smtpFromName}
+                  onChange={(e) => setMailFormData({ ...mailFormData, smtpFromName: e.target.value })}
+                  className="input"
+                  placeholder="Zeiterfassung"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="smtpSecure"
+                checked={mailFormData.smtpSecure}
+                onChange={(e) => setMailFormData({ ...mailFormData, smtpSecure: e.target.checked })}
+                className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              />
+              <label htmlFor="smtpSecure" className="text-sm text-gray-700">
+                TLS/SSL verwenden (Port 465)
+              </label>
+            </div>
+
+            <div className="pt-4 border-t border-gray-100">
+              <button
+                type="submit"
+                disabled={updateMailMutation.isPending}
+                className="btn btn-primary flex items-center gap-2"
+              >
+                {updateMailMutation.isPending ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Speichern...
+                  </>
+                ) : (
+                  <>
+                    <Save size={16} />
+                    Speichern
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Test E-Mail */}
+            <div className="pt-4 border-t border-gray-100">
+              <label className="label">Test-E-Mail senden</label>
+              <div className="flex gap-2">
+                <input
+                  type="email"
+                  value={testEmail}
+                  onChange={(e) => setTestEmail(e.target.value)}
+                  className="input flex-1"
+                  placeholder="test@example.com"
+                />
+                <button
+                  type="button"
+                  onClick={handleTestMail}
+                  disabled={isSendingTest || !mailFormData.smtpHost}
+                  className="btn btn-secondary flex items-center gap-2"
+                >
+                  {isSendingTest ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-gray-600 border-t-transparent rounded-full animate-spin" />
+                      Sende...
+                    </>
+                  ) : (
+                    <>
+                      <Send size={16} />
+                      Testen
+                    </>
+                  )}
+                </button>
+              </div>
+              {!mailFormData.smtpHost && (
+                <p className="text-xs text-amber-600 mt-1">
+                  Bitte zuerst SMTP-Server konfigurieren und speichern
+                </p>
+              )}
+            </div>
+          </form>
+        </div>
+
         {/* Absence Types */}
         <div className="card lg:col-span-2">
           <div className="p-6 border-b border-gray-100 flex items-center justify-between">
@@ -661,6 +971,164 @@ export default function AdminSettings() {
           </div>
         </div>
       </div>
+
+      {/* Arbeitskategorien */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="card lg:col-span-2">
+          <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <Clock size={20} />
+                Arbeitskategorien
+              </h2>
+              <p className="text-sm text-gray-500 mt-1">
+                Früheste Einstempelzeit pro Kategorie festlegen
+              </p>
+            </div>
+            <button
+              onClick={openCreateWorkCategoryModal}
+              className="btn btn-secondary flex items-center gap-2 text-sm"
+            >
+              <Plus size={16} />
+              Neue Kategorie
+            </button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Bezeichnung
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Früheste Einstempelzeit
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                    Aktionen
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {workCategories?.length ? (
+                  workCategories.map((cat) => (
+                    <tr key={cat.id}>
+                      <td className="px-6 py-4 font-medium text-gray-900">{cat.name}</td>
+                      <td className="px-6 py-4">
+                        <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded text-sm font-medium">
+                          ab {cat.earliestClockIn} Uhr
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        {cat.isActive ? (
+                          <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                            Aktiv
+                          </span>
+                        ) : (
+                          <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">
+                            Inaktiv
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => openEditWorkCategoryModal(cat)}
+                            className="p-2 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
+                          >
+                            <Edit2 size={18} />
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (confirm('Arbeitskategorie wirklich löschen?')) {
+                                deleteWorkCategoryMutation.mutate(cat.id);
+                              }
+                            }}
+                            className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
+                      Keine Arbeitskategorien konfiguriert
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {/* WorkCategory Modal */}
+      {showWorkCategoryModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+              <h2 className="text-xl font-semibold">
+                {editingWorkCategory ? 'Arbeitskategorie bearbeiten' : 'Neue Arbeitskategorie'}
+              </h2>
+              <button onClick={closeWorkCategoryModal} className="p-2 hover:bg-gray-100 rounded-lg">
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleWorkCategorySubmit} className="p-6 space-y-4">
+              <div>
+                <label className="label">Bezeichnung</label>
+                <input
+                  type="text"
+                  value={workCategoryForm.name}
+                  onChange={(e) => setWorkCategoryForm({ ...workCategoryForm, name: e.target.value })}
+                  className="input"
+                  placeholder="z.B. Backoffice, Büro, Verkauf"
+                  required
+                />
+              </div>
+              <div>
+                <label className="label">Früheste Einstempelzeit</label>
+                <input
+                  type="time"
+                  value={workCategoryForm.earliestClockIn}
+                  onChange={(e) => setWorkCategoryForm({ ...workCategoryForm, earliestClockIn: e.target.value })}
+                  className="input"
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Stempelt ein Mitarbeiter vor dieser Zeit, wird die Einstempelzeit automatisch auf diesen Wert gesetzt
+                </p>
+              </div>
+              <div>
+                <label className="label">Status</label>
+                <select
+                  value={workCategoryForm.isActive ? 'true' : 'false'}
+                  onChange={(e) =>
+                    setWorkCategoryForm({ ...workCategoryForm, isActive: e.target.value === 'true' })
+                  }
+                  className="input"
+                >
+                  <option value="true">Aktiv</option>
+                  <option value="false">Inaktiv</option>
+                </select>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button type="submit" className="btn btn-primary flex-1">
+                  {editingWorkCategory ? 'Speichern' : 'Erstellen'}
+                </button>
+                <button type="button" onClick={closeWorkCategoryModal} className="btn btn-secondary">
+                  Abbrechen
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Holiday Modal */}
       {showHolidayModal && (

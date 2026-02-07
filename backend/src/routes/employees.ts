@@ -54,6 +54,7 @@ const employeeSchema = z.object({
   workDays: z.string().optional(), // Komma-getrennte Wochentage: "1,2,3,4,5"
   isAdmin: z.boolean().optional(),
   password: z.string().min(6).optional(),
+  workCategoryId: z.string().uuid().optional().nullable(),
 });
 
 // Alle Mitarbeiter abrufen (nur Admin)
@@ -75,6 +76,8 @@ router.get('/', authMiddleware, adminMiddleware, async (_req: AuthRequest, res: 
         isAdmin: true,
         qrCode: true,
         rfidCard: true,
+        workCategoryId: true,
+        workCategory: { select: { id: true, name: true, earliestClockIn: true } },
         createdAt: true,
       },
       orderBy: { lastName: 'asc' },
@@ -164,6 +167,7 @@ router.post('/', authMiddleware, adminMiddleware, async (req: AuthRequest, res: 
         vacationDaysPerYear: data.vacationDaysPerYear ?? 30,
         workDays: data.workDays ?? '1,2,3,4,5',
         isAdmin: data.isAdmin ?? false,
+        workCategoryId: data.workCategoryId || null,
         qrCode,
         passwordHash,
       },
@@ -181,6 +185,8 @@ router.post('/', authMiddleware, adminMiddleware, async (req: AuthRequest, res: 
         isActive: true,
         isAdmin: true,
         qrCode: true,
+        workCategoryId: true,
+        workCategory: { select: { id: true, name: true, earliestClockIn: true } },
         createdAt: true,
       },
     });
@@ -265,6 +271,7 @@ router.put('/:id', authMiddleware, adminMiddleware, async (req: AuthRequest, res
         ...(data.vacationDaysPerYear !== undefined && { vacationDaysPerYear: data.vacationDaysPerYear }),
         ...(data.workDays !== undefined && { workDays: data.workDays }),
         ...(data.isAdmin !== undefined && { isAdmin: data.isAdmin }),
+        ...(data.workCategoryId !== undefined && { workCategoryId: data.workCategoryId || null }),
         ...(passwordHash && { passwordHash }),
       },
       select: {
@@ -281,6 +288,8 @@ router.put('/:id', authMiddleware, adminMiddleware, async (req: AuthRequest, res
         isActive: true,
         isAdmin: true,
         qrCode: true,
+        workCategoryId: true,
+        workCategory: { select: { id: true, name: true, earliestClockIn: true } },
         createdAt: true,
         updatedAt: true,
       },
