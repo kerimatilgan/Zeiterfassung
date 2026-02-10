@@ -1,9 +1,6 @@
 services:
   backend:
     image: ghcr.io/kerimatilgan/zeiterfassung-backend:latest
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
     ports:
       - "3001:3001"
     environment:
@@ -18,9 +15,6 @@ services:
 
   frontend:
     image: ghcr.io/kerimatilgan/zeiterfassung-frontend:latest
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
     ports:
       - "80:80"
     depends_on:
@@ -29,9 +23,6 @@ services:
 
   terminal:
     image: ghcr.io/kerimatilgan/zeiterfassung-terminal:latest
-    build:
-      context: ./terminal-app
-      dockerfile: Dockerfile
     ports:
       - "8080:80"
     depends_on:
