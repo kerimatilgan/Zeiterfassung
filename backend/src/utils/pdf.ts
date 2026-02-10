@@ -36,6 +36,10 @@ interface ReportData {
     totalHours: number;
     targetHours: number;
     overtimeHours: number;
+    previousOvertimeBalance: number;
+    cumulativeOvertimeBalance: number;
+    sickDaysThisMonth: number;
+    sickDaysTotal: number;
     vacationDaysUsed: number;
     vacationDaysRemaining: number;
     notes?: string | null;
@@ -269,15 +273,17 @@ export async function generateMonthlyReportPDF(data: ReportData): Promise<void> 
       const diffMinutes = totalWorkedMinutes - totalTargetMinutes;
 
       // Box zeichnen
-      doc.rect(leftMargin, summaryY, pageWidth, 70).stroke();
+      doc.rect(leftMargin, summaryY, pageWidth, 110).stroke();
 
       // Banner Titel
       doc.fontSize(12).font('Helvetica-Bold');
       doc.text('Zusammenfassung', leftMargin + 10, summaryY + 8);
 
-      // Zusammenfassungs-Daten in 4 Spalten
+      // Zusammenfassungs-Daten in 4 Spalten, 2 Reihen
       const colWidth = pageWidth / 4;
       const dataY = summaryY + 28;
+
+      // --- Reihe 1 ---
 
       // Spalte 1: Gesamtstunden
       doc.fontSize(10).font('Helvetica-Bold');
@@ -291,12 +297,12 @@ export async function generateMonthlyReportPDF(data: ReportData): Promise<void> 
       doc.font('Helvetica').fontSize(11);
       doc.text(formatMinutes(totalTargetMinutes), leftMargin + colWidth + 10, dataY + 14);
 
-      // Spalte 3: Überstunden
+      // Spalte 3: Differenz Monat
       doc.fontSize(10).font('Helvetica-Bold');
-      doc.text('Überstunden', leftMargin + colWidth * 2 + 10, dataY);
+      doc.text('Differenz Monat', leftMargin + colWidth * 2 + 10, dataY);
       doc.font('Helvetica').fontSize(11);
-      const overtimeColor = diffMinutes >= 0 ? '#228B22' : '#DC143C';
-      doc.fillColor(overtimeColor);
+      const diffColor = diffMinutes >= 0 ? '#228B22' : '#DC143C';
+      doc.fillColor(diffColor);
       doc.text(formatMinutes(diffMinutes), leftMargin + colWidth * 2 + 10, dataY + 14);
       doc.fillColor('#000000');
 
@@ -306,7 +312,45 @@ export async function generateMonthlyReportPDF(data: ReportData): Promise<void> 
       doc.font('Helvetica').fontSize(11);
       doc.text(`${report.vacationDaysUsed} / ${employee.vacationDaysPerYear}`, leftMargin + colWidth * 3 + 10, dataY + 14);
 
-      doc.y = summaryY + 80;
+      // --- Reihe 2 (Übertrag) ---
+      const dataY2 = dataY + 36;
+
+      // Spalte 1: Übertrag Vormonat
+      doc.fontSize(10).font('Helvetica-Bold');
+      doc.text('Übertrag Vormonat', leftMargin + 10, dataY2);
+      doc.font('Helvetica').fontSize(11);
+      const prevBalance = report.previousOvertimeBalance || 0;
+      const prevBalanceMinutes = Math.round(prevBalance * 60);
+      const prevColor = prevBalanceMinutes >= 0 ? '#228B22' : '#DC143C';
+      doc.fillColor(prevColor);
+      doc.text(formatMinutes(prevBalanceMinutes), leftMargin + 10, dataY2 + 14);
+      doc.fillColor('#000000');
+
+      // Spalte 2: Überstunden-Saldo
+      doc.fontSize(10).font('Helvetica-Bold');
+      doc.text('Überstunden-Saldo', leftMargin + colWidth + 10, dataY2);
+      doc.font('Helvetica-Bold').fontSize(11);
+      const cumBalance = report.cumulativeOvertimeBalance || 0;
+      const cumBalanceMinutes = Math.round(cumBalance * 60);
+      const cumColor = cumBalanceMinutes >= 0 ? '#228B22' : '#DC143C';
+      doc.fillColor(cumColor);
+      doc.text(formatMinutes(cumBalanceMinutes), leftMargin + colWidth + 10, dataY2 + 14);
+      doc.fillColor('#000000');
+      doc.font('Helvetica');
+
+      // Spalte 3: Krank (Monat)
+      doc.fontSize(10).font('Helvetica-Bold');
+      doc.text('Krank (Monat)', leftMargin + colWidth * 2 + 10, dataY2);
+      doc.font('Helvetica').fontSize(11);
+      doc.text(`${report.sickDaysThisMonth || 0} Tage`, leftMargin + colWidth * 2 + 10, dataY2 + 14);
+
+      // Spalte 4: Krank (Jahr)
+      doc.fontSize(10).font('Helvetica-Bold');
+      doc.text('Krank (Jahr)', leftMargin + colWidth * 3 + 10, dataY2);
+      doc.font('Helvetica').fontSize(11);
+      doc.text(`${report.sickDaysTotal || 0} Tage`, leftMargin + colWidth * 3 + 10, dataY2 + 14);
+
+      doc.y = summaryY + 120;
 
       doc.fontSize(10).font('Helvetica');
       doc.text(`bis einschl. ${MONTH_NAMES[report.month - 1]}: Urlaub ${vacationDays} Tage, krank ${sickDays} Tage`, leftMargin, doc.y, { align: 'right' });
@@ -463,6 +507,20 @@ export async function generateMonthlyReportPDF(data: ReportData): Promise<void> 
       // Zeile 3
       doc.font('Helvetica-Bold').text('Differenz', footerCol1, y, { width: labelWidth });
       doc.font('Helvetica').text(formatMinutes(footerDiffMinutes), footerCol1 + labelWidth, y, { width: valueWidth, align: 'right' });
+      doc.font('Helvetica-Bold').text('Krank (Jahr)', footerCol2, y, { width: labelWidth });
+      doc.font('Helvetica').text(`${report.sickDaysTotal || 0} Tage`, footerCol2 + labelWidth, y, { width: valueWidth, align: 'right' });
+
+      y += 16;
+      // Zeile 4: Übertrag
+      const footerPrevBalance = Math.round((report.previousOvertimeBalance || 0) * 60);
+      const footerCumBalance = Math.round((report.cumulativeOvertimeBalance || 0) * 60);
+      doc.font('Helvetica-Bold').text('Übertrag Vorm.', footerCol1, y, { width: labelWidth });
+      doc.font('Helvetica').text(formatMinutes(footerPrevBalance), footerCol1 + labelWidth, y, { width: valueWidth, align: 'right' });
+      doc.font('Helvetica-Bold').text('Überstunden-Saldo', footerCol2, y, { width: labelWidth + 10 });
+      const footerCumColor = footerCumBalance >= 0 ? '#228B22' : '#DC143C';
+      doc.font('Helvetica-Bold').fillColor(footerCumColor);
+      doc.text(formatMinutes(footerCumBalance), footerCol2 + labelWidth, y, { width: valueWidth, align: 'right' });
+      doc.fillColor('#000000').font('Helvetica');
 
       // Notizen
       if (report.notes) {

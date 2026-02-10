@@ -12,7 +12,6 @@ import {
   Menu,
   X,
   Shield,
-  AlertTriangle,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useSocket } from '../hooks/useSocket';
@@ -123,9 +122,9 @@ export default function Layout({ isAdmin = false }: LayoutProps) {
               >
                 <link.icon size={20} />
                 <span className="flex-1">{link.label}</span>
-                {'badge' in link && link.badge !== undefined && (
+                {'badge' in link && link.badge != null && (
                   <span className="flex items-center justify-center min-w-[20px] h-5 px-1.5 text-xs font-bold text-white bg-red-500 rounded-full animate-pulse">
-                    {link.badge > 9 ? '9+' : link.badge}
+                    {(link.badge as number) > 9 ? '9+' : (link.badge as React.ReactNode)}
                   </span>
                 )}
               </NavLink>

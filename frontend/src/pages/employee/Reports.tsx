@@ -1,13 +1,15 @@
 import { useQuery } from '@tanstack/react-query';
 import { reportsApi } from '../../lib/api';
-import { FileText, Download, Clock, TrendingUp, Umbrella } from 'lucide-react';
+import { FileText, Download, Clock, TrendingUp, Umbrella, Activity, ThermometerSun } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-// Formatiert Dezimalstunden zu H:MM Format (nur volle Minuten, keine Sekunden)
+// Formatiert Dezimalstunden zu H:MM Format (unterstützt negative Werte)
 const formatHoursToTime = (hours: number): string => {
-  const h = Math.floor(hours);
-  const m = Math.floor((hours - h) * 60);
-  return `${h}:${m.toString().padStart(2, '0')}`;
+  const sign = hours < 0 ? '-' : '';
+  const abs = Math.abs(hours);
+  const h = Math.floor(abs);
+  const m = Math.floor((abs - h) * 60);
+  return `${sign}${h}:${m.toString().padStart(2, '0')}`;
 };
 
 const MONTHS = [
@@ -104,15 +106,30 @@ export default function EmployeeReports() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-gray-500">
                       <TrendingUp size={16} />
-                      <span>Überstunden</span>
+                      <span>Differenz Monat</span>
                     </div>
                     <span
                       className={`font-medium ${
-                        report.overtimeHours > 0 ? 'text-orange-600' : 'text-gray-900'
+                        report.overtimeHours >= 0 ? 'text-orange-600' : 'text-red-600'
                       }`}
                     >
-                      {report.overtimeHours > 0 ? '+' : ''}
+                      {report.overtimeHours >= 0 ? '+' : ''}
                       {formatHoursToTime(report.overtimeHours)} h
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-gray-500">
+                      <Activity size={16} />
+                      <span className="font-semibold">Überstunden-Saldo</span>
+                    </div>
+                    <span
+                      className={`font-bold ${
+                        (report.cumulativeOvertimeBalance || 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                      }`}
+                    >
+                      {(report.cumulativeOvertimeBalance || 0) >= 0 ? '+' : ''}
+                      {formatHoursToTime(report.cumulativeOvertimeBalance || 0)} h
                     </span>
                   </div>
 
@@ -125,6 +142,18 @@ export default function EmployeeReports() {
                       {report.vacationDaysUsed ?? 0} / {report.vacationDaysRemaining != null ? report.vacationDaysUsed + report.vacationDaysRemaining : '-'}
                     </span>
                   </div>
+
+                  {(report.sickDaysThisMonth > 0 || report.sickDaysTotal > 0) && (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-gray-500">
+                        <ThermometerSun size={16} />
+                        <span>Krankheitstage</span>
+                      </div>
+                      <span className="font-medium text-red-600">
+                        {report.sickDaysThisMonth || 0} <span className="text-xs text-gray-500">(Jahr: {report.sickDaysTotal || 0})</span>
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 

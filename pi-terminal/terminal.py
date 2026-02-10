@@ -9,6 +9,7 @@ import time
 import sys
 import os
 import subprocess
+import threading
 from pathlib import Path
 
 import evdev
@@ -250,6 +251,19 @@ def main():
         print("  Terminal läuft im OFFLINE-MODUS")
         print("  Stempelungen werden lokal gespeichert und später synchronisiert")
         offline_queue.set_online_status(False)
+
+    # Heartbeat-Thread starten
+    def heartbeat_loop():
+        while True:
+            try:
+                api.send_heartbeat()
+            except Exception as e:
+                print(f"[Heartbeat] Fehler: {e}")
+            time.sleep(60)
+
+    heartbeat_thread = threading.Thread(target=heartbeat_loop, daemon=True)
+    heartbeat_thread.start()
+    print("Heartbeat-Thread gestartet (alle 60s)")
 
     # Display initialisieren
     display = Display(enabled=config.get('display_enabled', False))

@@ -7,11 +7,13 @@ import toast from 'react-hot-toast';
 import { FileText, Download, Check, Trash2, Eye, Plus, X, RefreshCw, Edit2, Calendar } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-// Formatiert Dezimalstunden zu H:MM Format
+// Formatiert Dezimalstunden zu H:MM Format (unterstützt negative Werte)
 const formatHoursToTime = (hours: number): string => {
-  const h = Math.floor(hours);
-  const m = Math.floor((hours - h) * 60);
-  return `${h}:${m.toString().padStart(2, '0')}`;
+  const sign = hours < 0 ? '-' : '';
+  const abs = Math.abs(hours);
+  const h = Math.floor(abs);
+  const m = Math.floor((abs - h) * 60);
+  return `${sign}${h}:${m.toString().padStart(2, '0')}`;
 };
 
 const MONTHS = [
@@ -91,9 +93,12 @@ export default function AdminReports() {
 
   const recalculateMutation = useMutation({
     mutationFn: (id: string) => reportsApi.recalculate(id),
-    onSuccess: () => {
+    onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: ['reports'] });
       toast.success('Abrechnung neu berechnet');
+      if (response.data?._warning) {
+        toast(response.data._warning, { icon: '\u26A0\uFE0F', duration: 6000 });
+      }
       setShowEditModal(false);
       setEditingReport(null);
     },
@@ -216,9 +221,14 @@ export default function AdminReports() {
                     </td>
                     <td className="px-6 py-4">
                       <p className="text-gray-900">{formatHoursToTime(report.totalHours)} h</p>
-                      {report.overtimeHours > 0 && (
-                        <p className="text-sm text-orange-600">
-                          +{formatHoursToTime(report.overtimeHours)} h Überstunden
+                      {report.overtimeHours !== 0 && (
+                        <p className={`text-sm ${report.overtimeHours >= 0 ? 'text-orange-600' : 'text-red-600'}`}>
+                          {report.overtimeHours >= 0 ? '+' : ''}{formatHoursToTime(report.overtimeHours)} h Differenz
+                        </p>
+                      )}
+                      {report.cumulativeOvertimeBalance != null && (
+                        <p className={`text-xs font-medium ${report.cumulativeOvertimeBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          Saldo: {report.cumulativeOvertimeBalance >= 0 ? '+' : ''}{formatHoursToTime(report.cumulativeOvertimeBalance)} h
                         </p>
                       )}
                     </td>
@@ -400,7 +410,7 @@ export default function AdminReports() {
               </div>
 
               {/* Summary */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 <div className="p-4 bg-blue-50 rounded-lg">
                   <p className="text-sm text-blue-600">Gesamtstunden</p>
                   <p className="text-2xl font-bold text-blue-700">
@@ -413,10 +423,22 @@ export default function AdminReports() {
                     {formatHoursToTime(previewData.summary.targetHours)} h
                   </p>
                 </div>
-                <div className="p-4 bg-orange-50 rounded-lg">
-                  <p className="text-sm text-orange-600">Überstunden</p>
-                  <p className="text-2xl font-bold text-orange-700">
-                    {formatHoursToTime(previewData.summary.overtimeHours)} h
+                <div className={`p-4 rounded-lg ${previewData.summary.overtimeHours >= 0 ? 'bg-orange-50' : 'bg-red-50'}`}>
+                  <p className={`text-sm ${previewData.summary.overtimeHours >= 0 ? 'text-orange-600' : 'text-red-600'}`}>Differenz Monat</p>
+                  <p className={`text-2xl font-bold ${previewData.summary.overtimeHours >= 0 ? 'text-orange-700' : 'text-red-700'}`}>
+                    {previewData.summary.overtimeHours >= 0 ? '+' : ''}{formatHoursToTime(previewData.summary.overtimeHours)} h
+                  </p>
+                </div>
+                <div className="p-4 bg-purple-50 rounded-lg">
+                  <p className="text-sm text-purple-600">Übertrag Vormonat</p>
+                  <p className={`text-2xl font-bold ${(previewData.summary.previousOvertimeBalance || 0) >= 0 ? 'text-purple-700' : 'text-red-700'}`}>
+                    {(previewData.summary.previousOvertimeBalance || 0) >= 0 ? '+' : ''}{formatHoursToTime(previewData.summary.previousOvertimeBalance || 0)} h
+                  </p>
+                </div>
+                <div className={`p-4 rounded-lg ${(previewData.summary.cumulativeOvertimeBalance || 0) >= 0 ? 'bg-indigo-50' : 'bg-red-50'}`}>
+                  <p className={`text-sm font-medium ${(previewData.summary.cumulativeOvertimeBalance || 0) >= 0 ? 'text-indigo-600' : 'text-red-600'}`}>Überstunden-Saldo</p>
+                  <p className={`text-2xl font-bold ${(previewData.summary.cumulativeOvertimeBalance || 0) >= 0 ? 'text-indigo-700' : 'text-red-700'}`}>
+                    {(previewData.summary.cumulativeOvertimeBalance || 0) >= 0 ? '+' : ''}{formatHoursToTime(previewData.summary.cumulativeOvertimeBalance || 0)} h
                   </p>
                 </div>
                 <div className="p-4 bg-green-50 rounded-lg">
@@ -425,6 +447,15 @@ export default function AdminReports() {
                     {previewData.summary.vacationDaysUsed} / {previewData.employee.vacationDaysPerYear}
                   </p>
                 </div>
+                {(previewData.summary.sickDaysThisMonth > 0 || previewData.summary.sickDaysTotal > 0) && (
+                  <div className="p-4 bg-red-50 rounded-lg">
+                    <p className="text-sm text-red-600">Krankheitstage</p>
+                    <p className="text-2xl font-bold text-red-700">
+                      {previewData.summary.sickDaysThisMonth || 0}
+                    </p>
+                    <p className="text-xs text-red-500">Jahr: {previewData.summary.sickDaysTotal || 0} Tage</p>
+                  </div>
+                )}
               </div>
 
               {/* Daily Hours */}
@@ -531,10 +562,22 @@ export default function AdminReports() {
                     {formatHoursToTime(editingReport.targetHours)} h
                   </p>
                 </div>
-                <div className="p-3 bg-orange-50 rounded-lg">
-                  <p className="text-xs text-orange-600">Überstunden</p>
-                  <p className="text-xl font-bold text-orange-700">
-                    {formatHoursToTime(editingReport.overtimeHours)} h
+                <div className={`p-3 rounded-lg ${editingReport.overtimeHours >= 0 ? 'bg-orange-50' : 'bg-red-50'}`}>
+                  <p className={`text-xs ${editingReport.overtimeHours >= 0 ? 'text-orange-600' : 'text-red-600'}`}>Differenz Monat</p>
+                  <p className={`text-xl font-bold ${editingReport.overtimeHours >= 0 ? 'text-orange-700' : 'text-red-700'}`}>
+                    {editingReport.overtimeHours >= 0 ? '+' : ''}{formatHoursToTime(editingReport.overtimeHours)} h
+                  </p>
+                </div>
+                <div className="p-3 bg-purple-50 rounded-lg">
+                  <p className="text-xs text-purple-600">Übertrag Vormonat</p>
+                  <p className={`text-xl font-bold ${(editingReport.previousOvertimeBalance || 0) >= 0 ? 'text-purple-700' : 'text-red-700'}`}>
+                    {(editingReport.previousOvertimeBalance || 0) >= 0 ? '+' : ''}{formatHoursToTime(editingReport.previousOvertimeBalance || 0)} h
+                  </p>
+                </div>
+                <div className={`p-3 rounded-lg ${(editingReport.cumulativeOvertimeBalance || 0) >= 0 ? 'bg-indigo-50' : 'bg-red-50'}`}>
+                  <p className={`text-xs font-medium ${(editingReport.cumulativeOvertimeBalance || 0) >= 0 ? 'text-indigo-600' : 'text-red-600'}`}>Überstunden-Saldo</p>
+                  <p className={`text-xl font-bold ${(editingReport.cumulativeOvertimeBalance || 0) >= 0 ? 'text-indigo-700' : 'text-red-700'}`}>
+                    {(editingReport.cumulativeOvertimeBalance || 0) >= 0 ? '+' : ''}{formatHoursToTime(editingReport.cumulativeOvertimeBalance || 0)} h
                   </p>
                 </div>
                 <div className="p-3 bg-green-50 rounded-lg">
@@ -543,6 +586,14 @@ export default function AdminReports() {
                     {editingReport.vacationDaysUsed ?? 0} genommen
                   </p>
                 </div>
+                {(editingReport.sickDaysThisMonth > 0 || editingReport.sickDaysTotal > 0) && (
+                  <div className="p-3 bg-red-50 rounded-lg">
+                    <p className="text-xs text-red-600">Krankheitstage</p>
+                    <p className="text-xl font-bold text-red-700">
+                      {editingReport.sickDaysThisMonth || 0} <span className="text-sm font-normal">(Jahr: {editingReport.sickDaysTotal || 0})</span>
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Instructions */}

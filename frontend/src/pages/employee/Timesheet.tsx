@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { timeEntriesApi } from '../../lib/api';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -29,8 +29,6 @@ interface TimeEntry {
 
 export default function EmployeeTimesheet() {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const queryClient = useQueryClient();
-
   // Reklamation State
   const [showComplaintModal, setShowComplaintModal] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<TimeEntry | null>(null);
@@ -229,9 +227,9 @@ export default function EmployeeTimesheet() {
                                 {/* Reklamations-Icon */}
                                 {entry.complaintMessage && (
                                   entry.complaintResolvedAt ? (
-                                    <CheckCircle size={14} className="text-green-500 flex-shrink-0" title="Reklamation bearbeitet" />
+                                    <CheckCircle size={14} className="text-green-500 flex-shrink-0" />
                                   ) : (
-                                    <AlertTriangle size={14} className="text-amber-500 flex-shrink-0" title="Offene Reklamation" />
+                                    <AlertTriangle size={14} className="text-amber-500 flex-shrink-0" />
                                   )
                                 )}
                                 <span className="font-medium">

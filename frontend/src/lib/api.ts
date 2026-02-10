@@ -135,6 +135,12 @@ export const settingsApi = {
   createWorkCategory: (data: any) => api.post('/settings/work-categories', data),
   updateWorkCategory: (id: string, data: any) => api.put(`/settings/work-categories/${id}`, data),
   deleteWorkCategory: (id: string) => api.delete(`/settings/work-categories/${id}`),
+  // Terminals
+  getTerminals: () => api.get('/settings/terminals'),
+  createTerminal: (data: { name: string }) => api.post('/settings/terminals', data),
+  updateTerminal: (id: string, data: any) => api.put(`/settings/terminals/${id}`, data),
+  deleteTerminal: (id: string) => api.delete(`/settings/terminals/${id}`),
+  regenerateTerminalKey: (id: string) => api.post(`/settings/terminals/${id}/regenerate-key`),
   // Mitarbeiter-Abwesenheiten
   getAbsences: (params?: { employeeId?: string; from?: string; to?: string }) =>
     api.get('/settings/absences', { params }),

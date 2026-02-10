@@ -55,13 +55,47 @@ export async function adminMiddleware(req: AuthRequest, res: Response, next: Nex
   next();
 }
 
-// Terminal API Key für die Android App
-const TERMINAL_API_KEY = process.env.TERMINAL_API_KEY || 'handy-insel-terminal-key-2024';
+// Terminal Auth - DB-backed mit Fallback auf Env-Variable
+const LEGACY_TERMINAL_API_KEY = process.env.TERMINAL_API_KEY || 'handy-insel-terminal-key-2024';
 
-export function terminalAuthMiddleware(req: Request, res: Response, next: NextFunction) {
-  const apiKey = req.headers['x-terminal-api-key'];
-  if (apiKey !== TERMINAL_API_KEY) {
+export interface TerminalAuthRequest extends Request {
+  terminalId?: string;
+}
+
+export async function terminalAuthMiddleware(req: TerminalAuthRequest, res: Response, next: NextFunction) {
+  const apiKey = req.headers['x-terminal-api-key'] as string | undefined;
+  if (!apiKey) {
     return res.status(401).json({ error: 'Ungültiger Terminal API-Key' });
   }
-  next();
+
+  try {
+    // DB-Lookup: Aktives Terminal mit diesem API-Key suchen
+    const terminal = await prisma.terminal.findFirst({
+      where: { apiKey, isActive: true },
+    });
+
+    if (terminal) {
+      req.terminalId = terminal.id;
+      // lastSeen + IP aktualisieren (impliziter Heartbeat)
+      const clientIp = req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || undefined;
+      prisma.terminal.update({
+        where: { id: terminal.id },
+        data: {
+          lastSeen: new Date(),
+          ipAddress: clientIp,
+        },
+      }).catch((err) => console.error('Terminal lastSeen update error:', err));
+      return next();
+    }
+
+    // Fallback: Legacy API-Key aus Env-Variable (für Migration)
+    if (apiKey === LEGACY_TERMINAL_API_KEY) {
+      return next();
+    }
+
+    return res.status(401).json({ error: 'Ungültiger Terminal API-Key' });
+  } catch (error) {
+    console.error('Terminal auth error:', error);
+    return res.status(500).json({ error: 'Authentifizierungsfehler' });
+  }
 }

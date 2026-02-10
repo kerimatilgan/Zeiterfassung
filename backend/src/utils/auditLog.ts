@@ -13,7 +13,12 @@ export type AuditAction =
   | 'FINALIZE'
   | 'PASSWORD_CHANGE'
   | 'DB_BACKUP'
-  | 'DB_RESTORE';
+  | 'DB_RESTORE'
+  | 'MAIL_TEST'
+  | 'COMPLAINT_CREATE'
+  | 'COMPLAINT_UPDATE'
+  | 'COMPLAINT_DELETE'
+  | 'COMPLAINT_RESOLVE';
 
 export type EntityType =
   | 'Employee'
@@ -23,7 +28,10 @@ export type EntityType =
   | 'Holiday'
   | 'AbsenceType'
   | 'EmployeeAbsence'
-  | 'Database';
+  | 'Database'
+  | 'WorkCategory'
+  | 'MailSettings'
+  | 'Terminal';
 
 interface AuditLogParams {
   req?: Request;
@@ -154,6 +162,9 @@ export function formatEntityType(entityType: string): string {
     AbsenceType: 'Abwesenheitstyp',
     EmployeeAbsence: 'Abwesenheit',
     Database: 'Datenbank',
+    WorkCategory: 'Arbeitskategorie',
+    MailSettings: 'Mail-Einstellungen',
+    Terminal: 'Terminal',
   };
   return entityMap[entityType] || entityType;
 }

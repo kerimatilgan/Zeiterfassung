@@ -1852,9 +1852,9 @@ export default function AdminEmployees() {
                                       {/* Reklamations-Icon */}
                                       {entry.complaintMessage && (
                                         entry.complaintResolvedAt ? (
-                                          <CheckCircle size={14} className="text-green-500 flex-shrink-0" title="Reklamation bearbeitet" />
+                                          <CheckCircle size={14} className="text-green-500 flex-shrink-0" />
                                         ) : (
-                                          <AlertTriangle size={14} className="text-amber-500 flex-shrink-0" title="Offene Reklamation" />
+                                          <AlertTriangle size={14} className="text-amber-500 flex-shrink-0" />
                                         )
                                       )}
                                       <span className="text-gray-900">

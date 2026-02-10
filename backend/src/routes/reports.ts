@@ -137,11 +137,19 @@ router.get('/preview/:employeeId/:year/:month', authMiddleware, adminMiddleware,
       employee.weeklyHours
     );
 
-    const overtimeHours = Math.max(0, totalHours - targetHours);
+    const overtimeHours = Math.round((totalHours - targetHours) * 100) / 100;
 
     // Urlaubstage berechnen
     const vacationDaysUsed = await calculateVacationDaysUsed(employeeId, yearNum, monthNum);
     const vacationDaysRemaining = employee.vacationDaysPerYear - vacationDaysUsed;
+
+    // Übertrag vom Vormonat
+    const previousReport = await getPreviousMonthReport(employeeId, yearNum, monthNum);
+    const previousOvertimeBalance = previousReport?.cumulativeOvertimeBalance ?? 0;
+    const cumulativeOvertimeBalance = Math.round((previousOvertimeBalance + overtimeHours) * 100) / 100;
+
+    // Krankheitstage
+    const sickDays = await calculateSickDays(employeeId, yearNum, monthNum);
 
     res.json({
       employee: {
@@ -160,11 +168,15 @@ router.get('/preview/:employeeId/:year/:month', authMiddleware, adminMiddleware,
       summary: {
         totalHours,
         targetHours: Math.round(targetHours * 100) / 100,
-        overtimeHours: Math.round(overtimeHours * 100) / 100,
+        overtimeHours,
+        previousOvertimeBalance,
+        cumulativeOvertimeBalance,
         workingDays,
         entriesCount: entries.length,
         vacationDaysUsed,
         vacationDaysRemaining,
+        sickDaysThisMonth: sickDays.thisMonth,
+        sickDaysTotal: sickDays.yearTotal,
       },
       dailyHours,
     });
@@ -222,11 +234,19 @@ router.post('/create', authMiddleware, adminMiddleware, async (req: AuthRequest,
       employee.workDays,
       employee.weeklyHours
     );
-    const overtimeHours = Math.max(0, totalHours - targetHours);
+    const overtimeHours = Math.round((totalHours - targetHours) * 100) / 100;
 
     // Urlaubstage berechnen
     const vacationDaysUsed = await calculateVacationDaysUsed(data.employeeId, data.year, data.month);
     const vacationDaysRemaining = employee.vacationDaysPerYear - vacationDaysUsed;
+
+    // Übertrag vom Vormonat
+    const previousReport = await getPreviousMonthReport(data.employeeId, data.year, data.month);
+    const previousOvertimeBalance = previousReport?.cumulativeOvertimeBalance ?? 0;
+    const cumulativeOvertimeBalance = Math.round((previousOvertimeBalance + overtimeHours) * 100) / 100;
+
+    // Krankheitstage
+    const sickDays = await calculateSickDays(data.employeeId, data.year, data.month);
 
     const report = await prisma.monthlyReport.create({
       data: {
@@ -236,8 +256,12 @@ router.post('/create', authMiddleware, adminMiddleware, async (req: AuthRequest,
         totalHours,
         targetHours,
         overtimeHours,
+        previousOvertimeBalance,
+        cumulativeOvertimeBalance,
         vacationDaysUsed,
         vacationDaysRemaining,
+        sickDaysThisMonth: sickDays.thisMonth,
+        sickDaysTotal: sickDays.yearTotal,
         notes: data.notes,
         createdBy: `${req.employee!.firstName} ${req.employee!.lastName}`,
         status: 'draft',
@@ -462,11 +486,19 @@ router.post('/:id/recalculate', authMiddleware, adminMiddleware, async (req: Aut
       report.employee.workDays,
       report.employee.weeklyHours
     );
-    const overtimeHours = Math.max(0, totalHours - targetHours);
+    const overtimeHours = Math.round((totalHours - targetHours) * 100) / 100;
 
     // Urlaubstage neu berechnen
     const vacationDaysUsed = await calculateVacationDaysUsed(report.employeeId, report.year, report.month);
     const vacationDaysRemaining = report.employee.vacationDaysPerYear - vacationDaysUsed;
+
+    // Übertrag vom Vormonat
+    const previousReport = await getPreviousMonthReport(report.employeeId, report.year, report.month);
+    const previousOvertimeBalance = previousReport?.cumulativeOvertimeBalance ?? 0;
+    const cumulativeOvertimeBalance = Math.round((previousOvertimeBalance + overtimeHours) * 100) / 100;
+
+    // Krankheitstage
+    const sickDays = await calculateSickDays(report.employeeId, report.year, report.month);
 
     // Bei finalisierten Abrechnungen: Alte PDF löschen und Status zurücksetzen
     if (report.status === 'finalized' && report.pdfPath) {
@@ -482,9 +514,13 @@ router.post('/:id/recalculate', authMiddleware, adminMiddleware, async (req: Aut
         totalHours,
         targetHours,
         overtimeHours,
+        previousOvertimeBalance,
+        cumulativeOvertimeBalance,
         vacationDaysUsed,
         vacationDaysRemaining,
-        status: 'draft', // Immer auf draft setzen nach Neuberechnung
+        sickDaysThisMonth: sickDays.thisMonth,
+        sickDaysTotal: sickDays.yearTotal,
+        status: 'draft',
         pdfPath: null,
         finalizedAt: null,
       },
@@ -499,7 +535,24 @@ router.post('/:id/recalculate', authMiddleware, adminMiddleware, async (req: Aut
       },
     });
 
-    res.json(updatedReport);
+    // Warnung falls nachfolgende Abrechnungen existieren
+    const subsequentReports = await prisma.monthlyReport.findMany({
+      where: {
+        employeeId: report.employeeId,
+        OR: [
+          { year: report.year, month: { gt: report.month } },
+          { year: { gt: report.year } },
+        ],
+      },
+      select: { id: true },
+    });
+
+    res.json({
+      ...updatedReport,
+      _warning: subsequentReports.length > 0
+        ? `${subsequentReports.length} nachfolgende Abrechnung(en) sollten ebenfalls neu berechnet werden.`
+        : undefined,
+    });
   } catch (error) {
     console.error('Recalculate report error:', error);
     res.status(500).json({ error: 'Fehler beim Neuberechnen der Abrechnung' });
@@ -648,6 +701,58 @@ async function calculateVacationDaysUsed(employeeId: string, year: number, month
   });
 
   return absences;
+}
+
+// Holt den Report des Vormonats für Übertrag-Berechnung
+async function getPreviousMonthReport(employeeId: string, year: number, month: number) {
+  let prevYear = year;
+  let prevMonth = month - 1;
+  if (prevMonth === 0) {
+    prevMonth = 12;
+    prevYear = year - 1;
+  }
+
+  return prisma.monthlyReport.findUnique({
+    where: {
+      employeeId_year_month: {
+        employeeId,
+        year: prevYear,
+        month: prevMonth,
+      },
+    },
+  });
+}
+
+// Berechnet Krankheitstage (diesen Monat + kumulativ im Jahr)
+async function calculateSickDays(employeeId: string, year: number, month: number): Promise<{ thisMonth: number; yearTotal: number }> {
+  const sickType = await prisma.absenceType.findFirst({
+    where: { name: { contains: 'krank' } },
+  });
+
+  if (!sickType) return { thisMonth: 0, yearTotal: 0 };
+
+  const startOfYear = new Date(year, 0, 1);
+  const startOfMonth = new Date(year, month - 1, 1);
+  const endOfMonth = new Date(year, month, 0, 23, 59, 59);
+
+  const [thisMonth, yearTotal] = await Promise.all([
+    prisma.employeeAbsence.count({
+      where: {
+        employeeId,
+        absenceTypeId: sickType.id,
+        date: { gte: startOfMonth, lte: endOfMonth },
+      },
+    }),
+    prisma.employeeAbsence.count({
+      where: {
+        employeeId,
+        absenceTypeId: sickType.id,
+        date: { gte: startOfYear, lte: endOfMonth },
+      },
+    }),
+  ]);
+
+  return { thisMonth, yearTotal };
 }
 
 function getMonthName(month: number): string {

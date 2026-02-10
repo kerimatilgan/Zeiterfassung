@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { settingsApi } from '../../lib/api';
 import toast from 'react-hot-toast';
-import { Save, Building2, Clock, Calendar, Trash2, Plus, X, Briefcase, Edit2, Wand2, MapPin, AlertCircle, Database, Download, Upload, HardDrive, Mail, Send, CheckCircle, XCircle } from 'lucide-react';
+import { Save, Building2, Clock, Calendar, Trash2, Plus, X, Briefcase, Edit2, Wand2, MapPin, AlertCircle, Database, Download, Upload, HardDrive, Mail, Send, CheckCircle, Monitor, Copy, Key } from 'lucide-react';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 
@@ -31,6 +31,17 @@ interface WorkCategory {
   sortOrder: number;
 }
 
+interface Terminal {
+  id: string;
+  name: string;
+  isActive: boolean;
+  isOnline: boolean;
+  lastSeen: string | null;
+  ipAddress: string | null;
+  version: string | null;
+  createdAt: string;
+}
+
 export default function AdminSettings() {
   const queryClient = useQueryClient();
 
@@ -52,6 +63,12 @@ export default function AdminSettings() {
   const { data: workCategories } = useQuery({
     queryKey: ['work-categories'],
     queryFn: () => settingsApi.getAllWorkCategories().then((r) => r.data as WorkCategory[]),
+  });
+
+  const { data: terminals } = useQuery({
+    queryKey: ['terminals'],
+    queryFn: () => settingsApi.getTerminals().then((r) => r.data as Terminal[]),
+    refetchInterval: 30000,
   });
 
   const { data: bundeslandInfo } = useQuery({
@@ -129,6 +146,14 @@ export default function AdminSettings() {
     isActive: true,
     sortOrder: 0,
   });
+
+  // Terminal State
+  const [showTerminalModal, setShowTerminalModal] = useState(false);
+  const [editingTerminal, setEditingTerminal] = useState<Terminal | null>(null);
+  const [terminalForm, setTerminalForm] = useState({ name: '', isActive: true });
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const [displayedApiKey, setDisplayedApiKey] = useState('');
+  const [apiKeyCopied, setApiKeyCopied] = useState(false);
 
   useEffect(() => {
     if (settings) {
@@ -305,6 +330,62 @@ export default function AdminSettings() {
     },
   });
 
+  // Terminal Mutations
+  const createTerminalMutation = useMutation({
+    mutationFn: (data: { name: string }) => settingsApi.createTerminal(data),
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({ queryKey: ['terminals'] });
+      toast.success('Terminal erstellt');
+      setShowTerminalModal(false);
+      // API-Key einmalig anzeigen
+      setDisplayedApiKey(response.data.apiKey);
+      setApiKeyCopied(false);
+      setShowApiKeyModal(true);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error || 'Fehler beim Erstellen');
+    },
+  });
+
+  const updateTerminalMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: { name?: string; isActive?: boolean } }) =>
+      settingsApi.updateTerminal(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['terminals'] });
+      toast.success('Terminal aktualisiert');
+      setShowTerminalModal(false);
+      setEditingTerminal(null);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error || 'Fehler beim Aktualisieren');
+    },
+  });
+
+  const deleteTerminalMutation = useMutation({
+    mutationFn: (id: string) => settingsApi.deleteTerminal(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['terminals'] });
+      toast.success('Terminal gelöscht');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error || 'Fehler beim Löschen');
+    },
+  });
+
+  const regenerateKeyMutation = useMutation({
+    mutationFn: (id: string) => settingsApi.regenerateTerminalKey(id),
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({ queryKey: ['terminals'] });
+      toast.success('API-Key erneuert');
+      setDisplayedApiKey(response.data.apiKey);
+      setApiKeyCopied(false);
+      setShowApiKeyModal(true);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error || 'Fehler beim Erneuern des Keys');
+    },
+  });
+
   const restoreDatabaseMutation = useMutation({
     mutationFn: (file: File) => settingsApi.restoreDatabase(file),
     onSuccess: () => {
@@ -424,6 +505,51 @@ export default function AdminSettings() {
     } else {
       createWorkCategoryMutation.mutate(workCategoryForm);
     }
+  };
+
+  // Terminal Helpers
+  const openCreateTerminalModal = () => {
+    setEditingTerminal(null);
+    setTerminalForm({ name: '', isActive: true });
+    setShowTerminalModal(true);
+  };
+
+  const openEditTerminalModal = (terminal: Terminal) => {
+    setEditingTerminal(terminal);
+    setTerminalForm({ name: terminal.name, isActive: terminal.isActive });
+    setShowTerminalModal(true);
+  };
+
+  const handleTerminalSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editingTerminal) {
+      updateTerminalMutation.mutate({ id: editingTerminal.id, data: terminalForm });
+    } else {
+      createTerminalMutation.mutate({ name: terminalForm.name });
+    }
+  };
+
+  const copyApiKey = async () => {
+    try {
+      await navigator.clipboard.writeText(displayedApiKey);
+      setApiKeyCopied(true);
+      toast.success('API-Key kopiert');
+      setTimeout(() => setApiKeyCopied(false), 3000);
+    } catch {
+      toast.error('Kopieren fehlgeschlagen');
+    }
+  };
+
+  const formatLastSeen = (lastSeen: string | null): string => {
+    if (!lastSeen) return 'Nie';
+    const diff = Date.now() - new Date(lastSeen).getTime();
+    const seconds = Math.floor(diff / 1000);
+    if (seconds < 60) return `vor ${seconds}s`;
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `vor ${minutes}min`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `vor ${hours}h`;
+    return format(new Date(lastSeen), 'dd.MM.yyyy HH:mm', { locale: de });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -1126,6 +1252,222 @@ export default function AdminSettings() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Terminals */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="card lg:col-span-2">
+          <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <Monitor size={20} />
+                Terminals
+              </h2>
+              <p className="text-sm text-gray-500 mt-1">
+                Stempelterminals verwalten und Online-Status überwachen
+              </p>
+            </div>
+            <button
+              onClick={openCreateTerminalModal}
+              className="btn btn-secondary flex items-center gap-2 text-sm"
+            >
+              <Plus size={16} />
+              Neues Terminal
+            </button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Name
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Letzte Aktivität
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    IP-Adresse
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                    Aktionen
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {terminals?.length ? (
+                  terminals.map((terminal) => (
+                    <tr key={terminal.id}>
+                      <td className="px-6 py-4 font-medium text-gray-900">
+                        {terminal.name}
+                        {!terminal.isActive && (
+                          <span className="ml-2 px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full text-xs">
+                            Deaktiviert
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        {terminal.isOnline ? (
+                          <span className="flex items-center gap-2 text-green-700">
+                            <span className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse" />
+                            Online
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-2 text-gray-500">
+                            <span className="w-2.5 h-2.5 bg-gray-300 rounded-full" />
+                            Offline
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600">
+                        {formatLastSeen(terminal.lastSeen)}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600 font-mono">
+                        {terminal.ipAddress || '-'}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => openEditTerminalModal(terminal)}
+                            className="p-2 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
+                            title="Bearbeiten"
+                          >
+                            <Edit2 size={18} />
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (confirm(`API-Key für "${terminal.name}" wirklich erneuern?\n\nDer alte Key wird sofort ungültig und das Terminal muss neu konfiguriert werden.`)) {
+                                regenerateKeyMutation.mutate(terminal.id);
+                              }
+                            }}
+                            className="p-2 text-gray-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg"
+                            title="API-Key erneuern"
+                          >
+                            <Key size={18} />
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (confirm(`Terminal "${terminal.name}" wirklich löschen?`)) {
+                                deleteTerminalMutation.mutate(terminal.id);
+                              }
+                            }}
+                            className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                            title="Löschen"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                      Keine Terminals konfiguriert
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {/* Terminal Create/Edit Modal */}
+      {showTerminalModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+              <h2 className="text-xl font-semibold">
+                {editingTerminal ? 'Terminal bearbeiten' : 'Neues Terminal'}
+              </h2>
+              <button onClick={() => { setShowTerminalModal(false); setEditingTerminal(null); }} className="p-2 hover:bg-gray-100 rounded-lg">
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleTerminalSubmit} className="p-6 space-y-4">
+              <div>
+                <label className="label">Bezeichnung</label>
+                <input
+                  type="text"
+                  value={terminalForm.name}
+                  onChange={(e) => setTerminalForm({ ...terminalForm, name: e.target.value })}
+                  className="input"
+                  placeholder="z.B. Terminal Eingang, Terminal Lager"
+                  required
+                />
+              </div>
+              {editingTerminal && (
+                <div>
+                  <label className="label">Status</label>
+                  <select
+                    value={terminalForm.isActive ? 'true' : 'false'}
+                    onChange={(e) => setTerminalForm({ ...terminalForm, isActive: e.target.value === 'true' })}
+                    className="input"
+                  >
+                    <option value="true">Aktiv</option>
+                    <option value="false">Deaktiviert</option>
+                  </select>
+                </div>
+              )}
+              <div className="flex gap-3 pt-2">
+                <button type="submit" className="btn btn-primary flex-1">
+                  {editingTerminal ? 'Speichern' : 'Terminal erstellen'}
+                </button>
+                <button type="button" onClick={() => { setShowTerminalModal(false); setEditingTerminal(null); }} className="btn btn-secondary">
+                  Abbrechen
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* API-Key Anzeige Modal */}
+      {showApiKeyModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg">
+            <div className="p-6 border-b border-gray-100">
+              <h2 className="text-xl font-semibold flex items-center gap-2">
+                <Key size={20} className="text-amber-500" />
+                Terminal API-Key
+              </h2>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <div className="flex items-start gap-2">
+                  <AlertCircle size={18} className="text-amber-600 mt-0.5 flex-shrink-0" />
+                  <p className="text-sm text-amber-800">
+                    Dieser API-Key wird <strong>nur einmal</strong> angezeigt. Bitte kopieren und sicher aufbewahren.
+                    Er wird für die Terminal-Konfiguration benötigt.
+                  </p>
+                </div>
+              </div>
+              <div className="relative">
+                <div className="bg-gray-900 text-green-400 rounded-lg p-4 font-mono text-sm break-all pr-12">
+                  {displayedApiKey}
+                </div>
+                <button
+                  onClick={copyApiKey}
+                  className="absolute top-3 right-3 p-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                  title="Kopieren"
+                >
+                  {apiKeyCopied ? <CheckCircle size={16} /> : <Copy size={16} />}
+                </button>
+              </div>
+              <div className="flex justify-end pt-2">
+                <button
+                  onClick={() => { setShowApiKeyModal(false); setDisplayedApiKey(''); }}
+                  className="btn btn-primary"
+                >
+                  Verstanden
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

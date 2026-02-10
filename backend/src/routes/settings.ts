@@ -1,4 +1,5 @@
 import { Router, Response } from 'express';
+import crypto from 'crypto';
 import { prisma } from '../index.js';
 import { authMiddleware, adminMiddleware, AuthRequest } from '../middleware/auth.js';
 import { z } from 'zod';
@@ -1107,6 +1108,185 @@ router.delete('/work-categories/:id', authMiddleware, adminMiddleware, async (re
   } catch (error) {
     console.error('Delete work category error:', error);
     res.status(500).json({ error: 'Fehler beim Löschen der Arbeitskategorie' });
+  }
+});
+
+// ==================== TERMINALS ====================
+
+const TERMINAL_ONLINE_THRESHOLD_SECONDS = 90;
+
+// Alle Terminals (Admin-Verwaltung)
+router.get('/terminals', authMiddleware, adminMiddleware, async (_req: AuthRequest, res: Response) => {
+  try {
+    const terminals = await prisma.terminal.findMany({
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const now = new Date();
+    const result = terminals.map((t) => ({
+      id: t.id,
+      name: t.name,
+      isActive: t.isActive,
+      lastSeen: t.lastSeen,
+      ipAddress: t.ipAddress,
+      version: t.version,
+      isOnline: t.lastSeen
+        ? (now.getTime() - t.lastSeen.getTime()) / 1000 < TERMINAL_ONLINE_THRESHOLD_SECONDS
+        : false,
+      createdAt: t.createdAt,
+      updatedAt: t.updatedAt,
+    }));
+
+    res.json(result);
+  } catch (error) {
+    console.error('Get terminals error:', error);
+    res.status(500).json({ error: 'Fehler beim Laden der Terminals' });
+  }
+});
+
+// Terminal erstellen
+router.post('/terminals', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const schema = z.object({
+      name: z.string().min(1, 'Name erforderlich'),
+    });
+
+    const data = schema.parse(req.body);
+    const apiKey = crypto.randomBytes(32).toString('hex');
+
+    const terminal = await prisma.terminal.create({
+      data: {
+        name: data.name,
+        apiKey,
+      },
+    });
+
+    await createAuditLog({
+      req,
+      action: 'CREATE',
+      entityType: 'Terminal',
+      entityId: terminal.id,
+      newValues: { name: terminal.name },
+    });
+
+    // API-Key wird einmalig im Klartext zurückgegeben
+    res.status(201).json({
+      id: terminal.id,
+      name: terminal.name,
+      apiKey,
+      isActive: terminal.isActive,
+      createdAt: terminal.createdAt,
+    });
+  } catch (error) {
+    console.error('Create terminal error:', error);
+    res.status(500).json({ error: 'Fehler beim Erstellen des Terminals' });
+  }
+});
+
+// Terminal bearbeiten
+router.put('/terminals/:id', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const schema = z.object({
+      name: z.string().min(1, 'Name erforderlich').optional(),
+      isActive: z.boolean().optional(),
+    });
+
+    const data = schema.parse(req.body);
+
+    const existing = await prisma.terminal.findUnique({ where: { id } });
+    if (!existing) {
+      return res.status(404).json({ error: 'Terminal nicht gefunden' });
+    }
+
+    const terminal = await prisma.terminal.update({
+      where: { id },
+      data,
+    });
+
+    await createAuditLog({
+      req,
+      action: 'UPDATE',
+      entityType: 'Terminal',
+      entityId: id,
+      oldValues: { name: existing.name, isActive: existing.isActive },
+      newValues: { name: terminal.name, isActive: terminal.isActive },
+    });
+
+    res.json({
+      id: terminal.id,
+      name: terminal.name,
+      isActive: terminal.isActive,
+      lastSeen: terminal.lastSeen,
+      ipAddress: terminal.ipAddress,
+      version: terminal.version,
+      createdAt: terminal.createdAt,
+      updatedAt: terminal.updatedAt,
+    });
+  } catch (error) {
+    console.error('Update terminal error:', error);
+    res.status(500).json({ error: 'Fehler beim Aktualisieren des Terminals' });
+  }
+});
+
+// Terminal löschen
+router.delete('/terminals/:id', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const existing = await prisma.terminal.findUnique({ where: { id } });
+    if (!existing) {
+      return res.status(404).json({ error: 'Terminal nicht gefunden' });
+    }
+
+    await prisma.terminal.delete({ where: { id } });
+
+    await createAuditLog({
+      req,
+      action: 'DELETE',
+      entityType: 'Terminal',
+      entityId: id,
+      oldValues: { name: existing.name },
+    });
+
+    res.json({ message: 'Terminal gelöscht' });
+  } catch (error) {
+    console.error('Delete terminal error:', error);
+    res.status(500).json({ error: 'Fehler beim Löschen des Terminals' });
+  }
+});
+
+// Terminal API-Key regenerieren
+router.post('/terminals/:id/regenerate-key', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const existing = await prisma.terminal.findUnique({ where: { id } });
+    if (!existing) {
+      return res.status(404).json({ error: 'Terminal nicht gefunden' });
+    }
+
+    const newApiKey = crypto.randomBytes(32).toString('hex');
+
+    await prisma.terminal.update({
+      where: { id },
+      data: { apiKey: newApiKey },
+    });
+
+    await createAuditLog({
+      req,
+      action: 'UPDATE',
+      entityType: 'Terminal',
+      entityId: id,
+      oldValues: { apiKeyRegenerated: true },
+      newValues: { apiKeyRegenerated: true },
+      note: `API-Key für Terminal "${existing.name}" wurde erneuert`,
+    });
+
+    res.json({ apiKey: newApiKey });
+  } catch (error) {
+    console.error('Regenerate terminal key error:', error);
+    res.status(500).json({ error: 'Fehler beim Erneuern des API-Keys' });
   }
 });
 

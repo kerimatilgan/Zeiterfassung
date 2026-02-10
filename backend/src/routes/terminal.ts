@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { prisma, io } from '../index.js';
-import { terminalAuthMiddleware, authMiddleware, adminMiddleware, AuthRequest } from '../middleware/auth.js';
+import { terminalAuthMiddleware, authMiddleware, adminMiddleware, AuthRequest, TerminalAuthRequest } from '../middleware/auth.js';
 import { createAuditLog } from '../utils/auditLog.js';
 
 const router = Router();
@@ -261,6 +261,23 @@ router.get('/register-rfid/status', authMiddleware, adminMiddleware, (_req, res)
 
 // Terminal authentifizieren
 router.use(terminalAuthMiddleware);
+
+// Heartbeat - Terminal meldet sich regelmäßig
+router.post('/heartbeat', async (req: TerminalAuthRequest, res) => {
+  try {
+    if (req.terminalId) {
+      const terminal = await prisma.terminal.findUnique({
+        where: { id: req.terminalId },
+        select: { name: true },
+      });
+      return res.json({ success: true, terminalName: terminal?.name || 'Unbekannt' });
+    }
+    res.json({ success: true, terminalName: 'Legacy-Terminal' });
+  } catch (error) {
+    console.error('Heartbeat error:', error);
+    res.status(500).json({ success: false, error: 'Heartbeat fehlgeschlagen' });
+  }
+});
 
 // QR-Code oder RFID-Karte scannen / Ein- oder Ausstempeln
 // Unterstützt optionalen timestamp-Parameter für Offline-Synchronisation
@@ -644,12 +661,12 @@ router.post('/pin', async (req, res) => {
       });
     }
 
-    // Verwende den gleichen Scan-Prozess
+    // Verwende den gleichen Scan-Prozess (API-Key aus aktuellem Request forwarden)
     const scanResponse = await fetch(`http://localhost:${process.env.PORT || 3001}/api/terminal/scan`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-terminal-api-key': process.env.TERMINAL_API_KEY || 'handy-insel-terminal-key-2024',
+        'x-terminal-api-key': req.headers['x-terminal-api-key'] as string,
       },
       body: JSON.stringify({ qrCode: employee.qrCode }),
     });

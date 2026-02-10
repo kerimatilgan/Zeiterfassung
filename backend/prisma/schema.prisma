@@ -77,11 +77,19 @@ model MonthlyReport {
 
   totalHours      Float    // Gesamtstunden im Monat
   targetHours     Float    // Soll-Stunden
-  overtimeHours   Float    // Überstunden
+  overtimeHours   Float    // Differenz Monat (kann negativ sein = Minusstunden)
+
+  // Überstunden-Übertrag
+  previousOvertimeBalance   Float @default(0)  // Übertrag Überstunden-Saldo vom Vormonat
+  cumulativeOvertimeBalance Float @default(0)  // Gesamt-Saldo = previous + overtimeHours
 
   // Urlaubstage-Tracking
   vacationDaysUsed      Int @default(0) // Verbrauchte Urlaubstage bis einschließlich dieses Monats
   vacationDaysRemaining Int @default(0) // Verbleibende Urlaubstage
+
+  // Krankheitstage-Tracking
+  sickDaysThisMonth     Int @default(0)  // Krankheitstage in diesem Monat
+  sickDaysTotal         Int @default(0)  // Kumulative Krankheitstage im Jahr
 
   status          String   @default("draft") // draft, finalized, paid
   pdfPath         String?  // Pfad zur generierten PDF
@@ -194,4 +202,17 @@ model AuditLog {
   ipAddress   String?  // IP-Adresse des Clients
   userAgent   String?  // Browser/Client Info
   note        String?  // Zusätzliche Info
+}
+
+// Terminals (Pi-Stempelterminals)
+model Terminal {
+  id          String    @id @default(uuid())
+  name        String                      // z.B. "Terminal Eingang", "Terminal Lager"
+  apiKey      String    @unique           // Sicherer API-Key
+  isActive    Boolean   @default(true)
+  lastSeen    DateTime?                   // Letzter authentifizierter Request
+  ipAddress   String?                     // IP-Adresse des Terminals
+  version     String?                     // Software-Version
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }

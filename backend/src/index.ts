@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import crypto from 'crypto';
 import path from 'path';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
@@ -82,6 +83,19 @@ async function main() {
       },
     });
     console.log('Standard-Einstellungen erstellt');
+  }
+
+  // Terminal-Migration: Falls keine Terminals in DB existieren, Legacy-Key migrieren
+  const terminalCount = await prisma.terminal.count();
+  if (terminalCount === 0) {
+    const legacyKey = process.env.TERMINAL_API_KEY || 'handy-insel-terminal-key-2024';
+    await prisma.terminal.create({
+      data: {
+        name: 'Standard-Terminal',
+        apiKey: legacyKey,
+      },
+    });
+    console.log('Standard-Terminal mit Legacy-Key migriert');
   }
 
   httpServer.listen(Number(PORT), '0.0.0.0', () => {

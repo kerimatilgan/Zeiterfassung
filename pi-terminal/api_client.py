@@ -215,6 +215,26 @@ class ZeiterfassungAPI:
             'pending_entries': self.offline_queue.get_pending() if self.offline_queue else []
         }
 
+    def send_heartbeat(self):
+        """
+        Sendet einen Heartbeat an das Backend
+
+        Returns:
+            dict mit success und terminalName oder None bei Fehler
+        """
+        try:
+            response = self.session.post(
+                f"{self.base_url}/api/terminal/heartbeat",
+                timeout=5
+            )
+            if response.ok:
+                self._update_online_status(True)
+                return response.json()
+            return None
+        except:
+            self._update_online_status(False)
+            return None
+
     def force_sync(self):
         """Erzwingt eine sofortige Synchronisation der Queue"""
         if self.offline_queue:
