@@ -1,0 +1,33 @@
+name = "zeiterfassung-api"
+main = "src/index.ts"
+compatibility_date = "2025-04-01"
+compatibility_flags = ["nodejs_compat"]
+
+# D1 Database
+[[d1_databases]]
+binding = "DB"
+database_name = "zeiterfassung-db"
+database_id = "placeholder-change-after-create"
+
+# R2 Bucket for file uploads
+[[r2_buckets]]
+binding = "UPLOADS"
+bucket_name = "zeiterfassung-uploads"
+
+# KV Namespace for temporary state (2FA challenges, OAuth state)
+[[kv_namespaces]]
+binding = "KV"
+id = "placeholder-change-after-create"
+
+# Environment variables (secrets set via wrangler secret put)
+[vars]
+ENVIRONMENT = "development"
+FRONTEND_URL = "https://zeiterfassung.pages.dev"
+
+# Cron Triggers
+[triggers]
+crons = [
+  "59 23 * * *",   # Auto clock-out at 23:59
+  "0 2 * * *",     # Backup at 02:00
+  "0 0 1 1 *",     # Vacation carry-over on Jan 1
+]

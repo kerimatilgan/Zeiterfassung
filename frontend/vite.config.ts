@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [react()],
   server: {
     port: 5175,
@@ -9,11 +9,15 @@ export default defineConfig({
     allowedHosts: ['zeit.kerimatilgan.de'],
     proxy: {
       '/api': {
-        target: 'http://localhost:3004',
+        target: mode === 'cloudflare'
+          ? 'https://zeiterfassung-api.<your-subdomain>.workers.dev'
+          : 'http://localhost:3004',
         changeOrigin: true,
       },
       '/uploads': {
-        target: 'http://localhost:3004',
+        target: mode === 'cloudflare'
+          ? 'https://zeiterfassung-api.<your-subdomain>.workers.dev'
+          : 'http://localhost:3004',
         changeOrigin: true,
       },
       '/socket.io': {
@@ -23,4 +27,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));

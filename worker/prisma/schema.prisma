@@ -1,0 +1,323 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// Mitarbeiter
+model Employee {
+  id                  String   @id @default(uuid())
+  employeeNumber      String   @unique
+  username            String?  @unique
+  firstName           String
+  lastName            String
+  email               String?  @unique
+  phone               String?
+  photoUrl            String?
+  qrCode              String   @unique
+  rfidCard            String?  @unique
+  pin                 String?
+  startDate           DateTime?
+  endDate             DateTime?
+  weeklyHours         Float    @default(40.0)
+  vacationDaysPerYear Int      @default(30)
+  carryOverVacationDays Int    @default(0)
+  workDays            String   @default("1,2,3,4,5")
+  isActive            Boolean  @default(true)
+  isAdmin             Boolean  @default(false)
+  passwordHash        String?
+  passwordResetToken  String?
+  passwordResetExpires DateTime?
+  totpSecret          String?
+  totpEnabled         Boolean  @default(false)
+  workCategoryId      String?
+  workCategory        WorkCategory? @relation(fields: [workCategoryId], references: [id], onDelete: SetNull)
+  defaultClockOut     String?
+  canClockInPwa       Boolean @default(false)
+  canClockOutPwa      Boolean @default(false)
+  initialOvertimeBalance  Float   @default(0)
+  initialVacationDaysUsed Int     @default(0)
+  initialSickDays         Int     @default(0)
+  initialBalanceYear      Int?
+  initialBalanceMonth     Int?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  timeEntries         TimeEntry[]
+  monthlyReports      MonthlyReport[]
+  absences            EmployeeAbsence[]
+  passkeys            Passkey[]
+  documents           Document[]
+  vacationDeductions  VacationDeduction[]
+  vacationAdjustments VacationAdjustment[]
+}
+
+model Passkey {
+  id              String   @id @default(uuid())
+  employeeId      String
+  employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  credentialId    String   @unique
+  publicKey       String
+  counter         Int      @default(0)
+  deviceName      String?
+  transports      String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model TimeEntry {
+  id          String    @id @default(uuid())
+  employeeId  String
+  employee    Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  clockIn     DateTime
+  clockOut    DateTime?
+  breakMinutes Int      @default(0)
+  note        String?
+  isManual    Boolean   @default(false)
+  editedBy    String?
+  clockInViaPwa     Boolean  @default(false)
+  clockOutViaPwa    Boolean  @default(false)
+  clockInLatitude   Float?
+  clockInLongitude  Float?
+  clockOutLatitude  Float?
+  clockOutLongitude Float?
+  pwaClockInReasonId   String?
+  pwaClockInReasonText String?
+  pwaClockOutReasonId   String?
+  pwaClockOutReasonText String?
+  complaintMessage     String?
+  complaintAt          DateTime?
+  complaintResolvedAt  DateTime?
+  complaintResolvedBy  String?
+  complaintResponse    String?
+  complaintOriginalClockIn     DateTime?
+  complaintOriginalClockOut    DateTime?
+  complaintOriginalBreakMinutes Int?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model MonthlyReport {
+  id              String   @id @default(uuid())
+  employeeId      String
+  employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  year            Int
+  month           Int
+  totalHours      Float
+  targetHours     Float
+  overtimeHours   Float
+  previousOvertimeBalance   Float @default(0)
+  cumulativeOvertimeBalance Float @default(0)
+  vacationDaysUsed      Int @default(0)
+  vacationDaysRemaining Int @default(0)
+  vacationDeductionDays   Int    @default(0)
+  vacationDeductionHours  Float  @default(0)
+  vacationDeductionNote   String?
+  sickDaysThisMonth     Int @default(0)
+  sickDaysTotal         Int @default(0)
+  status          String   @default("draft")
+  pdfPath         String?
+  notes           String?
+  createdBy       String
+  finalizedAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([employeeId, year, month])
+}
+
+model Settings {
+  id                    String  @id @default("default")
+  companyName           String  @default("Handy-Insel")
+  companyAddress        String?
+  companyPhone          String?
+  companyEmail          String?
+  defaultBreakMinutes   Int     @default(30)
+  overtimeThreshold     Float   @default(40.0)
+  backupFrequency       String  @default("daily")
+  backupTime            String  @default("02:00")
+  backupWeekday         Int     @default(1)
+  backupRetentionDays   Int     @default(30)
+  smtpHost              String?
+  smtpPort              Int?    @default(587)
+  smtpUser              String?
+  smtpPassword          String?
+  smtpFromAddress       String?
+  smtpFromName          String? @default("Zeiterfassung")
+  smtpSecure            Boolean @default(false)
+  pdfShowWorkCategory   Boolean @default(false)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model Holiday {
+  id          String   @id @default(uuid())
+  date        DateTime
+  name        String
+  isRecurring Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+model AbsenceType {
+  id              String   @id @default(uuid())
+  name            String
+  shortName       String
+  requiredHours   Float    @default(0)
+  color           String   @default("#3B82F6")
+  countsAsVacation Boolean @default(false)
+  isActive        Boolean  @default(true)
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  absences        EmployeeAbsence[]
+}
+
+model EmployeeAbsence {
+  id              String      @id @default(uuid())
+  employeeId      String
+  employee        Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  absenceTypeId   String
+  absenceType     AbsenceType @relation(fields: [absenceTypeId], references: [id], onDelete: Cascade)
+  date            DateTime
+  note            String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@unique([employeeId, date])
+}
+
+model WorkCategory {
+  id              String   @id @default(uuid())
+  name            String
+  earliestClockIn String
+  isActive        Boolean  @default(true)
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  employees       Employee[]
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  timestamp   DateTime @default(now())
+  userId      String?
+  userName    String?
+  action      String
+  entityType  String
+  entityId    String?
+  oldValues   String?
+  newValues   String?
+  ipAddress   String?
+  userAgent   String?
+  note        String?
+}
+
+model DocumentType {
+  id        String     @id @default(uuid())
+  name      String
+  shortName String
+  color     String     @default("#6366F1")
+  isActive  Boolean    @default(true)
+  sortOrder Int        @default(0)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  documents Document[]
+}
+
+model Document {
+  id               String       @id @default(uuid())
+  employeeId       String
+  employee         Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  documentTypeId   String
+  documentType     DocumentType @relation(fields: [documentTypeId], references: [id], onDelete: Restrict)
+  filePath         String
+  originalFilename String
+  fileSize         Int
+  mimeType         String
+  year             Int?
+  month            Int?
+  note             String?
+  uploadedBy       String
+  uploadedByName   String
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+}
+
+model VacationDeduction {
+  id          String   @id @default(uuid())
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  year        Int
+  month       Int
+  reason      String
+  daysDeducted Int     @default(1)
+  hoursCompensated Float
+  overtimeBalanceBefore Float
+  overtimeBalanceAfter Float
+  createdAt   DateTime @default(now())
+}
+
+model VacationAdjustment {
+  id          String   @id @default(uuid())
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  year        Int
+  month       Int
+  days        Float
+  reason      String
+  createdBy   String
+  createdAt   DateTime @default(now())
+}
+
+model PwaClockReason {
+  id        String   @id @default(uuid())
+  name      String
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model BackupTarget {
+  id          String   @id @default(uuid())
+  name        String
+  type        String
+  isActive    Boolean  @default(true)
+  config      String
+  lastTestAt  DateTime?
+  lastTestOk  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  backupRecords BackupRecord[]
+}
+
+model BackupRecord {
+  id             String        @id @default(uuid())
+  targetId       String?
+  target         BackupTarget? @relation(fields: [targetId], references: [id], onDelete: SetNull)
+  filename       String
+  fileSize       Int           @default(0)
+  status         String        @default("pending")
+  errorMessage   String?
+  trigger        String        @default("scheduled")
+  startedAt      DateTime      @default(now())
+  completedAt    DateTime?
+  expiresAt      DateTime?
+  createdAt      DateTime      @default(now())
+}
+
+model Terminal {
+  id          String    @id @default(uuid())
+  name        String
+  apiKey      String    @unique
+  isActive    Boolean   @default(true)
+  lastSeen    DateTime?
+  ipAddress   String?
+  version     String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
