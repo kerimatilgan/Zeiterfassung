@@ -1,6 +1,1 @@
-# Cloudflare Pages: Proxy API calls to Worker
-/api/*  https://zeiterfassung.kerim8618.workers.dev/api/:splat  200
-/uploads/*  https://zeiterfassung.kerim8618.workers.dev/uploads/:splat  200
-
-# SPA fallback - all other routes serve index.html
-/*  /index.html  200
+/* /index.html 200
