@@ -1,4 +1,4 @@
-name = "zeiterfassung-api"
+name = "zeiterfassung"
 main = "src/index.ts"
 compatibility_date = "2025-04-01"
 compatibility_flags = ["nodejs_compat"]
@@ -7,7 +7,7 @@ compatibility_flags = ["nodejs_compat"]
 [[d1_databases]]
 binding = "DB"
 database_name = "zeiterfassung-db"
-database_id = "placeholder-change-after-create"
+database_id = "eec97676-764c-4224-92e6-596a98d9ad24"
 
 # R2 Bucket for file uploads
 [[r2_buckets]]
@@ -17,7 +17,7 @@ bucket_name = "zeiterfassung-uploads"
 # KV Namespace for temporary state (2FA challenges, OAuth state)
 [[kv_namespaces]]
 binding = "KV"
-id = "placeholder-change-after-create"
+id = "3d7c86f0151141f5a70749ba4e41000d"
 
 # Environment variables (secrets set via wrangler secret put)
 [vars]
