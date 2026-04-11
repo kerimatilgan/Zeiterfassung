@@ -12,7 +12,9 @@
     "backend": "npm run dev --workspace=backend",
     "frontend": "npm run dev --workspace=frontend",
     "terminal": "npm run dev --workspace=terminal-app",
-    "build": "npm run build --workspaces",
+    "build": "npm run build --workspaces --if-present",
+    "build:frontend": "cd frontend && npm run build",
+    "build:worker": "cd worker && npm run deploy",
     "dev": "concurrently \"npm run backend\" \"npm run frontend\""
   },
   "devDependencies": {

@@ -21,6 +21,7 @@ interface Employee {
   vacationDaysPerYear: number;
   startDate: string | null;
   endDate: string | null;
+  weeklyHours?: number;
   initialSickDays?: number;
   initialVacationDaysUsed?: number;
   initialBalanceYear?: number;
@@ -197,25 +198,6 @@ export default function AdminTimeEntries() {
     if (!pauseEntryId || !selectedEmployee) return;
     try { await timeEntriesApi.insertPause(pauseEntryId, { pauseStart: `${format(selectedDate, 'yyyy-MM-dd')}T${pauseStart}:00`, pauseEnd: `${format(selectedDate, 'yyyy-MM-dd')}T${pauseEnd}:00` }); toast.success('Pause eingefügt'); setShowPausePopup(false); await loadData(selectedEmployee.id, selectedMonth); }
     catch (err: any) { toast.error(err.response?.data?.error || 'Fehler'); }
-  };
-
-  const handleAbsence = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedEmployee) return;
-    try {
-      const dates = selectedDates.length > 0 ? selectedDates : [selectedDate];
-      if (editingAbsence) {
-        await settingsApi.updateAbsence(editingAbsence.id, absenceFormData);
-      } else {
-        await settingsApi.createAbsencesBulk({
-          employeeId: selectedEmployee.id,
-          absenceTypeId: absenceFormData.absenceTypeId,
-          dates: dates.map(d => format(d, 'yyyy-MM-dd')),
-          note: absenceFormData.note || undefined,
-        });
-      }
-      toast.success('Gespeichert'); setShowAbsencePopup(false); await loadData(selectedEmployee.id, selectedMonth);
-    } catch (err: any) { toast.error(err.response?.data?.error || 'Fehler'); }
   };
 
   const handleAbsenceDelete = async () => {

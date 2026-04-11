@@ -39,7 +39,10 @@ export type EntityType =
   | 'MailSettings'
   | 'Terminal'
   | 'Document'
-  | 'DocumentType';
+  | 'DocumentType'
+  | 'BackupTarget'
+  | 'Backup'
+  | 'VacationAdjustment';
 
 interface AuditLogParams {
   req?: Request;

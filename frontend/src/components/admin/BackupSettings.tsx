@@ -8,8 +8,6 @@ import {
 } from 'lucide-react';
 
 // Provider-Typen und ihre Konfigurationsfelder
-const OAUTH_PROVIDERS = ['onedrive', 'gdrive', 'dropbox'];
-
 const PROVIDER_TYPES: Record<string, { label: string; icon: any; fields: FieldDef[]; oauth?: boolean }> = {
   local: {
     label: 'Lokal',

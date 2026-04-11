@@ -49,11 +49,6 @@ export default function EmployeeDashboard() {
     queryFn: () => timeEntriesApi.getMyStats().then((r) => r.data),
   });
 
-  const { data: recentEntries } = useQuery({
-    queryKey: ['myTimeEntries'],
-    queryFn: () => timeEntriesApi.getMy().then((r) => r.data.slice(0, 10)),
-  });
-
   const { data: vacationDetails } = useQuery({
     queryKey: ['myVacationDetails'],
     queryFn: () => timeEntriesApi.getMyVacationDetails().then(r => r.data),

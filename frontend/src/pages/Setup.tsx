@@ -29,8 +29,8 @@ export default function SetupWizard({ onComplete }: { onComplete: () => void }) 
     password: '',
     passwordConfirm: '',
   });
-  const [setupResult, setSetupResult] = useState<any>(null);
-  const [terminalKey, setTerminalKey] = useState('');
+  const [_setupResult, setSetupResult] = useState<any>(null);
+  const [_terminalKey, setTerminalKey] = useState('');
   const [terminalId, setTerminalId] = useState('');
 
   const update = (field: string, value: any) => {

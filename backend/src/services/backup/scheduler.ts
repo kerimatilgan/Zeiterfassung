@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { runBackup, cleanupOldBackups } from './index.js';
 
 const prisma = new PrismaClient();
-let currentTask: cron.ScheduledTask | null = null;
+let currentTask: ReturnType<typeof cron.schedule> | null = null;
 
 function buildCronExpression(frequency: string, time: string, weekday: number): string {
   const [hour, minute] = time.split(':').map(Number);
