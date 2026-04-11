@@ -15,6 +15,7 @@ import settingsRoutes from './routes/settings.js';
 import auditLogRoutes from './routes/auditLogs.js';
 import twoFactorRoutes from './routes/twoFactor.js';
 import documentRoutes from './routes/documents.js';
+import backupRoutes from './routes/backup.js';
 import setupRoutes from './routes/setup.js';
 
 // Cron handlers
@@ -96,6 +97,7 @@ authenticated.route('/api/reports', reportRoutes);
 authenticated.route('/api/settings', settingsRoutes);
 authenticated.route('/api/audit-logs', auditLogRoutes);
 authenticated.route('/api/documents', documentRoutes);
+authenticated.route('/api/backup', backupRoutes);
 
 app.route('/', authenticated);
 

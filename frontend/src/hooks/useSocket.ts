@@ -1,6 +1,8 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { io, Socket } from 'socket.io-client';
 import { useQueryClient } from '@tanstack/react-query';
+
+// Check if we're running against Cloudflare Workers (no socket.io support)
+const isWorkersBackend = import.meta.env.VITE_API_URL?.includes('workers.dev') || false;
 
 interface TimeEntryEvent {
   type: 'clock_in' | 'clock_out' | 'manual_create' | 'update' | 'delete';
@@ -15,47 +17,56 @@ interface TimeEntryEvent {
 }
 
 export function useSocket() {
-  const socketRef = useRef<Socket | null>(null);
+  const socketRef = useRef<any>(null);
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    // Socket.io Verbindung zum Backend aufbauen
-    // Über nginx Proxy (gleiche Origin) oder direkt im DEV-Modus ohne nginx
-    const socket = io(window.location.origin, {
-      path: '/socket.io/',
-      transports: ['websocket', 'polling'],
-    });
+    // Workers backend: no WebSocket, use polling instead
+    if (isWorkersBackend) {
+      // Poll for updates every 30 seconds
+      const interval = setInterval(() => {
+        queryClient.invalidateQueries({ queryKey: ['timeEntries'] });
+        queryClient.invalidateQueries({ queryKey: ['myTimeEntries'] });
+        queryClient.invalidateQueries({ queryKey: ['myStatus'] });
+        queryClient.invalidateQueries({ queryKey: ['activeEmployees'] });
+      }, 30000);
+      return () => clearInterval(interval);
+    }
 
-    socketRef.current = socket;
+    // Node.js backend: use socket.io
+    import('socket.io-client').then(({ io }) => {
+      const socket = io(window.location.origin, {
+        path: '/socket.io/',
+        transports: ['websocket', 'polling'],
+      });
 
-    socket.on('connect', () => {
-      console.log('🔌 WebSocket verbunden:', socket.id);
-    });
+      socketRef.current = socket;
 
-    socket.on('disconnect', () => {
-      console.log('🔌 WebSocket getrennt');
-    });
+      socket.on('connect', () => {
+        console.log('WebSocket verbunden:', socket.id);
+      });
 
-    // Zeit-Einträge Events
-    socket.on('time-entry-updated', (event: TimeEntryEvent) => {
-      console.log('📥 Zeit-Eintrag Event:', event);
+      socket.on('disconnect', () => {
+        console.log('WebSocket getrennt');
+      });
 
-      // Alle relevanten Queries invalidieren
-      queryClient.invalidateQueries({ queryKey: ['timeEntries'] });
-      queryClient.invalidateQueries({ queryKey: ['myTimeEntries'] });
-      queryClient.invalidateQueries({ queryKey: ['myStatus'] });
-      queryClient.invalidateQueries({ queryKey: ['myStats'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboardStats'] });
-      queryClient.invalidateQueries({ queryKey: ['activeEmployees'] });
-
-      // Falls spezifische Employee-ID, auch diese invalidieren
-      if (event.employeeId) {
-        queryClient.invalidateQueries({ queryKey: ['employee', event.employeeId] });
-      }
+      socket.on('time-entry-updated', (event: TimeEntryEvent) => {
+        queryClient.invalidateQueries({ queryKey: ['timeEntries'] });
+        queryClient.invalidateQueries({ queryKey: ['myTimeEntries'] });
+        queryClient.invalidateQueries({ queryKey: ['myStatus'] });
+        queryClient.invalidateQueries({ queryKey: ['myStats'] });
+        queryClient.invalidateQueries({ queryKey: ['dashboardStats'] });
+        queryClient.invalidateQueries({ queryKey: ['activeEmployees'] });
+        if (event.employeeId) {
+          queryClient.invalidateQueries({ queryKey: ['employee', event.employeeId] });
+        }
+      });
+    }).catch(() => {
+      console.log('Socket.io nicht verfügbar, verwende Polling');
     });
 
     return () => {
-      socket.disconnect();
+      socketRef.current?.disconnect();
     };
   }, [queryClient]);
 
