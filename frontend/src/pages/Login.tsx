@@ -1,32 +1,90 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useRef, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import { authApi } from '../lib/api';
+import { authApi, twoFactorApi } from '../lib/api';
+import { startAuthentication } from '@simplewebauthn/browser';
 import toast from 'react-hot-toast';
-import { Clock, LogIn } from 'lucide-react';
+import { Clock, LogIn, Fingerprint, ShieldCheck, ArrowLeft } from 'lucide-react';
+
+type LoginStep = 'credentials' | 'totp';
 
 export default function Login() {
-  const [employeeNumber, setEmployeeNumber] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [passkeyLoading, setPasskeyLoading] = useState(false);
+  const [step, setStep] = useState<LoginStep>('credentials');
+  const [tempToken, setTempToken] = useState('');
+  const [totpCode, setTotpCode] = useState('');
+  const totpInputRef = useRef<HTMLInputElement>(null);
   const { login } = useAuthStore();
   const navigate = useNavigate();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  useEffect(() => {
+    if (step === 'totp' && totpInputRef.current) {
+      totpInputRef.current.focus();
+    }
+  }, [step]);
+
+  const completeLogin = (token: string, employee: any) => {
+    login(token, employee);
+    toast.success(`Willkommen, ${employee.firstName}!`);
+    navigate(employee.isAdmin ? '/admin' : '/dashboard');
+  };
+
+  const handleCredentialSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const response = await authApi.login(employeeNumber, password);
-      const { token, employee } = response.data;
+      const response = await authApi.login(username, password);
 
-      login(token, employee);
-      toast.success(`Willkommen, ${employee.firstName}!`);
-      navigate(employee.isAdmin ? '/admin' : '/dashboard');
+      if (response.data.requires2FA) {
+        setTempToken(response.data.tempToken);
+        setStep('totp');
+        setTotpCode('');
+      } else {
+        completeLogin(response.data.token, response.data.employee);
+      }
     } catch (error: any) {
       toast.error(error.response?.data?.error || 'Anmeldung fehlgeschlagen');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleTotpSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (totpCode.length !== 6) return;
+    setLoading(true);
+
+    try {
+      const response = await twoFactorApi.totpValidate(tempToken, totpCode);
+      completeLogin(response.data.token, response.data.employee);
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Ungültiger Code');
+      setTotpCode('');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePasskeyLogin = async () => {
+    setPasskeyLoading(true);
+
+    try {
+      const optionsRes = await twoFactorApi.passkeyAuthOptions();
+      const authResult = await startAuthentication({ optionsJSON: optionsRes.data });
+      const verifyRes = await twoFactorApi.passkeyAuthVerify(authResult);
+      completeLogin(verifyRes.data.token, verifyRes.data.employee);
+    } catch (error: any) {
+      if (error.name === 'NotAllowedError') {
+        toast.error('Passkey-Authentifizierung abgebrochen');
+      } else {
+        toast.error(error.response?.data?.error || 'Passkey-Anmeldung fehlgeschlagen');
+      }
+    } finally {
+      setPasskeyLoading(false);
     }
   };
 
@@ -43,60 +101,161 @@ export default function Login() {
             <p className="text-gray-500">Zeiterfassung</p>
           </div>
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label htmlFor="employeeNumber" className="label">
-                Mitarbeiternummer
-              </label>
-              <input
-                id="employeeNumber"
-                type="text"
-                value={employeeNumber}
-                onChange={(e) => setEmployeeNumber(e.target.value)}
-                className="input"
-                placeholder="z.B. 001 oder ADMIN"
-                required
-              />
-            </div>
+          {step === 'credentials' ? (
+            <>
+              {/* Credentials Form */}
+              <form onSubmit={handleCredentialSubmit} className="space-y-6">
+                <div>
+                  <label htmlFor="username" className="label">
+                    Benutzername
+                  </label>
+                  <input
+                    id="username"
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    className="input"
+                    placeholder="Benutzername eingeben"
+                    required
+                    autoComplete="username"
+                  />
+                </div>
 
-            <div>
-              <label htmlFor="password" className="label">
-                Passwort
-              </label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="input"
-                placeholder="Passwort eingeben"
-                required
-              />
-            </div>
+                <div>
+                  <label htmlFor="password" className="label">
+                    Passwort
+                  </label>
+                  <input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="input"
+                    placeholder="Passwort eingeben"
+                    required
+                    autoComplete="current-password"
+                  />
+                </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn btn-primary w-full flex items-center justify-center gap-2"
-            >
-              {loading ? (
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              ) : (
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="btn btn-primary w-full flex items-center justify-center gap-2"
+                >
+                  {loading ? (
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      <LogIn size={20} />
+                      Anmelden
+                    </>
+                  )}
+                </button>
+              </form>
+
+              {/* Passkey Button - only in secure context (https or localhost) */}
+              {window.isSecureContext && (
                 <>
-                  <LogIn size={20} />
-                  Anmelden
+                  <div className="relative my-6">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-gray-200" />
+                    </div>
+                    <div className="relative flex justify-center text-sm">
+                      <span className="bg-white px-4 text-gray-400">oder</span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handlePasskeyLogin}
+                    disabled={passkeyLoading}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-gray-200 rounded-xl text-gray-700 font-medium hover:border-primary-300 hover:bg-primary-50 transition-colors disabled:opacity-50"
+                  >
+                    {passkeyLoading ? (
+                      <div className="w-5 h-5 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        <Fingerprint size={20} className="text-primary-600" />
+                        Mit Passkey anmelden
+                      </>
+                    )}
+                  </button>
                 </>
               )}
-            </button>
-          </form>
 
-          {/* Demo Hint */}
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg text-sm text-gray-600">
-            <p className="font-medium mb-2">Demo-Zugänge:</p>
-            <p>Admin: ADMIN / admin123</p>
-            <p>Mitarbeiter: 001 / demo123</p>
-          </div>
+              {/* Passwort vergessen */}
+              <div className="mt-4 text-center">
+                <Link
+                  to="/forgot-password"
+                  className="text-sm text-primary-600 hover:text-primary-700 hover:underline"
+                >
+                  Passwort vergessen?
+                </Link>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* TOTP Step */}
+              <div className="text-center mb-6">
+                <div className="inline-flex items-center justify-center w-12 h-12 bg-amber-100 rounded-full mb-3">
+                  <ShieldCheck className="w-6 h-6 text-amber-600" />
+                </div>
+                <h2 className="text-lg font-semibold text-gray-900">Zwei-Faktor-Authentifizierung</h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  Geben Sie den 6-stelligen Code aus Ihrer Authenticator-App ein.
+                </p>
+              </div>
+
+              <form onSubmit={handleTotpSubmit} className="space-y-6">
+                <div>
+                  <input
+                    ref={totpInputRef}
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={6}
+                    value={totpCode}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '');
+                      setTotpCode(val);
+                    }}
+                    className="input text-center text-2xl tracking-[0.5em] font-mono"
+                    placeholder="000000"
+                    autoComplete="one-time-code"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading || totpCode.length !== 6}
+                  className="btn btn-primary w-full flex items-center justify-center gap-2"
+                >
+                  {loading ? (
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      <ShieldCheck size={20} />
+                      Verifizieren
+                    </>
+                  )}
+                </button>
+              </form>
+
+              <div className="mt-4 text-center">
+                <button
+                  onClick={() => {
+                    setStep('credentials');
+                    setTempToken('');
+                    setTotpCode('');
+                  }}
+                  className="inline-flex items-center gap-1 text-sm text-primary-600 hover:text-primary-700 hover:underline"
+                >
+                  <ArrowLeft size={16} />
+                  Zurück zum Login
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

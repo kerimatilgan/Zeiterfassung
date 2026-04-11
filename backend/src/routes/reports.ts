@@ -5,6 +5,8 @@ import { generateMonthlyReportPDF } from '../utils/pdf.js';
 import { z } from 'zod';
 import path from 'path';
 import fs from 'fs';
+import { encryptBuffer, decryptFile } from '../utils/encryption.js';
+import { createAuditLog } from '../utils/auditLog.js';
 
 const router = Router();
 
@@ -141,7 +143,8 @@ router.get('/preview/:employeeId/:year/:month', authMiddleware, adminMiddleware,
 
     // Urlaubstage berechnen
     const vacationDaysUsed = await calculateVacationDaysUsed(employeeId, yearNum, monthNum);
-    const vacationDaysRemaining = employee.vacationDaysPerYear - vacationDaysUsed;
+    const vacTotal = await calculateVacationDaysTotal(employeeId, yearNum);
+    const vacationDaysRemaining = vacTotal - vacationDaysUsed;
 
     // Übertrag vom Vormonat
     const previousReport = await getPreviousMonthReport(employeeId, yearNum, monthNum);
@@ -151,6 +154,14 @@ router.get('/preview/:employeeId/:year/:month', authMiddleware, adminMiddleware,
     // Krankheitstage
     const sickDays = await calculateSickDays(employeeId, yearNum, monthNum);
 
+    // Minusstunden-Abzug berechnen
+    let suggestedDeductionDays = 0;
+    let suggestedDeductionHours = 0;
+    if (cumulativeOvertimeBalance <= -8) {
+      suggestedDeductionDays = Math.floor(Math.abs(cumulativeOvertimeBalance) / 8);
+      suggestedDeductionHours = suggestedDeductionDays * 8;
+    }
+
     res.json({
       employee: {
         id: employee.id,
@@ -158,6 +169,7 @@ router.get('/preview/:employeeId/:year/:month', authMiddleware, adminMiddleware,
         employeeNumber: employee.employeeNumber,
         weeklyHours: employee.weeklyHours,
         vacationDaysPerYear: employee.vacationDaysPerYear,
+        vacationDaysTotal: vacTotal,
         workDays: employee.workDays,
       },
       period: {
@@ -177,6 +189,12 @@ router.get('/preview/:employeeId/:year/:month', authMiddleware, adminMiddleware,
         vacationDaysRemaining,
         sickDaysThisMonth: sickDays.thisMonth,
         sickDaysTotal: sickDays.yearTotal,
+        suggestedDeductionDays,
+        suggestedDeductionHours,
+        vacationAdjustments: (await prisma.vacationAdjustment.findMany({
+          where: { employeeId, year: yearNum },
+          orderBy: [{ month: 'asc' }, { createdAt: 'asc' }],
+        })).map(a => ({ month: a.month, days: a.days, reason: a.reason })),
       },
       dailyHours,
     });
@@ -194,6 +212,8 @@ router.post('/create', authMiddleware, adminMiddleware, async (req: AuthRequest,
       year: z.number().min(2020).max(2100),
       month: z.number().min(1).max(12),
       notes: z.string().optional(),
+      applyVacationDeduction: z.boolean().optional(),
+      deductionDays: z.number().optional(),
     });
 
     const data = schema.parse(req.body);
@@ -238,7 +258,8 @@ router.post('/create', authMiddleware, adminMiddleware, async (req: AuthRequest,
 
     // Urlaubstage berechnen
     const vacationDaysUsed = await calculateVacationDaysUsed(data.employeeId, data.year, data.month);
-    const vacationDaysRemaining = employee.vacationDaysPerYear - vacationDaysUsed;
+    const vacTotal = await calculateVacationDaysTotal(data.employeeId, data.year);
+    const vacationDaysRemaining = vacTotal - vacationDaysUsed;
 
     // Übertrag vom Vormonat
     const previousReport = await getPreviousMonthReport(data.employeeId, data.year, data.month);
@@ -247,6 +268,33 @@ router.post('/create', authMiddleware, adminMiddleware, async (req: AuthRequest,
 
     // Krankheitstage
     const sickDays = await calculateSickDays(data.employeeId, data.year, data.month);
+
+    // Minusstunden-Urlaubsabzug
+    let deductionDays = 0;
+    let deductionHours = 0;
+    let deductionNote: string | null = null;
+    let adjustedCumulativeBalance = cumulativeOvertimeBalance;
+
+    if (data.applyVacationDeduction && cumulativeOvertimeBalance <= -8) {
+      deductionDays = data.deductionDays || Math.floor(Math.abs(cumulativeOvertimeBalance) / 8);
+      deductionHours = deductionDays * 8;
+      adjustedCumulativeBalance = Math.round((cumulativeOvertimeBalance + deductionHours) * 100) / 100;
+      deductionNote = `${deductionDays} Urlaubstag(e) für ${deductionHours}h Minusstunden-Ausgleich abgezogen (Saldo: ${cumulativeOvertimeBalance.toFixed(1)}h → ${adjustedCumulativeBalance.toFixed(1)}h)`;
+
+      // VacationDeduction erstellen
+      await prisma.vacationDeduction.create({
+        data: {
+          employeeId: data.employeeId,
+          year: data.year,
+          month: data.month,
+          reason: deductionNote,
+          daysDeducted: deductionDays,
+          hoursCompensated: deductionHours,
+          overtimeBalanceBefore: cumulativeOvertimeBalance,
+          overtimeBalanceAfter: adjustedCumulativeBalance,
+        },
+      });
+    }
 
     const report = await prisma.monthlyReport.create({
       data: {
@@ -257,9 +305,12 @@ router.post('/create', authMiddleware, adminMiddleware, async (req: AuthRequest,
         targetHours,
         overtimeHours,
         previousOvertimeBalance,
-        cumulativeOvertimeBalance,
-        vacationDaysUsed,
-        vacationDaysRemaining,
+        cumulativeOvertimeBalance: adjustedCumulativeBalance,
+        vacationDaysUsed: vacationDaysUsed + deductionDays,
+        vacationDaysRemaining: vacationDaysRemaining - deductionDays,
+        vacationDeductionDays: deductionDays,
+        vacationDeductionHours: deductionHours,
+        vacationDeductionNote: deductionNote,
         sickDaysThisMonth: sickDays.thisMonth,
         sickDaysTotal: sickDays.yearTotal,
         notes: data.notes,
@@ -297,13 +348,16 @@ router.post('/:id/finalize', authMiddleware, adminMiddleware, async (req: AuthRe
     }
 
     // PDF generieren
-    const pdfDir = path.join(process.cwd(), 'reports');
+    const pdfDir = path.join(process.cwd(), 'reports', report.employeeId);
     if (!fs.existsSync(pdfDir)) {
       fs.mkdirSync(pdfDir, { recursive: true });
     }
 
-    const pdfFilename = `abrechnung_${report.employee.employeeNumber}_${report.year}_${String(report.month).padStart(2, '0')}.pdf`;
-    const pdfPath = path.join(pdfDir, pdfFilename);
+    const safeName = `${report.employee.lastName}_${report.employee.firstName}`.replace(/[^a-zA-ZäöüÄÖÜß0-9_-]/g, '');
+    const pdfFilename = `${safeName}_${String(report.month).padStart(2, '0')}_${report.year}.pdf`;
+    const pdfRelPath = `${report.employeeId}/${pdfFilename}.enc`;
+    const tempPath = path.join(pdfDir, pdfFilename);
+    const encPath = path.join(pdfDir, `${pdfFilename}.enc`);
 
     const startDate = new Date(report.year, report.month - 1, 1);
     const endDate = new Date(report.year, report.month, 0, 23, 59, 59);
@@ -327,22 +381,41 @@ router.post('/:id/finalize', authMiddleware, adminMiddleware, async (req: AuthRe
 
     const settings = await prisma.settings.findUnique({ where: { id: 'default' } });
 
+    // Urlaubsanpassungen für das Jahr laden
+    const vacationAdjustments = await prisma.vacationAdjustment.findMany({
+      where: { employeeId: report.employeeId, year: report.year },
+      orderBy: [{ month: 'asc' }, { createdAt: 'asc' }],
+    });
+
+    // Arbeitskategorie laden (wenn in Settings aktiviert)
+    let workCategory: { name: string; earliestClockIn: string } | undefined;
+    if ((settings as any)?.pdfShowWorkCategory && report.employee.workCategoryId) {
+      const wc = await prisma.workCategory.findUnique({ where: { id: report.employee.workCategoryId } });
+      if (wc) workCategory = { name: wc.name, earliestClockIn: wc.earliestClockIn };
+    }
+
     await generateMonthlyReportPDF({
-      report,
+      report: { ...report, vacationAdjustments: vacationAdjustments.map(a => ({ month: a.month, days: a.days, reason: a.reason })) },
       employee: report.employee,
       dailyHours,
       absences,
       holidays,
       settings,
-      outputPath: pdfPath,
-    });
+      outputPath: tempPath,
+      workCategory,
+    } as any);
+
+    // PDF verschlüsseln und Klartext löschen
+    const pdfData = fs.readFileSync(tempPath);
+    fs.writeFileSync(encPath, encryptBuffer(pdfData));
+    fs.unlinkSync(tempPath);
 
     const updatedReport = await prisma.monthlyReport.update({
       where: { id },
       data: {
         status: 'finalized',
         finalizedAt: new Date(),
-        pdfPath: pdfFilename,
+        pdfPath: pdfRelPath,
       },
     });
 
@@ -382,7 +455,40 @@ router.get('/:id/pdf', authMiddleware, async (req: AuthRequest, res: Response) =
       return res.status(404).json({ error: 'PDF-Datei nicht gefunden' });
     }
 
-    res.download(pdfFullPath, report.pdfPath);
+    const dlSafeName = `${report.employee.lastName}_${report.employee.firstName}`.replace(/[^a-zA-ZäöüÄÖÜß0-9_-]/g, '');
+    const downloadName = `${dlSafeName}_${String(report.month).padStart(2, '0')}_${report.year}.pdf`;
+
+    const monthNames = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+
+    await createAuditLog({
+      req,
+      action: 'DOWNLOAD',
+      entityType: 'MonthlyReport',
+      entityId: report.id,
+      newValues: {
+        typ: 'Stundenabrechnung',
+        mitarbeiter: `${report.employee.firstName} ${report.employee.lastName} (#${report.employee.employeeNumber})`,
+        zeitraum: `${monthNames[report.month - 1]} ${report.year}`,
+        stunden: `${report.totalHours}h (Soll: ${report.targetHours}h)`,
+      },
+      note: `Stundenabrechnung ${monthNames[report.month - 1]} ${report.year} für ${report.employee.firstName} ${report.employee.lastName} heruntergeladen`,
+    });
+
+    // Verschlüsselte Dateien (.enc) entschlüsseln, alte unverschlüsselte direkt senden
+    if (report.pdfPath.endsWith('.enc')) {
+      try {
+        const pdfBuffer = decryptFile(pdfFullPath);
+        res.setHeader('Content-Disposition', `attachment; filename="${downloadName}"`);
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Length', pdfBuffer.length);
+        res.send(pdfBuffer);
+      } catch (decError) {
+        console.error('PDF decryption error:', decError);
+        return res.status(500).json({ error: 'Fehler bei der Entschlüsselung' });
+      }
+    } else {
+      res.download(pdfFullPath, downloadName);
+    }
   } catch (error) {
     console.error('Download PDF error:', error);
     res.status(500).json({ error: 'Fehler beim Herunterladen der PDF' });
@@ -490,7 +596,8 @@ router.post('/:id/recalculate', authMiddleware, adminMiddleware, async (req: Aut
 
     // Urlaubstage neu berechnen
     const vacationDaysUsed = await calculateVacationDaysUsed(report.employeeId, report.year, report.month);
-    const vacationDaysRemaining = report.employee.vacationDaysPerYear - vacationDaysUsed;
+    const vacTotal = await calculateVacationDaysTotal(report.employeeId, report.year);
+    const vacationDaysRemaining = vacTotal - vacationDaysUsed;
 
     // Übertrag vom Vormonat
     const previousReport = await getPreviousMonthReport(report.employeeId, report.year, report.month);
@@ -628,8 +735,23 @@ async function calculateAdjustedTargetHours(
   const workDays = parseWorkDays(workDaysStr);
   const dailyTargetHours = workDays.length > 0 ? weeklyHours / workDays.length : 0;
 
-  const startDate = new Date(year, month - 1, 1);
-  const endDate = new Date(year, month, 0, 23, 59, 59);
+  const monthStart = new Date(year, month - 1, 1);
+  const monthEnd = new Date(year, month, 0, 23, 59, 59);
+
+  // Eintritts-/Austrittsdatum berücksichtigen
+  const emp = await prisma.employee.findUnique({
+    where: { id: employeeId },
+    select: { startDate: true, endDate: true },
+  });
+  const empStart = emp?.startDate ? new Date(emp.startDate) : null;
+  const empEnd = emp?.endDate ? new Date(emp.endDate) : null;
+
+  // Effektiver Zeitraum: Max(Monatsanfang, Eintrittsdatum) bis Min(Monatsende, Austrittsdatum)
+  const startDate = empStart && empStart > monthStart ? empStart : monthStart;
+  const endDate = empEnd && empEnd < monthEnd ? empEnd : monthEnd;
+
+  // Wenn Eintritt nach Monatsende oder Austritt vor Monatsanfang → 0 Soll
+  if (startDate > monthEnd || endDate < monthStart) return 0;
 
   // Feiertage laden
   const holidays = await prisma.holiday.findMany({
@@ -682,25 +804,48 @@ async function calculateVacationDaysUsed(employeeId: string, year: number, month
   const startOfYear = new Date(year, 0, 1);
   const endOfMonth = new Date(year, month, 0, 23, 59, 59);
 
-  // Finde alle Urlaubs-Abwesenheiten (AbsenceType mit name "Urlaub")
-  const vacationType = await prisma.absenceType.findFirst({
-    where: { name: { contains: 'Urlaub' } }
+  const employee = await prisma.employee.findUnique({
+    where: { id: employeeId },
+    select: { workDays: true, initialVacationDaysUsed: true, initialBalanceYear: true },
   });
+  if (!employee) return 0;
 
-  if (!vacationType) return 0;
+  const workDayNums = employee.workDays.split(',').map(Number);
 
-  const absences = await prisma.employeeAbsence.count({
+  // Alle Urlaubs-Abwesenheiten (countsAsVacation=true, nur Arbeitstage)
+  const absences = await prisma.employeeAbsence.findMany({
     where: {
       employeeId,
-      absenceTypeId: vacationType.id,
-      date: {
-        gte: startOfYear,
-        lte: endOfMonth,
-      },
+      date: { gte: startOfYear, lte: endOfMonth },
+      absenceType: { countsAsVacation: true },
     },
   });
+  const vacDays = absences.filter(a => workDayNums.includes(new Date(a.date).getDay())).length;
 
-  return absences;
+  // Initiale Urlaubstage addieren
+  let total = vacDays;
+  if (employee.initialBalanceYear === year && employee.initialVacationDaysUsed > 0) {
+    total += employee.initialVacationDaysUsed;
+  }
+
+  return total;
+}
+
+// Berechnet die Gesamtzahl verfügbarer Urlaubstage (inkl. Adjustments, abzüglich Deductions)
+async function calculateVacationDaysTotal(employeeId: string, year: number): Promise<number> {
+  const employee = await prisma.employee.findUnique({
+    where: { id: employeeId },
+    select: { vacationDaysPerYear: true, carryOverVacationDays: true },
+  });
+  if (!employee) return 0;
+
+  const adjustments = await prisma.vacationAdjustment.findMany({ where: { employeeId, year } });
+  const adjDays = adjustments.reduce((s, a) => s + a.days, 0);
+
+  const deductions = await prisma.vacationDeduction.findMany({ where: { employeeId, year } });
+  const deductDays = deductions.reduce((s, d) => s + d.daysDeducted, 0);
+
+  return employee.vacationDaysPerYear + ((employee as any).carryOverVacationDays || 0) + adjDays - deductDays;
 }
 
 // Holt den Report des Vormonats für Übertrag-Berechnung
@@ -712,7 +857,7 @@ async function getPreviousMonthReport(employeeId: string, year: number, month: n
     prevYear = year - 1;
   }
 
-  return prisma.monthlyReport.findUnique({
+  const report = await prisma.monthlyReport.findUnique({
     where: {
       employeeId_year_month: {
         employeeId,
@@ -721,6 +866,25 @@ async function getPreviousMonthReport(employeeId: string, year: number, month: n
       },
     },
   });
+
+  // Wenn keine vorherige Abrechnung existiert, initiale Salden als Startwert verwenden
+  if (!report) {
+    const employee = await prisma.employee.findUnique({
+      where: { id: employeeId },
+      select: { initialOvertimeBalance: true, initialBalanceYear: true, initialBalanceMonth: true },
+    });
+
+    if (employee && employee.initialBalanceYear && employee.initialBalanceMonth) {
+      // Nur anwenden wenn der Stichtag vor oder gleich dem angefragten Monat liegt
+      const balanceDate = employee.initialBalanceYear * 12 + employee.initialBalanceMonth;
+      const requestDate = year * 12 + month;
+      if (balanceDate <= requestDate && employee.initialOvertimeBalance !== 0) {
+        return { cumulativeOvertimeBalance: employee.initialOvertimeBalance } as any;
+      }
+    }
+  }
+
+  return report;
 }
 
 // Berechnet Krankheitstage (diesen Monat + kumulativ im Jahr)
@@ -751,6 +915,15 @@ async function calculateSickDays(employeeId: string, year: number, month: number
       },
     }),
   ]);
+
+  // Initiale Krankheitstage addieren
+  const employee = await prisma.employee.findUnique({
+    where: { id: employeeId },
+    select: { initialSickDays: true, initialBalanceYear: true },
+  });
+  if (employee && employee.initialBalanceYear === year && employee.initialSickDays > 0) {
+    return { thisMonth, yearTotal: yearTotal + employee.initialSickDays };
+  }
 
   return { thisMonth, yearTotal };
 }

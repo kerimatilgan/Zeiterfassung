@@ -13,6 +13,14 @@ import authRoutes from './routes/auth.js';
 import terminalRoutes from './routes/terminal.js';
 import settingsRoutes from './routes/settings.js';
 import auditLogRoutes from './routes/auditLogs.js';
+import twoFactorRoutes from './routes/twoFactor.js';
+import documentRoutes from './routes/documents.js';
+import backupRoutes from './routes/backup.js';
+import setupRoutes from './routes/setup.js';
+import { startBackupScheduler } from './services/backup/scheduler.js';
+import { startAutoClockOutScheduler } from './services/autoClockOut.js';
+import { startVacationCarryOverScheduler } from './services/vacationCarryOver.js';
+import { startMinusHoursScheduler } from './services/minusHoursDeduction.js';
 
 export const prisma = new PrismaClient();
 
@@ -59,10 +67,16 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/terminal', terminalRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/audit-logs', auditLogRoutes);
+app.use('/api/2fa', twoFactorRoutes);
+app.use('/api/documents', documentRoutes);
+app.use('/api/backup', backupRoutes);
+app.use('/api/setup', setupRoutes);
 
 // Health Check
-app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+app.get('/api/health', (req, res) => {
+  const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+  const host = req.headers['x-forwarded-host'] || req.headers.host;
+  res.json({ status: 'ok', timestamp: new Date().toISOString(), baseUrl: `${protocol}://${host}` });
 });
 
 // Error Handler
@@ -97,6 +111,32 @@ async function main() {
     });
     console.log('Standard-Terminal mit Legacy-Key migriert');
   }
+
+  // Standard-Dokumenttypen erstellen falls keine existieren
+  const docTypeCount = await prisma.documentType.count();
+  if (docTypeCount === 0) {
+    const defaultDocTypes = [
+      { name: 'Gehaltsabrechnung', shortName: 'GA', color: '#3B82F6', sortOrder: 1 },
+      { name: 'Provisionsabrechnung', shortName: 'PA', color: '#8B5CF6', sortOrder: 2 },
+      { name: 'Ausdruck der elektronischen Lohnsteuerbescheinigung', shortName: 'LSt', color: '#EF4444', sortOrder: 3 },
+      { name: 'Sozialversicherungsnachweis', shortName: 'SVN', color: '#10B981', sortOrder: 4 },
+      { name: 'Arbeitsvertrag', shortName: 'AV', color: '#F59E0B', sortOrder: 5 },
+      { name: 'Vertragsänderung / Nachtrag', shortName: 'VÄ', color: '#F97316', sortOrder: 6 },
+      { name: 'Meldebescheinigung zur Sozialversicherung', shortName: 'MSV', color: '#84CC16', sortOrder: 7 },
+      { name: 'Sonderzahlungsabrechnung', shortName: 'SZA', color: '#EC4899', sortOrder: 8 },
+      { name: 'Jahresabrechnung', shortName: 'JA', color: '#6366F1', sortOrder: 9 },
+    ];
+    for (const dt of defaultDocTypes) {
+      await prisma.documentType.create({ data: dt });
+    }
+    console.log('Standard-Dokumenttypen erstellt');
+  }
+
+  // Scheduler starten
+  startBackupScheduler();
+  startAutoClockOutScheduler();
+  startVacationCarryOverScheduler();
+  startMinusHoursScheduler();
 
   httpServer.listen(Number(PORT), '0.0.0.0', () => {
     console.log(`🚀 Zeiterfassung Backend läuft auf http://0.0.0.0:${PORT}`);

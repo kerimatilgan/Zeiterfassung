@@ -11,6 +11,7 @@ datasource db {
 model Employee {
   id                  String   @id @default(uuid())
   employeeNumber      String   @unique // Mitarbeiternummer
+  username            String?  @unique // Benutzername für Login
   firstName           String
   lastName            String
   email               String?  @unique
@@ -19,21 +20,62 @@ model Employee {
   qrCode              String   @unique // Eindeutiger QR-Code für Zeiterfassung
   rfidCard            String?  @unique // RFID-Karten-ID für Stempelterminal
   pin                 String?  // Optional: PIN für manuelle Eingabe
+  startDate           DateTime? // Eintrittsdatum (ab wann Arbeitszeit/Urlaub berechnet wird)
+  endDate             DateTime? // Austrittsdatum (ab diesem Tag kann sich MA nicht mehr einstempeln)
   weeklyHours         Float    @default(40.0) // Vertraglich vereinbarte Wochenstunden
   vacationDaysPerYear Int      @default(30) // Urlaubsanspruch pro Jahr
+  carryOverVacationDays Int    @default(0) // Resturlaub aus dem Vorjahr (automatisch berechnet)
   workDays            String   @default("1,2,3,4,5") // Arbeitstage (0=So, 1=Mo, ..., 6=Sa)
   isActive            Boolean  @default(true)
   isAdmin             Boolean  @default(false)
   passwordHash        String?  // Für Dashboard-Login
+  passwordResetToken  String?  // Token für Passwort-Reset
+  passwordResetExpires DateTime? // Ablaufzeit des Reset-Tokens
+  totpSecret          String?  // Base32-encoded TOTP Secret
+  totpEnabled         Boolean  @default(false) // 2FA aktiviert
   workCategoryId      String?       // Arbeitskategorie (früheste Einstempelzeit)
   workCategory        WorkCategory? @relation(fields: [workCategoryId], references: [id], onDelete: SetNull)
+
+  // Reguläres Arbeitszeitende (für Auto-Ausstempeln)
+  defaultClockOut     String?  // z.B. "17:00" - wird bei Auto-Ausstempeln verwendet
+
+  // PWA-Stempelung Berechtigungen
+  canClockInPwa   Boolean @default(false) // Darf sich über PWA einstempeln
+  canClockOutPwa  Boolean @default(false) // Darf sich über PWA ausstempeln
+
+  // Initiale Salden (Import aus alter Software)
+  initialOvertimeBalance  Float   @default(0) // Überstunden-Saldo Startwert
+  initialVacationDaysUsed Int     @default(0) // Bereits genommene Urlaubstage
+  initialSickDays         Int     @default(0) // Bisherige Krankheitstage im Jahr
+  initialBalanceYear      Int?               // Ab welchem Jahr gelten die Startwerte
+  initialBalanceMonth     Int?               // Ab welchem Monat gelten die Startwerte
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  timeEntries     TimeEntry[]
-  monthlyReports  MonthlyReport[]
-  absences        EmployeeAbsence[]
+  timeEntries         TimeEntry[]
+  monthlyReports      MonthlyReport[]
+  absences            EmployeeAbsence[]
+  passkeys            Passkey[]
+  documents           Document[]
+  vacationDeductions  VacationDeduction[]
+  vacationAdjustments VacationAdjustment[]
+}
+
+// Passkeys (WebAuthn)
+model Passkey {
+  id              String   @id @default(uuid())
+  employeeId      String
+  employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  credentialId    String   @unique // Base64url-encoded credential ID
+  publicKey       String   // Base64url-encoded public key
+  counter         Int      @default(0) // Signature counter
+  deviceName      String?  // Friendly name, e.g. "MacBook Pro"
+  transports      String?  // JSON array of transports
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 // Zeiteinträge (Stempeln)
@@ -50,6 +92,18 @@ model TimeEntry {
   note        String?   // Optionale Notiz
   isManual    Boolean   @default(false) // Manuell eingetragen vs. gescannt
   editedBy    String?   // Falls bearbeitet: von wem
+
+  // PWA-Stempelung
+  clockInViaPwa     Boolean  @default(false) // Über PWA eingestempelt
+  clockOutViaPwa    Boolean  @default(false) // Über PWA ausgestempelt
+  clockInLatitude   Float?   // GPS Breitengrad beim Einstempeln
+  clockInLongitude  Float?   // GPS Längengrad beim Einstempeln
+  clockOutLatitude  Float?   // GPS Breitengrad beim Ausstempeln
+  clockOutLongitude Float?   // GPS Längengrad beim Ausstempeln
+  pwaClockInReasonId   String?  // Vordefinierter Grund fürs Einstempeln via PWA
+  pwaClockInReasonText String?  // Freitext-Grund fürs Einstempeln via PWA
+  pwaClockOutReasonId   String?  // Vordefinierter Grund fürs Ausstempeln via PWA
+  pwaClockOutReasonText String?  // Freitext-Grund fürs Ausstempeln via PWA
 
   // Reklamation durch Mitarbeiter
   complaintMessage     String?    // Nachricht des Mitarbeiters
@@ -87,6 +141,11 @@ model MonthlyReport {
   vacationDaysUsed      Int @default(0) // Verbrauchte Urlaubstage bis einschließlich dieses Monats
   vacationDaysRemaining Int @default(0) // Verbleibende Urlaubstage
 
+  // Minusstunden-Urlaubsabzug
+  vacationDeductionDays   Int    @default(0) // In dieser Abrechnung abgezogene Urlaubstage
+  vacationDeductionHours  Float  @default(0) // Dafür gutgeschriebene Stunden
+  vacationDeductionNote   String? // Info-Text für den Abzug
+
   // Krankheitstage-Tracking
   sickDaysThisMonth     Int @default(0)  // Krankheitstage in diesem Monat
   sickDaysTotal         Int @default(0)  // Kumulative Krankheitstage im Jahr
@@ -115,6 +174,12 @@ model Settings {
   defaultBreakMinutes   Int     @default(30) // Standard-Pause bei > 6h
   overtimeThreshold     Float   @default(40.0) // Ab wann Überstunden zählen (Wochenstunden)
 
+  // Backup-Konfiguration
+  backupFrequency       String  @default("daily") // hourly, daily, weekly
+  backupTime            String  @default("02:00") // Uhrzeit für tägliches/wöchentliches Backup
+  backupWeekday         Int     @default(1) // Wochentag für wöchentliches Backup (1=Mo)
+  backupRetentionDays   Int     @default(30) // Aufbewahrungsdauer in Tagen
+
   // Mail-Server Konfiguration
   smtpHost              String?
   smtpPort              Int?     @default(587)
@@ -123,6 +188,9 @@ model Settings {
   smtpFromAddress       String?
   smtpFromName          String?  @default("Zeiterfassung")
   smtpSecure            Boolean  @default(false) // true für TLS
+
+  // PDF-Optionen
+  pdfShowWorkCategory   Boolean  @default(false) // Arbeitskategorie auf Abrechnung anzeigen
 
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
@@ -145,6 +213,7 @@ model AbsenceType {
   shortName       String   // z.B. "U", "BS", "BS½"
   requiredHours   Float    @default(0) // Pflichtstunden an diesem Tag (0 = keine Pflicht)
   color           String   @default("#3B82F6") // Farbe für Anzeige im Kalender
+  countsAsVacation Boolean @default(false) // Zählt als Urlaubstag (true = wird vom Urlaubskontingent abgezogen)
   isActive        Boolean  @default(true)
   sortOrder       Int      @default(0) // Reihenfolge in Dropdowns
 
@@ -202,6 +271,108 @@ model AuditLog {
   ipAddress   String?  // IP-Adresse des Clients
   userAgent   String?  // Browser/Client Info
   note        String?  // Zusätzliche Info
+}
+
+// Dokumenttypen (konfigurierbar: Gehaltsabrechnung, Provisionsabrechnung, etc.)
+model DocumentType {
+  id        String     @id @default(uuid())
+  name      String     // z.B. "Gehaltsabrechnung"
+  shortName String     // z.B. "GA"
+  color     String     @default("#6366F1")
+  isActive  Boolean    @default(true)
+  sortOrder Int        @default(0)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  documents Document[]
+}
+
+// Dokumente (pro Mitarbeiter hochgeladen)
+model Document {
+  id               String       @id @default(uuid())
+  employeeId       String
+  employee         Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  documentTypeId   String
+  documentType     DocumentType @relation(fields: [documentTypeId], references: [id], onDelete: Restrict)
+  filePath         String
+  originalFilename String
+  fileSize         Int
+  mimeType         String
+  year             Int?
+  month            Int?
+  note             String?
+  uploadedBy       String
+  uploadedByName   String
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+}
+
+// Urlaubsabzüge bei Minusstunden
+model VacationDeduction {
+  id          String   @id @default(uuid())
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  year        Int      // Jahr in dem der Abzug stattfand
+  month       Int      // Monat (1-12)
+  reason      String   // z.B. "Minusstunden-Ausgleich: -8:30h → 1 Urlaubstag"
+  daysDeducted Int     @default(1) // Abgezogene Urlaubstage
+  hoursCompensated Float // Gutgeschriebene Stunden
+  overtimeBalanceBefore Float // Überstunden-Saldo vor Abzug
+  overtimeBalanceAfter Float  // Überstunden-Saldo nach Abzug
+  createdAt   DateTime @default(now())
+}
+
+// Manuelle Urlaubsanpassungen (hinzufügen/abziehen durch Admin)
+model VacationAdjustment {
+  id          String   @id @default(uuid())
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  year        Int
+  month       Int      // 1-12
+  days        Float    // positiv = hinzufügen, negativ = abziehen
+  reason      String
+  createdBy   String   // Admin-Name
+  createdAt   DateTime @default(now())
+}
+
+// PWA-Stempel-Gründe (vordefinierte Auswahlmöglichkeiten)
+model PwaClockReason {
+  id        String   @id @default(uuid())
+  name      String   // z.B. "Außentermin", "Homeoffice", "Arztbesuch"
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Backup-Ziele (Speicherorte für Backups)
+model BackupTarget {
+  id          String   @id @default(uuid())
+  name        String                    // z.B. "Office NAS", "Cloud S3"
+  type        String                    // local, smb, nfs, sftp, webdav, dropbox, gdrive, onedrive, s3
+  isActive    Boolean  @default(true)
+  config      String                    // JSON-Konfiguration (AES-256 verschlüsselt)
+  lastTestAt  DateTime?
+  lastTestOk  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  backupRecords BackupRecord[]
+}
+
+// Backup-Protokoll
+model BackupRecord {
+  id             String        @id @default(uuid())
+  targetId       String?
+  target         BackupTarget? @relation(fields: [targetId], references: [id], onDelete: SetNull)
+  filename       String        // z.B. "zeiterfassung_2026-03-21_020000.tar.gz"
+  fileSize       Int           @default(0)
+  status         String        @default("pending") // pending, success, failed
+  errorMessage   String?
+  trigger        String        @default("scheduled") // scheduled, manual
+  startedAt      DateTime      @default(now())
+  completedAt    DateTime?
+  expiresAt      DateTime?     // Für automatische Bereinigung
+  createdAt      DateTime      @default(now())
 }
 
 // Terminals (Pi-Stempelterminals)

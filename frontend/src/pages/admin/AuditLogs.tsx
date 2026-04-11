@@ -370,97 +370,93 @@ export default function AuditLogs() {
           )}
         </div>
 
-        {/* Log-Liste */}
-        <div className="divide-y divide-gray-200">
-          {isLoading ? (
-            <div className="p-8 text-center text-gray-500">Lade Audit-Logs...</div>
-          ) : logsData?.logs?.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">Keine Einträge gefunden</div>
-          ) : (
-            logsData?.logs?.map((log: AuditLog) => (
-              <div
-                key={log.id}
-                className="p-4 hover:bg-gray-50 cursor-pointer transition-colors"
-                onClick={() => setSelectedLog(selectedLog?.id === log.id ? null : log)}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start gap-3">
-                    <div className="mt-1">{getActionIcon(log.action)}</div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getActionBadgeColor(
-                            log.action
-                          )}`}
-                        >
-                          {log.actionFormatted}
-                        </span>
-                        <span className="text-sm text-gray-600">{log.entityTypeFormatted}</span>
-                        {log.entityId && (
-                          <span className="text-xs text-gray-400 font-mono">{log.entityId.substring(0, 8)}...</span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 mt-1 text-sm text-gray-500">
-                        {log.userName ? (
-                          <span className="flex items-center gap-1">
-                            <User className="w-3 h-3" />
-                            {log.userName}
+        {/* Log-Tabelle */}
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50 border-b">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-32">Zeitpunkt</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-40">Typ</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-36">Mitarbeiter</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Text</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {isLoading ? (
+                <tr><td colSpan={4} className="p-8 text-center text-gray-500">Lade Audit-Logs...</td></tr>
+              ) : logsData?.logs?.length === 0 ? (
+                <tr><td colSpan={4} className="p-8 text-center text-gray-500">Keine Einträge gefunden</td></tr>
+              ) : (
+                logsData?.logs?.map((log: AuditLog) => {
+                  const isExpanded = selectedLog?.id === log.id;
+                  // Beschreibungstext zusammenbauen
+                  const buildDescription = () => {
+                    const parts: string[] = [];
+                    if (log.entityTypeFormatted) parts.push(log.entityTypeFormatted);
+                    if (log.note) parts.push(log.note);
+                    if (log.ipAddress && log.action === 'LOGIN') parts.push(`(IP: ${log.ipAddress})`);
+                    if (log.userAgent && log.action === 'LOGIN') parts.push(`- ${log.userAgent.substring(0, 80)}`);
+                    if (parts.length === 0 && log.entityId) parts.push(`ID: ${log.entityId.substring(0, 8)}`);
+                    return parts.join(' - ') || log.actionFormatted;
+                  };
+
+                  return (
+                    <tr key={log.id} className={`hover:bg-gray-50 cursor-pointer ${isExpanded ? 'bg-blue-50' : ''}`} onClick={() => setSelectedLog(isExpanded ? null : log)}>
+                      <td className="px-4 py-3 text-sm text-gray-900 align-top whitespace-nowrap">
+                        <div className="font-medium">{new Date(log.timestamp).toLocaleDateString('de-DE')}</div>
+                        <div className="text-xs text-gray-500">{new Date(log.timestamp).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr</div>
+                      </td>
+                      <td className="px-4 py-3 align-top">
+                        <div className="flex items-center gap-2">
+                          {getActionIcon(log.action)}
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getActionBadgeColor(log.action)}`}>
+                            {log.actionFormatted}
                           </span>
-                        ) : (
-                          <span className="text-gray-400">System</span>
-                        )}
-                        {log.note && (
-                          <span className="text-gray-400">· {log.note}</span>
-                        )}
-                      </div>
-                      {selectedLog?.id === log.id && (
-                        <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-                          {log.ipAddress && (
-                            <div className="text-xs text-gray-500 mb-2">
-                              IP: {log.ipAddress}
-                            </div>
-                          )}
-                          {renderChanges(log.oldValues, log.newValues)}
-                          {!log.oldValues && !log.newValues && (
-                            <div className="text-sm text-gray-500">Keine Details verfügbar</div>
-                          )}
                         </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-500">
-                    <Clock className="w-4 h-4" />
-                    {formatDateTime(log.timestamp)}
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900 align-top">
+                        {log.userName || <span className="text-gray-400">System</span>}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-600 align-top">
+                        <div>{buildDescription()}</div>
+                        {isExpanded && (log.oldValues || log.newValues) && (
+                          <div className="mt-2 p-2 bg-white border rounded text-xs">
+                            {log.ipAddress && <div className="text-gray-400 mb-1">IP: {log.ipAddress}</div>}
+                            {renderChanges(log.oldValues, log.newValues)}
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
         </div>
 
         {/* Pagination */}
-        {logsData?.pagination && logsData.pagination.totalPages > 1 && (
+        {logsData?.pagination && (
           <div className="p-4 border-t border-gray-200 flex items-center justify-between">
             <div className="text-sm text-gray-600">
-              Seite {logsData.pagination.page} von {logsData.pagination.totalPages} ({logsData.pagination.total}{' '}
-              Einträge)
+              Eintrag {((logsData.pagination.page - 1) * limit) + 1} bis {Math.min(logsData.pagination.page * limit, logsData.pagination.total)} von {logsData.pagination.total}
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-              <button
-                onClick={() => setPage((p) => Math.min(logsData.pagination.totalPages, p + 1))}
-                disabled={page === logsData.pagination.totalPages}
-                className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <ChevronRight className="w-5 h-5" />
-              </button>
-            </div>
+            {logsData.pagination.totalPages > 1 && (
+              <div className="flex items-center gap-1">
+                <button onClick={() => setPage(1)} disabled={page === 1}
+                  className="px-2 py-1 text-sm rounded border border-gray-300 hover:bg-gray-50 disabled:opacity-30">1</button>
+                <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}
+                  className="p-1 rounded border border-gray-300 hover:bg-gray-50 disabled:opacity-30">
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <span className="px-3 py-1 text-sm font-medium bg-primary-50 text-primary-700 rounded">{page}</span>
+                <button onClick={() => setPage((p) => Math.min(logsData.pagination.totalPages, p + 1))} disabled={page === logsData.pagination.totalPages}
+                  className="p-1 rounded border border-gray-300 hover:bg-gray-50 disabled:opacity-30">
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+                <button onClick={() => setPage(logsData.pagination.totalPages)} disabled={page === logsData.pagination.totalPages}
+                  className="px-2 py-1 text-sm rounded border border-gray-300 hover:bg-gray-50 disabled:opacity-30">{logsData.pagination.totalPages}</button>
+              </div>
+            )}
           </div>
         )}
       </div>

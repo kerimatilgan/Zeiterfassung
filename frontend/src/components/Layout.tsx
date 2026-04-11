@@ -12,6 +12,9 @@ import {
   Menu,
   X,
   Shield,
+  UserCog,
+  FolderOpen,
+  MessageSquare,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useSocket } from '../hooks/useSocket';
@@ -46,8 +49,10 @@ export default function Layout({ isAdmin = false }: LayoutProps) {
   const adminLinks = [
     { to: '/admin', icon: LayoutDashboard, label: 'Dashboard', end: true },
     { to: '/admin/employees', icon: Users, label: 'Mitarbeiter', badge: pendingCount > 0 ? pendingCount : undefined },
+    { to: '/admin/time-entries', icon: Clock, label: 'Zeiteinträge' },
     { to: '/admin/reports', icon: FileText, label: 'Abrechnungen' },
     { to: '/admin/settings', icon: Settings, label: 'Einstellungen' },
+    { to: '/admin/account', icon: UserCog, label: 'Mein Konto' },
     { to: '/admin/audit-logs', icon: Shield, label: 'Audit-Log' },
   ];
 
@@ -55,6 +60,8 @@ export default function Layout({ isAdmin = false }: LayoutProps) {
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', end: true },
     { to: '/dashboard/timesheet', icon: Clock, label: 'Meine Zeiten' },
     { to: '/dashboard/reports', icon: FileText, label: 'Abrechnungen' },
+    { to: '/dashboard/documents', icon: FolderOpen, label: 'Dokumente' },
+    { to: '/dashboard/complaints', icon: MessageSquare, label: 'Reklamationen' },
     { to: '/dashboard/settings', icon: Settings, label: 'Einstellungen' },
   ];
 
@@ -83,7 +90,7 @@ export default function Layout({ isAdmin = false }: LayoutProps) {
       {/* Sidebar */}
       <aside
         className={`
-          fixed lg:static inset-y-0 left-0 z-40 w-64 bg-white border-r border-gray-200
+          fixed lg:sticky lg:top-0 inset-y-0 left-0 z-40 w-64 h-screen bg-white border-r border-gray-200
           transform transition-transform duration-200 ease-in-out
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         `}

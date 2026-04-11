@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { reportsApi } from '../../lib/api';
-import { FileText, Download, Clock, TrendingUp, Umbrella, Activity, ThermometerSun } from 'lucide-react';
+import { useAuthStore } from '../../store/authStore';
+import { FileText, Download, Clock, TrendingUp, Umbrella, Activity, ThermometerSun, Filter } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 // Formatiert Dezimalstunden zu H:MM Format (unterstützt negative Werte)
@@ -18,6 +20,10 @@ const MONTHS = [
 ];
 
 export default function EmployeeReports() {
+  const { employee } = useAuthStore();
+  const [filterYear, setFilterYear] = useState<number | ''>(new Date().getFullYear());
+  const [filterMonth, setFilterMonth] = useState<number | ''>('');
+
   const { data: reports, isLoading } = useQuery({
     queryKey: ['my-reports'],
     queryFn: () => reportsApi.getMy().then((r) => r.data),
@@ -29,7 +35,7 @@ export default function EmployeeReports() {
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `Abrechnung_${year}_${String(month).padStart(2, '0')}.pdf`);
+      link.setAttribute('download', `${employee?.lastName}_${employee?.firstName}_${String(month).padStart(2, '0')}_${year}.pdf`);
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -71,13 +77,63 @@ export default function EmployeeReports() {
         <p className="text-gray-500">Übersicht deiner Monatsabrechnungen</p>
       </div>
 
+      {/* Filters */}
+      <div className="card p-4">
+        <div className="flex flex-wrap items-end gap-4">
+          <div className="flex items-center gap-2 text-gray-500">
+            <Filter size={18} />
+            <span className="text-sm font-medium">Filter:</span>
+          </div>
+          <div className="min-w-[100px]">
+            <label className="label text-xs">Jahr</label>
+            <select
+              value={filterYear}
+              onChange={(e) => setFilterYear(e.target.value ? parseInt(e.target.value) : '')}
+              className="input py-1.5 text-sm"
+            >
+              <option value="">Alle</option>
+              {[2023, 2024, 2025, 2026, 2027].map((y) => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+          </div>
+          <div className="min-w-[120px]">
+            <label className="label text-xs">Monat</label>
+            <select
+              value={filterMonth}
+              onChange={(e) => setFilterMonth(e.target.value ? parseInt(e.target.value) : '')}
+              className="input py-1.5 text-sm"
+            >
+              <option value="">Alle</option>
+              {MONTHS.map((m, i) => (
+                <option key={i} value={i + 1}>{m}</option>
+              ))}
+            </select>
+          </div>
+          {(filterYear || filterMonth) && (
+            <button
+              onClick={() => { setFilterYear(''); setFilterMonth(''); }}
+              className="text-sm text-primary-600 hover:text-primary-700 hover:underline pb-1"
+            >
+              Zurücksetzen
+            </button>
+          )}
+        </div>
+      </div>
+
       {isLoading ? (
         <div className="flex items-center justify-center h-64">
           <div className="w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin" />
         </div>
-      ) : reports?.length ? (
+      ) : reports?.length ? (() => {
+        const filteredReports = reports.filter((r: any) => {
+          if (filterYear && r.year !== filterYear) return false;
+          if (filterMonth && r.month !== filterMonth) return false;
+          return true;
+        });
+        return filteredReports.length ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {reports.map((report: any) => (
+          {filteredReports.map((report: any) => (
             <div key={report.id} className="card overflow-hidden">
               <div className="p-6">
                 <div className="flex items-start justify-between mb-4">
@@ -171,7 +227,17 @@ export default function EmployeeReports() {
             </div>
           ))}
         </div>
-      ) : (
+        ) : (
+        <div className="card p-12 text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-4">
+            <FileText className="w-8 h-8 text-gray-400" />
+          </div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            Keine Abrechnungen für diesen Filter
+          </h3>
+        </div>
+        );
+      })() : (
         <div className="card p-12 text-center">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-4">
             <FileText className="w-8 h-8 text-gray-400" />

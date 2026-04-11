@@ -27,10 +27,43 @@ except ImportError:
     print("[PHOTO] PIL nicht verfügbar - EXIF-Orientierung wird ignoriert")
 
 # SDL für Raspberry Pi konfigurieren
-os.environ['SDL_VIDEODRIVER'] = 'x11'
+# Versuche verschiedene Treiber: kmsdrm (Pi ohne X), x11 (mit Desktop), fbcon (Fallback)
+if 'SDL_VIDEODRIVER' not in os.environ:
+    for driver in ['kmsdrm', 'x11', 'fbcon']:
+        os.environ['SDL_VIDEODRIVER'] = driver
+        try:
+            import pygame as _test_pg
+            _test_pg.display.init()
+            _test_pg.display.quit()
+            print(f"[DISPLAY] Verwende Video-Treiber: {driver}")
+            break
+        except:
+            continue
+    else:
+        os.environ['SDL_VIDEODRIVER'] = 'dummy'
+        print("[DISPLAY] Kein Display-Treiber verfügbar, nutze dummy")
 
 import pygame
 import socketio
+
+try:
+    from wifi_setup import WifiSetupUI
+    WIFI_UI_AVAILABLE = True
+except ImportError:
+    WIFI_UI_AVAILABLE = False
+    print("[DISPLAY] wifi_setup nicht verfügbar - WLAN-UI deaktiviert")
+
+try:
+    from wifi_web import start_wifi_web_server
+    WIFI_WEB_AVAILABLE = True
+except ImportError:
+    WIFI_WEB_AVAILABLE = False
+
+try:
+    import qrcode
+    QR_AVAILABLE = True
+except ImportError:
+    QR_AVAILABLE = False
 
 # Farben - Modernes dunkles Design
 COLORS = {
@@ -57,27 +90,39 @@ COLORS = {
 }
 
 # Konfiguration
+# Default-Auflösung (wird automatisch durch Display-Erkennung überschrieben)
 DISPLAY_WIDTH = 1024
 DISPLAY_HEIGHT = 600
+
+# Versuche physische Display-Auflösung zu ermitteln
+try:
+    _modes = open('/sys/class/drm/card0/modes').readline().strip()
+    if 'x' in _modes:
+        _w, _h = _modes.split('x')
+        DISPLAY_WIDTH = int(_w)
+        DISPLAY_HEIGHT = int(_h)
+        print(f"[DISPLAY] Erkannte Auflösung: {DISPLAY_WIDTH}x{DISPLAY_HEIGHT}")
+except:
+    pass
 FULLSCREEN = True
 SCAN_DISPLAY_SECONDS = 5
 MAX_ACTIVE_EMPLOYEES = 8
 
 
-def get_eth0_ip():
-    """Liest die IPv4-Adresse von eth0 aus"""
-    try:
-        result = subprocess.run(
-            ['ip', '-4', 'addr', 'show', 'eth0'],
-            capture_output=True, text=True, timeout=3
-        )
-        for line in result.stdout.split('\n'):
-            line = line.strip()
-            if line.startswith('inet '):
-                # Format: "inet 10.8.0.2/24 ..."
-                return line.split()[1].split('/')[0]
-    except Exception:
-        pass
+def get_network_ip():
+    """Liest die IPv4-Adresse des aktiven Netzwerk-Interfaces aus (eth0 oder wlan0)"""
+    for iface in ['eth0', 'wlan0', 'wlan1']:
+        try:
+            result = subprocess.run(
+                ['ip', '-4', 'addr', 'show', iface],
+                capture_output=True, text=True, timeout=3
+            )
+            for line in result.stdout.split('\n'):
+                line = line.strip()
+                if line.startswith('inet '):
+                    return line.split()[1].split('/')[0]
+        except Exception:
+            pass
     return None
 
 
@@ -86,12 +131,17 @@ class HDMIDisplay:
         self.backend_url = backend_url
         self.running = True
 
+        # Früh initialisieren (für finally-Block bei Crash)
+        self.sio = None
+        self.wifi_ui = None
+        self.wifi_qr_surface = None
+
         # Daten
         self.active_employees = []
         self.last_scan = None
         self.last_scan_time = 0
         self.connection_status = "Verbinde..."
-        self.eth0_ip = get_eth0_ip()
+        self.eth0_ip = get_network_ip()
 
         # Performance-Optimierung: Caching
         self._cached_background = None
@@ -105,6 +155,11 @@ class HDMIDisplay:
         self._last_second = -1
         self._needs_full_redraw = True
         self._last_data_hash = None
+
+        # Terminal-Logo
+        self._logo_surface = None
+        self._logo_checked = False
+        self._last_logo_check = 0
 
         # IP-Refresh alle 60 Sekunden
         self._last_ip_check = 0
@@ -147,12 +202,27 @@ class HDMIDisplay:
         # Fonts laden (skaliert für Display-Größe)
         self._load_fonts()
 
+        # Socket.IO Client (früh initialisieren für finally-Block)
+        self.sio = socketio.Client(reconnection=True, reconnection_attempts=0)
+
+        # WLAN-Setup UI
+        self.wifi_ui = WifiSetupUI(self.screen, self.width, self.height) if WIFI_UI_AVAILABLE else None
+
+        # WLAN Web-Server + QR-Code
+        self.wifi_qr_surface = None
+        if WIFI_WEB_AVAILABLE:
+            try:
+                start_wifi_web_server()
+                self._generate_wifi_qr()
+                if self.wifi_ui and self.wifi_qr_surface:
+                    self.wifi_ui.qr_surface = self.wifi_qr_surface
+            except Exception as e:
+                print(f"[DISPLAY] WLAN Web-Server Fehler: {e}")
+
         # Hintergründe vorrendern
         self._render_cached_background()
         self._render_cached_overlays()
 
-        # Socket.IO Client
-        self.sio = socketio.Client(reconnection=True, reconnection_attempts=0)
         self._setup_socket_events()
 
         # Hintergrund-Thread für Socket.IO
@@ -162,6 +232,28 @@ class HDMIDisplay:
         # Initiale Daten laden
         self.data_thread = threading.Thread(target=self._load_initial_data, daemon=True)
         self.data_thread.start()
+
+    def _generate_wifi_qr(self):
+        """Generiert QR-Code Surface für WLAN Web-UI URL"""
+        if not QR_AVAILABLE:
+            print("[DISPLAY] qrcode-Modul nicht verfügbar - QR-Code deaktiviert")
+            return
+        try:
+            ip = get_network_ip()
+            if not ip:
+                return
+            url = f"http://{ip}:8080"
+            qr = qrcode.QRCode(version=1, box_size=3, border=1)
+            qr.add_data(url)
+            qr.make(fit=True)
+            img = qr.make_image(fill_color="white", back_color=(30, 41, 59))
+            # PIL Image zu Pygame Surface
+            qr_bytes = img.tobytes()
+            w, h = img.size
+            self.wifi_qr_surface = pygame.image.fromstring(qr_bytes, (w, h), 'RGB')
+            print(f"[DISPLAY] QR-Code generiert: {url}")
+        except Exception as e:
+            print(f"[DISPLAY] QR-Code Fehler: {e}")
 
     def _load_fonts(self):
         """Lädt Schriftarten skaliert für die aktuelle Auflösung"""
@@ -231,6 +323,19 @@ class HDMIDisplay:
             """Wird aufgerufen wenn jemand ein-/ausstempelt"""
             print(f"Time entry update: {data}")
             self._handle_time_entry(data)
+
+        @self.sio.on('scan-error')
+        def on_scan_error(data):
+            """Wird aufgerufen bei Scan-Fehlern (unbekannte Karte, nicht eingetreten etc.)"""
+            print(f"Scan error: {data}")
+            error_msg = data.get('error', 'Unbekannter Fehler')
+            message = data.get('message', '')
+            self.show_scan_result(
+                success=False,
+                name=message or error_msg,
+                action='error',
+                error=error_msg,
+            )
 
     def _connect_socket(self):
         """Verbindet mit dem Backend Socket.IO"""
@@ -515,6 +620,75 @@ class HDMIDisplay:
     # IDLE-ANSICHT: Uhr + Anwesend-Liste
     # ──────────────────────────────────────────────
 
+    def _load_logo(self):
+        """Lädt das Terminal-Logo vom Backend (alle 5 Minuten prüfen)"""
+        now = time.time()
+        if now - self._last_logo_check < 300 and self._logo_checked:
+            return
+
+        self._last_logo_check = now
+        self._logo_checked = True
+
+        try:
+            api_key = self._get_api_key()
+            response = requests.get(
+                f"{self.backend_url}/api/settings/terminal-logo",
+                headers={'x-api-key': api_key} if api_key else {},
+                timeout=5
+            )
+            if response.status_code == 200:
+                data = response.json()
+                logo_url = data.get('logoUrl')
+                if logo_url:
+                    cache_key = hashlib.md5(f"logo_{logo_url}".encode()).hexdigest()
+                    cache_file = self._photo_cache_dir / f"{cache_key}.png"
+
+                    # Prüfe ob sich das Logo geändert hat
+                    if cache_key in self._cached_photos:
+                        self._logo_surface = self._cached_photos[cache_key]
+                        return
+
+                    # Logo laden
+                    logo_response = requests.get(f"{self.backend_url}{logo_url}", timeout=5)
+                    if logo_response.status_code == 200:
+                        image_data = BytesIO(logo_response.content)
+                        logo_height = int(self.height * 0.24)
+
+                        if PIL_AVAILABLE:
+                            pil_image = Image.open(image_data)
+                            if pil_image.mode not in ('RGB', 'RGBA'):
+                                pil_image = pil_image.convert('RGBA')
+                            # Seitenverhältnis beibehalten
+                            aspect = pil_image.width / pil_image.height
+                            logo_width = int(logo_height * aspect)
+                            pil_image = pil_image.resize((logo_width, logo_height), Image.LANCZOS)
+
+                            if pil_image.mode == 'RGBA':
+                                image_str = pil_image.tobytes()
+                                logo_surface = pygame.image.fromstring(image_str, (logo_width, logo_height), 'RGBA')
+                            else:
+                                image_str = pil_image.tobytes()
+                                logo_surface = pygame.image.fromstring(image_str, (logo_width, logo_height), 'RGB')
+                        else:
+                            logo_surface = pygame.image.load(image_data)
+                            logo_height_target = int(self.height * 0.12)
+                            aspect = logo_surface.get_width() / logo_surface.get_height()
+                            logo_surface = pygame.transform.smoothscale(logo_surface, (int(logo_height_target * aspect), logo_height_target))
+
+                        pygame.image.save(logo_surface, str(cache_file))
+                        self._cached_photos[cache_key] = logo_surface
+                        self._logo_surface = logo_surface
+                        print(f"[LOGO] Terminal-Logo geladen ({logo_surface.get_width()}x{logo_surface.get_height()})")
+                        self._needs_full_redraw = True
+                        return
+
+                # Kein Logo konfiguriert
+                if self._logo_surface is not None:
+                    self._logo_surface = None
+                    self._needs_full_redraw = True
+        except Exception as e:
+            print(f"[LOGO] Fehler beim Laden: {e}")
+
     def _draw_clock(self):
         """Zeichnet Uhrzeit und Datum - groß und zentriert"""
         now = datetime.now()
@@ -572,7 +746,7 @@ class HDMIDisplay:
         self.screen.blit(count_surface, count_rect)
 
         # Trennlinie
-        sep_y = card_y + padding + 30
+        sep_y = card_y + padding + 52
         pygame.draw.line(self.screen, COLORS['card_border'],
                          (margin + padding, sep_y), (margin + card_width - padding, sep_y))
 
@@ -601,7 +775,7 @@ class HDMIDisplay:
                 if isinstance(clock_in, str) and clock_in:
                     dt = datetime.fromisoformat(clock_in.replace('Z', '+00:00'))
                     local_dt = dt.astimezone()
-                    time_str = f"seit {local_dt.strftime('%H:%M')}"
+                    time_str = f"seit {local_dt.strftime('%d.%m. %H:%M')}"
                 else:
                     time_str = ""
             except Exception:
@@ -827,9 +1001,27 @@ class HDMIDisplay:
 
         # Normaler Idle-Bildschirm
         self._draw_gradient_background()
+
+        # Logo laden (im Hintergrund, alle 5 Min)
+        self._load_logo()
+
+        # Logo oben links zeichnen
+        if self._logo_surface:
+            margin_x = int(self.width * 0.03)
+            margin_y = int(self.height * 0.01)
+            self.screen.blit(self._logo_surface, (margin_x, margin_y))
+
         clock_bottom = self._draw_clock()
         self._draw_active_employees(clock_bottom)
         self._draw_status_bar()
+
+        # Settings-Icon (Zahnrad, oben rechts)
+        if self.wifi_ui:
+            gear_x = self.width - 25
+            gear_y = 15
+            pygame.draw.circle(self.screen, (71, 85, 105), (gear_x, gear_y), 12)
+            pygame.draw.circle(self.screen, (148, 163, 184), (gear_x, gear_y), 8, 2)
+            pygame.draw.circle(self.screen, (148, 163, 184), (gear_x, gear_y), 4)
 
         pygame.display.flip()
 
@@ -860,6 +1052,29 @@ class HDMIDisplay:
                     elif event.type == pygame.KEYDOWN:
                         if event.key in (pygame.K_ESCAPE, pygame.K_q):
                             self.running = False
+                    elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                        pos = event.pos
+                        # WLAN-UI aktiv?
+                        if self.wifi_ui and self.wifi_ui.visible:
+                            closed = self.wifi_ui.handle_touch(pos)
+                            if closed:
+                                self._needs_full_redraw = True
+                        else:
+                            # Settings-Button (oben rechts, 40x40)
+                            settings_rect = pygame.Rect(self.width - 45, 5, 40, 40)
+                            if settings_rect.collidepoint(pos) and self.wifi_ui:
+                                self.wifi_ui.show()
+                    elif event.type == pygame.FINGERDOWN:
+                        # Touch-Event normalisieren
+                        pos = (int(event.x * self.width), int(event.y * self.height))
+                        if self.wifi_ui and self.wifi_ui.visible:
+                            closed = self.wifi_ui.handle_touch(pos)
+                            if closed:
+                                self._needs_full_redraw = True
+                        else:
+                            settings_rect = pygame.Rect(self.width - 45, 5, 40, 40)
+                            if settings_rect.collidepoint(pos) and self.wifi_ui:
+                                self.wifi_ui.show()
 
                 now = time.time()
                 current_second = int(now)
@@ -867,7 +1082,7 @@ class HDMIDisplay:
                 # IP alle 60 Sekunden aktualisieren
                 if now - self._last_ip_check > 60:
                     self._last_ip_check = now
-                    self.eth0_ip = get_eth0_ip()
+                    self.eth0_ip = get_network_ip()
 
                 # Change-Detection
                 current_hash = self._get_data_hash()
@@ -888,7 +1103,11 @@ class HDMIDisplay:
                     self._needs_full_redraw = False
 
                 if needs_draw:
-                    self.draw()
+                    if self.wifi_ui and self.wifi_ui.visible:
+                        self.wifi_ui.draw()
+                        pygame.display.flip()
+                    else:
+                        self.draw()
 
                 if self._needs_animation():
                     clock.tick(30)
@@ -897,7 +1116,7 @@ class HDMIDisplay:
 
         finally:
             self.running = False
-            if self.sio.connected:
+            if self.sio and self.sio.connected:
                 self.sio.disconnect()
             pygame.quit()
 

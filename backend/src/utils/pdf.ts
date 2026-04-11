@@ -240,20 +240,14 @@ export async function generateMonthlyReportPDF(data: ReportData): Promise<void> 
       const leftMargin = 30;
 
       // --- HEADER ---
-      doc.fontSize(16).font('Helvetica-Bold');
-      doc.text('Zeiterfassung - Kurzübersicht', leftMargin, 30);
-      doc.text(`${MONTH_NAMES[report.month - 1]} ${report.year}`, leftMargin, 30, { align: 'right' });
+      doc.fontSize(14).font('Helvetica-Bold');
+      doc.text(`Zeiterfassung - ${employee.firstName} ${employee.lastName}`, leftMargin, 30, { width: pageWidth * 0.6, lineBreak: false });
+      doc.text(`${MONTH_NAMES[report.month - 1]} ${report.year}`, leftMargin, 30, { width: pageWidth, align: 'right', lineBreak: false });
 
-      doc.moveDown(0.5);
+      doc.fontSize(9).font('Helvetica');
+      doc.text(`#${employee.employeeNumber} | ${employee.weeklyHours} h/Woche | gedruckt am ${new Date().toLocaleDateString('de-DE')}`, leftMargin, 48, { lineBreak: false });
 
-      // Mitarbeiter + Druckdatum
-      doc.fontSize(12).font('Helvetica-Bold');
-      doc.text(`${employee.firstName} ${employee.lastName}`, leftMargin);
-      doc.font('Helvetica').fontSize(10);
-      const printDate = new Date().toLocaleDateString('de-DE');
-      doc.text(`gedruckt am ${printDate}`, leftMargin, doc.y - 14, { align: 'right' });
-
-      doc.moveDown(0.5);
+      doc.y = 62;
 
       // Urlaubstage und Krankheitstage zählen
       let vacationDays = 0;
@@ -272,88 +266,124 @@ export async function generateMonthlyReportPDF(data: ReportData): Promise<void> 
       const totalWorkedMinutes = Math.round(report.totalHours * 60);
       const diffMinutes = totalWorkedMinutes - totalTargetMinutes;
 
-      // Box zeichnen
-      doc.rect(leftMargin, summaryY, pageWidth, 110).stroke();
-
-      // Banner Titel
-      doc.fontSize(12).font('Helvetica-Bold');
-      doc.text('Zusammenfassung', leftMargin + 10, summaryY + 8);
-
-      // Zusammenfassungs-Daten in 4 Spalten, 2 Reihen
+      // Box + Zusammenfassung: Automatische Seitenerstellung deaktivieren
+      const origBufferedPageRange = (doc as any).bufferedPageRange;
       const colWidth = pageWidth / 4;
       const dataY = summaryY + 28;
-
-      // --- Reihe 1 ---
-
-      // Spalte 1: Gesamtstunden
-      doc.fontSize(10).font('Helvetica-Bold');
-      doc.text('Gesamtstunden', leftMargin + 10, dataY);
-      doc.font('Helvetica').fontSize(11);
-      doc.text(formatMinutes(totalWorkedMinutes), leftMargin + 10, dataY + 14);
-
-      // Spalte 2: Soll-Stunden
-      doc.fontSize(10).font('Helvetica-Bold');
-      doc.text('Soll-Stunden', leftMargin + colWidth + 10, dataY);
-      doc.font('Helvetica').fontSize(11);
-      doc.text(formatMinutes(totalTargetMinutes), leftMargin + colWidth + 10, dataY + 14);
-
-      // Spalte 3: Differenz Monat
-      doc.fontSize(10).font('Helvetica-Bold');
-      doc.text('Differenz Monat', leftMargin + colWidth * 2 + 10, dataY);
-      doc.font('Helvetica').fontSize(11);
-      const diffColor = diffMinutes >= 0 ? '#228B22' : '#DC143C';
-      doc.fillColor(diffColor);
-      doc.text(formatMinutes(diffMinutes), leftMargin + colWidth * 2 + 10, dataY + 14);
-      doc.fillColor('#000000');
-
-      // Spalte 4: Urlaubstage
-      doc.fontSize(10).font('Helvetica-Bold');
-      doc.text('Urlaubstage', leftMargin + colWidth * 3 + 10, dataY);
-      doc.font('Helvetica').fontSize(11);
-      doc.text(`${report.vacationDaysUsed} / ${employee.vacationDaysPerYear}`, leftMargin + colWidth * 3 + 10, dataY + 14);
-
-      // --- Reihe 2 (Übertrag) ---
       const dataY2 = dataY + 36;
-
-      // Spalte 1: Übertrag Vormonat
-      doc.fontSize(10).font('Helvetica-Bold');
-      doc.text('Übertrag Vormonat', leftMargin + 10, dataY2);
-      doc.font('Helvetica').fontSize(11);
       const prevBalance = report.previousOvertimeBalance || 0;
       const prevBalanceMinutes = Math.round(prevBalance * 60);
-      const prevColor = prevBalanceMinutes >= 0 ? '#228B22' : '#DC143C';
-      doc.fillColor(prevColor);
-      doc.text(formatMinutes(prevBalanceMinutes), leftMargin + 10, dataY2 + 14);
-      doc.fillColor('#000000');
-
-      // Spalte 2: Überstunden-Saldo
-      doc.fontSize(10).font('Helvetica-Bold');
-      doc.text('Überstunden-Saldo', leftMargin + colWidth + 10, dataY2);
-      doc.font('Helvetica-Bold').fontSize(11);
       const cumBalance = report.cumulativeOvertimeBalance || 0;
       const cumBalanceMinutes = Math.round(cumBalance * 60);
+      const diffColor = diffMinutes >= 0 ? '#228B22' : '#DC143C';
+      const prevColor = prevBalanceMinutes >= 0 ? '#228B22' : '#DC143C';
       const cumColor = cumBalanceMinutes >= 0 ? '#228B22' : '#DC143C';
-      doc.fillColor(cumColor);
-      doc.text(formatMinutes(cumBalanceMinutes), leftMargin + colWidth + 10, dataY2 + 14);
+
+      // Hilfsfunktion: Text ohne Cursor-Bewegung und ohne Seitenumbruch
+      const t = (text: string, x: number, y: number, opts: any = {}) => {
+        doc.y = y; // Cursor VOR dem Text auf die richtige Position setzen
+        doc.text(text, x, y, { ...opts, lineBreak: false, height: 15 });
+        doc.y = y; // Cursor nach dem Text zurücksetzen
+      };
+
+      // "bis einschl." Text VOR der Box
+      doc.fontSize(9).font('Helvetica');
+      t(`bis einschl. ${MONTH_NAMES[report.month - 1]}: Urlaub ${vacationDays} Tage, krank ${sickDays} Tage`, leftMargin + pageWidth - 280, summaryY - 12, { width: 280 });
+
+      // Box (etwas höher für mehr Platz)
+      doc.rect(leftMargin, summaryY, pageWidth, 115).stroke();
+
+      // Titel
+      doc.fontSize(12).font('Helvetica-Bold');
+      t('Zusammenfassung', leftMargin + 10, summaryY + 8);
+      // Arbeitskategorie (optional, rechts neben Zusammenfassung)
+      const workCat = (data as any).workCategory;
+      if (workCat) {
+        doc.fontSize(9).font('Helvetica');
+        t(`Kategorie: ${workCat.name} (ab ${workCat.earliestClockIn} Uhr)`, leftMargin + pageWidth - 200, summaryY + 10, { width: 190, align: 'right' });
+      }
+
+      // Reihe 1
+      doc.fontSize(10).font('Helvetica-Bold');
+      t('Gesamtstunden', leftMargin + 10, dataY);
+      doc.font('Helvetica').fontSize(11);
+      t(formatMinutes(totalWorkedMinutes), leftMargin + 10, dataY + 14);
+
+      doc.fontSize(10).font('Helvetica-Bold');
+      t('Soll-Stunden', leftMargin + colWidth + 10, dataY);
+      doc.font('Helvetica').fontSize(11);
+      t(formatMinutes(totalTargetMinutes), leftMargin + colWidth + 10, dataY + 14);
+
+      doc.fontSize(10).font('Helvetica-Bold');
+      t('Differenz Monat', leftMargin + colWidth * 2 + 10, dataY);
+      doc.font('Helvetica').fontSize(11).fillColor(diffColor);
+      t(formatMinutes(diffMinutes), leftMargin + colWidth * 2 + 10, dataY + 14);
       doc.fillColor('#000000');
-      doc.font('Helvetica');
 
-      // Spalte 3: Krank (Monat)
       doc.fontSize(10).font('Helvetica-Bold');
-      doc.text('Krank (Monat)', leftMargin + colWidth * 2 + 10, dataY2);
+      t('Urlaubstage', leftMargin + colWidth * 3 + 10, dataY);
       doc.font('Helvetica').fontSize(11);
-      doc.text(`${report.sickDaysThisMonth || 0} Tage`, leftMargin + colWidth * 2 + 10, dataY2 + 14);
+      // Adjustments im Gesamt berücksichtigen
+      const adjList2 = (report as any).vacationAdjustments || [];
+      const adjTotal = adjList2.reduce((s: number, a: any) => s + a.days, 0);
+      const vacTotal = employee.vacationDaysPerYear + adjTotal;
+      t(`${report.vacationDaysUsed} / ${vacTotal}`, leftMargin + colWidth * 3 + 10, dataY + 14);
 
-      // Spalte 4: Krank (Jahr)
+      // Reihe 2
       doc.fontSize(10).font('Helvetica-Bold');
-      doc.text('Krank (Jahr)', leftMargin + colWidth * 3 + 10, dataY2);
+      t('Übertrag Vormonat', leftMargin + 10, dataY2);
+      doc.font('Helvetica').fontSize(11).fillColor(prevColor);
+      t(formatMinutes(prevBalanceMinutes), leftMargin + 10, dataY2 + 14);
+      doc.fillColor('#000000');
+
+      doc.fontSize(9).font('Helvetica-Bold');
+      t('Überstunden-Saldo', leftMargin + colWidth + 10, dataY2);
+      doc.font('Helvetica-Bold').fontSize(11).fillColor(cumColor);
+      t(formatMinutes(cumBalanceMinutes), leftMargin + colWidth + 10, dataY2 + 13);
+      doc.fillColor('#000000').font('Helvetica');
+
+      doc.fontSize(10).font('Helvetica-Bold');
+      t('Krank (Monat)', leftMargin + colWidth * 2 + 10, dataY2);
       doc.font('Helvetica').fontSize(11);
-      doc.text(`${report.sickDaysTotal || 0} Tage`, leftMargin + colWidth * 3 + 10, dataY2 + 14);
+      t(`${report.sickDaysThisMonth || 0} Tage`, leftMargin + colWidth * 2 + 10, dataY2 + 14);
 
-      doc.y = summaryY + 120;
+      doc.fontSize(10).font('Helvetica-Bold');
+      t('Krank (Jahr)', leftMargin + colWidth * 3 + 10, dataY2);
+      doc.font('Helvetica').fontSize(11);
+      t(`${report.sickDaysTotal || 0} Tage`, leftMargin + colWidth * 3 + 10, dataY2 + 14);
 
-      doc.fontSize(10).font('Helvetica');
-      doc.text(`bis einschl. ${MONTH_NAMES[report.month - 1]}: Urlaub ${vacationDays} Tage, krank ${sickDays} Tage`, leftMargin, doc.y, { align: 'right' });
+      // Cursor nach der Box setzen
+      doc.y = summaryY + 122;
+
+      // Minusstunden-Urlaubsabzug Hinweis
+      if ((report as any).vacationDeductionDays > 0) {
+        doc.moveDown(0.3);
+        const deductY = doc.y;
+        doc.rect(leftMargin, deductY, pageWidth, 22).fillAndStroke('#FEF3C7', '#F59E0B');
+        doc.fillColor('#92400E').fontSize(9).font('Helvetica-Bold');
+        doc.text(
+          `Hinweis: In dieser Abrechnung wurden ${(report as any).vacationDeductionDays} Urlaubstag(e) für ${(report as any).vacationDeductionHours}h Minusstunden-Ausgleich abgezogen.`,
+          leftMargin + 8, deductY + 6, { width: pageWidth - 16 }
+        );
+        doc.fillColor('#000000').font('Helvetica');
+        doc.y = deductY + 26;
+      }
+
+      // Urlaubsanpassung Hinweis
+      const adjList = (report as any).vacationAdjustments || [];
+      if (adjList.length > 0) {
+        doc.moveDown(0.3);
+        const adjY = doc.y;
+        const adjText = adjList.map((a: any) => {
+          const mNames = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+          return `${mNames[a.month - 1]}: ${a.days > 0 ? '+' : ''}${a.days} Tag(e) – ${a.reason}`;
+        }).join('; ');
+        doc.rect(leftMargin, adjY, pageWidth, 22).fillAndStroke('#DBEAFE', '#3B82F6');
+        doc.fillColor('#1E40AF').fontSize(9).font('Helvetica-Bold');
+        t(`Urlaubsanpassung: ${adjText}`, leftMargin + 8, adjY + 6, { width: pageWidth - 16 });
+        doc.fillColor('#000000').font('Helvetica');
+        doc.y = adjY + 26;
+      }
 
       doc.moveDown(1);
 
@@ -375,21 +405,22 @@ export async function generateMonthlyReportPDF(data: ReportData): Promise<void> 
 
       // Header
       doc.fontSize(9).font('Helvetica-Bold');
-      doc.text('Datum', x, tableTop); x += colWidths.datum;
-      doc.text('Dienst', x, tableTop); x += colWidths.dienst;
-      doc.text('Beginn', x, tableTop); x += colWidths.beginn;
-      doc.text('Ende', x, tableTop); x += colWidths.ende;
-      doc.text('Pausen', x, tableTop, { width: colWidths.pausen - 5, align: 'right' }); x += colWidths.pausen;
-      doc.text('Netto', x, tableTop, { width: colWidths.netto - 5, align: 'right' }); x += colWidths.netto;
-      doc.text('Soll', x, tableTop, { width: colWidths.soll - 5, align: 'right' }); x += colWidths.soll;
-      doc.text('Tag+/-', x, tableTop, { width: colWidths.tagDiff - 5, align: 'right' }); x += colWidths.tagDiff;
-      doc.text('Monat+/-', x, tableTop, { width: colWidths.monatDiff - 5, align: 'right' });
+      t('Datum', x, tableTop); x += colWidths.datum;
+      t('Dienst', x, tableTop); x += colWidths.dienst;
+      t('Beginn', x, tableTop); x += colWidths.beginn;
+      t('Ende', x, tableTop); x += colWidths.ende;
+      t('Pausen', x, tableTop, { width: colWidths.pausen - 5, align: 'right' }); x += colWidths.pausen;
+      t('Netto', x, tableTop, { width: colWidths.netto - 5, align: 'right' }); x += colWidths.netto;
+      t('Soll', x, tableTop, { width: colWidths.soll - 5, align: 'right' }); x += colWidths.soll;
+      t('Tag+/-', x, tableTop, { width: colWidths.tagDiff - 5, align: 'right' }); x += colWidths.tagDiff;
+      t('Monat+/-', x, tableTop, { width: colWidths.monatDiff - 5, align: 'right' });
 
       // Linie unter Header
       doc.moveTo(leftMargin, tableTop + 14).lineTo(leftMargin + pageWidth, tableTop + 14).stroke();
 
       let y = tableTop + 18;
-      let runningTotal = 0;
+      // Monat+/- startet mit dem Übertrag vom Vormonat
+      let runningTotal = Math.round((report.previousOvertimeBalance || 0) * 60);
 
       doc.font('Helvetica').fontSize(9);
 
@@ -412,8 +443,8 @@ export async function generateMonthlyReportPDF(data: ReportData): Promise<void> 
           dienstTyp = 'frei';
         } else if (day.entries.length > 0) {
           dienstTyp = 'Tagdienst';
-        } else {
-          dienstTyp = '';
+        } else if (day.isWorkDay) {
+          dienstTyp = 'Abwesend';
         }
 
         // Zeiten
@@ -430,10 +461,10 @@ export async function generateMonthlyReportPDF(data: ReportData): Promise<void> 
 
         const pausen = day.breakMinutes > 0 ? formatMinutes(day.breakMinutes) : '';
         const netto = day.netMinutes > 0 ? formatMinutes(day.netMinutes) : '';
-        const soll = day.targetMinutes > 0 ? formatMinutes(day.targetMinutes) : '';
+        const soll = formatMinutes(day.targetMinutes);
 
         runningTotal += day.diffMinutes;
-        const tagDiff = day.diffMinutes !== 0 ? formatMinutes(day.diffMinutes) : '';
+        const tagDiff = formatMinutes(day.diffMinutes);
         const monatDiff = formatMinutes(runningTotal);
 
         // Zeile zeichnen
@@ -441,15 +472,15 @@ export async function generateMonthlyReportPDF(data: ReportData): Promise<void> 
         const rowColor = !day.isWorkDay ? '#888888' : '#000000';
         doc.fillColor(rowColor);
 
-        doc.text(dateFormatted, x, y, { width: colWidths.datum - 5 }); x += colWidths.datum;
-        doc.text(dienstTyp, x, y, { width: colWidths.dienst - 5 }); x += colWidths.dienst;
-        doc.text(beginn, x, y, { width: colWidths.beginn - 5 }); x += colWidths.beginn;
-        doc.text(ende, x, y, { width: colWidths.ende - 5 }); x += colWidths.ende;
-        doc.text(pausen, x, y, { width: colWidths.pausen - 5, align: 'right' }); x += colWidths.pausen;
-        doc.text(netto, x, y, { width: colWidths.netto - 5, align: 'right' }); x += colWidths.netto;
-        doc.text(soll, x, y, { width: colWidths.soll - 5, align: 'right' }); x += colWidths.soll;
-        doc.text(tagDiff, x, y, { width: colWidths.tagDiff - 5, align: 'right' }); x += colWidths.tagDiff;
-        doc.text(monatDiff, x, y, { width: colWidths.monatDiff - 5, align: 'right' });
+        t(dateFormatted, x, y, { width: colWidths.datum - 5 }); x += colWidths.datum;
+        t(dienstTyp, x, y, { width: colWidths.dienst - 5 }); x += colWidths.dienst;
+        t(beginn, x, y, { width: colWidths.beginn - 5 }); x += colWidths.beginn;
+        t(ende, x, y, { width: colWidths.ende - 5 }); x += colWidths.ende;
+        t(pausen, x, y, { width: colWidths.pausen - 5, align: 'right' }); x += colWidths.pausen;
+        t(netto, x, y, { width: colWidths.netto - 5, align: 'right' }); x += colWidths.netto;
+        t(soll, x, y, { width: colWidths.soll - 5, align: 'right' }); x += colWidths.soll;
+        t(tagDiff, x, y, { width: colWidths.tagDiff - 5, align: 'right' }); x += colWidths.tagDiff;
+        t(monatDiff, x, y, { width: colWidths.monatDiff - 5, align: 'right' });
 
         doc.fillColor('#000000');
         y += 16;
@@ -487,40 +518,42 @@ export async function generateMonthlyReportPDF(data: ReportData): Promise<void> 
       const valueWidth = 55;
 
       // Zeile 1
-      doc.text('Gesamt-Soll', footerCol1, y, { width: labelWidth });
-      doc.font('Helvetica').text(formatMinutes(footerTotalTargetMinutes), footerCol1 + labelWidth, y, { width: valueWidth, align: 'right' });
-      doc.font('Helvetica-Bold').text('Urlaub', footerCol2, y, { width: labelWidth });
-      doc.font('Helvetica').text(formatMinutes(vacationDays * dailyTargetMinutes), footerCol2 + labelWidth, y, { width: valueWidth, align: 'right' });
-      doc.font('Helvetica-Bold').text('Feiertage', footerCol3, y, { width: labelWidth });
-      doc.font('Helvetica').text(formatMinutes(holidayCount * dailyTargetMinutes), footerCol3 + labelWidth, y, { width: valueWidth, align: 'right' });
+      doc.font('Helvetica-Bold'); t('Gesamt-Soll', footerCol1, y, { width: labelWidth });
+      doc.font('Helvetica'); t(formatMinutes(footerTotalTargetMinutes), footerCol1 + labelWidth, y, { width: valueWidth, align: 'right' });
+      doc.font('Helvetica-Bold'); t('Urlaub', footerCol2, y, { width: labelWidth });
+      doc.font('Helvetica'); t(formatMinutes(vacationDays * dailyTargetMinutes), footerCol2 + labelWidth, y, { width: valueWidth, align: 'right' });
+      doc.font('Helvetica-Bold'); t('Feiertage', footerCol3, y, { width: labelWidth });
+      doc.font('Helvetica'); t(formatMinutes(holidayCount * dailyTargetMinutes), footerCol3 + labelWidth, y, { width: valueWidth, align: 'right' });
 
       y += 16;
       // Zeile 2
-      doc.font('Helvetica-Bold').text('Arbeitszeit', footerCol1, y, { width: labelWidth });
-      doc.font('Helvetica').text(formatMinutes(footerTotalWorkedMinutes), footerCol1 + labelWidth, y, { width: valueWidth, align: 'right' });
-      doc.font('Helvetica-Bold').text('krank', footerCol2, y, { width: labelWidth });
-      doc.font('Helvetica').text(formatMinutes(sickDays * dailyTargetMinutes), footerCol2 + labelWidth, y, { width: valueWidth, align: 'right' });
-      doc.font('Helvetica-Bold').text('Gesamtsumme', footerCol3, y, { width: labelWidth });
-      doc.font('Helvetica').text(formatMinutes(footerTotalWorkedMinutes), footerCol3 + labelWidth, y, { width: valueWidth, align: 'right' });
+      doc.font('Helvetica-Bold'); t('Arbeitszeit', footerCol1, y, { width: labelWidth });
+      doc.font('Helvetica'); t(formatMinutes(footerTotalWorkedMinutes), footerCol1 + labelWidth, y, { width: valueWidth, align: 'right' });
+      doc.font('Helvetica-Bold'); t('krank', footerCol2, y, { width: labelWidth });
+      doc.font('Helvetica'); t(formatMinutes(sickDays * dailyTargetMinutes), footerCol2 + labelWidth, y, { width: valueWidth, align: 'right' });
+      doc.font('Helvetica-Bold'); t('Gesamtsumme', footerCol3, y, { width: labelWidth });
+      doc.font('Helvetica'); t(formatMinutes(footerTotalWorkedMinutes), footerCol3 + labelWidth, y, { width: valueWidth, align: 'right' });
 
       y += 16;
       // Zeile 3
-      doc.font('Helvetica-Bold').text('Differenz', footerCol1, y, { width: labelWidth });
-      doc.font('Helvetica').text(formatMinutes(footerDiffMinutes), footerCol1 + labelWidth, y, { width: valueWidth, align: 'right' });
-      doc.font('Helvetica-Bold').text('Krank (Jahr)', footerCol2, y, { width: labelWidth });
-      doc.font('Helvetica').text(`${report.sickDaysTotal || 0} Tage`, footerCol2 + labelWidth, y, { width: valueWidth, align: 'right' });
+      doc.font('Helvetica-Bold'); t('Differenz', footerCol1, y, { width: labelWidth });
+      doc.font('Helvetica'); t(formatMinutes(footerDiffMinutes), footerCol1 + labelWidth, y, { width: valueWidth, align: 'right' });
+      doc.font('Helvetica-Bold'); t('Krank (Jahr)', footerCol2, y, { width: labelWidth });
+      doc.font('Helvetica'); t(`${report.sickDaysTotal || 0} Tage`, footerCol2 + labelWidth, y, { width: valueWidth, align: 'right' });
 
       y += 16;
       // Zeile 4: Übertrag
       const footerPrevBalance = Math.round((report.previousOvertimeBalance || 0) * 60);
       const footerCumBalance = Math.round((report.cumulativeOvertimeBalance || 0) * 60);
-      doc.font('Helvetica-Bold').text('Übertrag Vorm.', footerCol1, y, { width: labelWidth });
-      doc.font('Helvetica').text(formatMinutes(footerPrevBalance), footerCol1 + labelWidth, y, { width: valueWidth, align: 'right' });
-      doc.font('Helvetica-Bold').text('Überstunden-Saldo', footerCol2, y, { width: labelWidth + 10 });
+      doc.font('Helvetica-Bold'); t('Übertrag Vorm.', footerCol1, y, { width: labelWidth });
+      doc.font('Helvetica'); t(formatMinutes(footerPrevBalance), footerCol1 + labelWidth, y, { width: valueWidth, align: 'right' });
+      doc.font('Helvetica-Bold').fontSize(8); t('Überstunden-Saldo', footerCol2, y + 1, { width: labelWidth + 15 });
+      doc.fontSize(10);
       const footerCumColor = footerCumBalance >= 0 ? '#228B22' : '#DC143C';
       doc.font('Helvetica-Bold').fillColor(footerCumColor);
-      doc.text(formatMinutes(footerCumBalance), footerCol2 + labelWidth, y, { width: valueWidth, align: 'right' });
+      t(formatMinutes(footerCumBalance), footerCol2 + labelWidth + 5, y, { width: valueWidth, align: 'right' });
       doc.fillColor('#000000').font('Helvetica');
+      doc.y = y + 20;
 
       // Notizen
       if (report.notes) {

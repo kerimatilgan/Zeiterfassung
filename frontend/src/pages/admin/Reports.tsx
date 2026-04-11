@@ -4,8 +4,8 @@ import { reportsApi, employeesApi } from '../../lib/api';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import toast from 'react-hot-toast';
-import { FileText, Download, Check, Trash2, Eye, Plus, X, RefreshCw, Edit2, Calendar } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { FileText, Download, Check, Trash2, Eye, Plus, X, RefreshCw, Edit2, Calendar, Filter, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 // Formatiert Dezimalstunden zu H:MM Format (unterstützt negative Werte)
 const formatHoursToTime = (hours: number): string => {
@@ -30,6 +30,22 @@ export default function AdminReports() {
   const [selectedEmployee, setSelectedEmployee] = useState('');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  const [applyDeduction, setApplyDeduction] = useState(true);
+  const [customDeductionDays, setCustomDeductionDays] = useState(0);
+  // Batch-Modus (alle MA)
+  const [batchEmployees, setBatchEmployees] = useState<any[]>([]);
+  const [batchIndex, setBatchIndex] = useState(0);
+  const [batchCreated, setBatchCreated] = useState<Set<string>>(new Set());
+  const [batchSkipped, setBatchSkipped] = useState<Set<string>>(new Set());
+  const [batchDone, setBatchDone] = useState(false);
+  const isBatchMode = batchEmployees.length > 0;
+
+  // Filter state (status from URL param if present)
+  const [searchParams] = useSearchParams();
+  const [filterEmployee, setFilterEmployee] = useState('');
+  const [filterYear, setFilterYear] = useState<number | ''>(new Date().getFullYear());
+  const [filterMonth, setFilterMonth] = useState<number | ''>(new Date().getMonth() + 1);
+  const [filterStatus, setFilterStatus] = useState<string>(searchParams.get('status') || '');
 
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -60,9 +76,16 @@ export default function AdminReports() {
       reportsApi.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reports'] });
-      toast.success('Abrechnung erstellt');
-      setShowCreateModal(false);
-      setShowPreviewModal(false);
+      if (isBatchMode) {
+        const empName = batchEmployees[batchIndex];
+        toast.success(`Abrechnung für ${empName?.lastName} erstellt`);
+        setBatchCreated(prev => new Set(prev).add(selectedEmployee));
+        navigateBatchNext();
+      } else {
+        toast.success('Abrechnung erstellt');
+        setShowCreateModal(false);
+        setShowPreviewModal(false);
+      }
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.error || 'Fehler beim Erstellen');
@@ -90,6 +113,64 @@ export default function AdminReports() {
       toast.error(error.response?.data?.error || 'Fehler beim Löschen');
     },
   });
+
+  // Batch-Navigation
+  const navigateBatchTo = (index: number) => {
+    setBatchIndex(index);
+    const emp = batchEmployees[index];
+    setSelectedEmployee(emp.id);
+    setCustomDeductionDays(0);
+    setApplyDeduction(true);
+    previewMutation.mutate();
+  };
+
+  const navigateBatchNext = () => {
+    if (batchIndex < batchEmployees.length - 1) {
+      navigateBatchTo(batchIndex + 1);
+    } else {
+      setBatchDone(true);
+    }
+  };
+
+  const handleBatchStart = () => {
+    const activeEmps = (employees || [])
+      .filter((e: any) => e.isActive && !e.isAdmin)
+      .sort((a: any, b: any) => a.lastName.localeCompare(b.lastName));
+
+    // MAs rausfiltern die schon eine Abrechnung für den Monat haben
+    const existingReportEmpIds = new Set(
+      (reports || [])
+        .filter((r: any) => r.year === selectedYear && r.month === selectedMonth)
+        .map((r: any) => r.employeeId)
+    );
+    const eligible = activeEmps.filter((e: any) => !existingReportEmpIds.has(e.id));
+
+    if (eligible.length === 0) {
+      toast.error('Alle Mitarbeiter haben bereits eine Abrechnung für diesen Monat');
+      return;
+    }
+
+    setBatchEmployees(eligible);
+    setBatchIndex(0);
+    setBatchCreated(new Set());
+    setBatchSkipped(new Set());
+    setBatchDone(false);
+    setSelectedEmployee(eligible[0].id);
+    setCustomDeductionDays(0);
+    setApplyDeduction(true);
+    setShowCreateModal(false);
+    previewMutation.mutate();
+  };
+
+  const closeBatch = () => {
+    setBatchEmployees([]);
+    setBatchIndex(0);
+    setBatchCreated(new Set());
+    setBatchSkipped(new Set());
+    setBatchDone(false);
+    setShowPreviewModal(false);
+    setPreviewData(null);
+  };
 
   const recalculateMutation = useMutation({
     mutationFn: (id: string) => reportsApi.recalculate(id),
@@ -136,7 +217,7 @@ export default function AdminReports() {
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `Vorschau_${report.employee.employeeNumber}_${report.year}_${report.month}.pdf`);
+      link.setAttribute('download', `Vorschau_${report.employee.lastName}_${report.employee.firstName}_${String(report.month).padStart(2, '0')}_${report.year}.pdf`);
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -177,6 +258,77 @@ export default function AdminReports() {
         </button>
       </div>
 
+      {/* Filters */}
+      <div className="card p-4">
+        <div className="flex flex-wrap items-end gap-4">
+          <div className="flex items-center gap-2 text-gray-500">
+            <Filter size={18} />
+            <span className="text-sm font-medium">Filter:</span>
+          </div>
+          <div className="min-w-[180px]">
+            <label className="label text-xs">Mitarbeiter</label>
+            <select
+              value={filterEmployee}
+              onChange={(e) => setFilterEmployee(e.target.value)}
+              className="input py-1.5 text-sm"
+            >
+              <option value="">Alle</option>
+              {employees?.map((emp: any) => (
+                <option key={emp.id} value={emp.id}>
+                  {emp.firstName} {emp.lastName}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="min-w-[100px]">
+            <label className="label text-xs">Jahr</label>
+            <select
+              value={filterYear}
+              onChange={(e) => setFilterYear(e.target.value ? parseInt(e.target.value) : '')}
+              className="input py-1.5 text-sm"
+            >
+              <option value="">Alle</option>
+              {[2023, 2024, 2025, 2026, 2027].map((y) => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+          </div>
+          <div className="min-w-[120px]">
+            <label className="label text-xs">Monat</label>
+            <select
+              value={filterMonth}
+              onChange={(e) => setFilterMonth(e.target.value ? parseInt(e.target.value) : '')}
+              className="input py-1.5 text-sm"
+            >
+              <option value="">Alle</option>
+              {MONTHS.map((m, i) => (
+                <option key={i} value={i + 1}>{m}</option>
+              ))}
+            </select>
+          </div>
+          <div className="min-w-[120px]">
+            <label className="label text-xs">Status</label>
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="input py-1.5 text-sm"
+            >
+              <option value="">Alle</option>
+              <option value="draft">Entwurf</option>
+              <option value="finalized">Finalisiert</option>
+            </select>
+          </div>
+          {(filterEmployee || filterYear || filterMonth || filterStatus) && (
+            <button
+              onClick={() => { setFilterEmployee(''); setFilterYear(''); setFilterMonth(''); setFilterStatus(''); }}
+              className="text-sm text-primary-600 hover:text-primary-700 hover:underline pb-1"
+            >
+              Zurücksetzen
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Table */}
       <div className="card overflow-hidden">
         <div className="overflow-x-auto">
@@ -201,14 +353,22 @@ export default function AdminReports() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {isLoading ? (
+              {(() => {
+                const filteredReports = reports?.filter((r: any) => {
+                  if (filterEmployee && r.employeeId !== filterEmployee) return false;
+                  if (filterYear && r.year !== filterYear) return false;
+                  if (filterMonth && r.month !== filterMonth) return false;
+                  if (filterStatus && r.status !== filterStatus) return false;
+                  return true;
+                });
+                return isLoading ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
                     Laden...
                   </td>
                 </tr>
-              ) : reports?.length ? (
-                reports.map((report: any) => (
+              ) : filteredReports?.length ? (
+                filteredReports.map((report: any) => (
                   <tr key={report.id}>
                     <td className="px-6 py-4">
                       <p className="font-medium text-gray-900">
@@ -265,7 +425,7 @@ export default function AdminReports() {
                         {report.pdfPath && (
                           <button
                             onClick={() =>
-                              handleDownload(report.id, `Abrechnung_${report.employee.employeeNumber}_${report.year}_${report.month}.pdf`)
+                              handleDownload(report.id, `${report.employee.lastName}_${report.employee.firstName}_${String(report.month).padStart(2, '0')}_${report.year}.pdf`)
                             }
                             className="p-2 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
                             title="PDF herunterladen"
@@ -296,10 +456,11 @@ export default function AdminReports() {
               ) : (
                 <tr>
                   <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
-                    Keine Abrechnungen vorhanden
+                    {reports?.length ? 'Keine Abrechnungen für diesen Filter' : 'Keine Abrechnungen vorhanden'}
                   </td>
                 </tr>
-              )}
+              );
+              })()}
             </tbody>
           </table>
         </div>
@@ -327,9 +488,10 @@ export default function AdminReports() {
                   className="input"
                 >
                   <option value="">Bitte wählen...</option>
-                  {employees?.map((emp: any) => (
+                  <option value="__all__">-- Alle Mitarbeiter --</option>
+                  {employees?.filter((e: any) => e.isActive && !e.isAdmin).sort((a: any, b: any) => a.lastName.localeCompare(b.lastName)).map((emp: any) => (
                     <option key={emp.id} value={emp.id}>
-                      {emp.firstName} {emp.lastName}
+                      {emp.lastName}, {emp.firstName}
                     </option>
                   ))}
                 </select>
@@ -372,12 +534,12 @@ export default function AdminReports() {
                   Abbrechen
                 </button>
                 <button
-                  onClick={() => previewMutation.mutate()}
+                  onClick={() => selectedEmployee === '__all__' ? handleBatchStart() : previewMutation.mutate()}
                   disabled={!selectedEmployee || previewMutation.isPending}
                   className="btn btn-primary flex items-center gap-2"
                 >
                   <Eye size={18} />
-                  Vorschau
+                  {selectedEmployee === '__all__' ? 'Alle prüfen' : 'Vorschau'}
                 </button>
               </div>
             </div>
@@ -386,16 +548,39 @@ export default function AdminReports() {
       )}
 
       {/* Preview Modal */}
-      {showPreviewModal && previewData && (
+      {showPreviewModal && previewData && !batchDone && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-              <h2 className="text-xl font-semibold">
-                Vorschau: {previewData.period.monthName} {previewData.period.year}
-              </h2>
+              {isBatchMode && (
+                <button
+                  onClick={() => navigateBatchTo(batchIndex - 1)}
+                  disabled={batchIndex === 0 || previewMutation.isPending}
+                  className="p-2 hover:bg-gray-100 rounded-lg disabled:opacity-30"
+                >
+                  <ChevronLeft size={20} />
+                </button>
+              )}
+              <div className="text-center flex-1">
+                <h2 className="text-xl font-semibold">
+                  Vorschau: {previewData.period.monthName} {previewData.period.year}
+                </h2>
+                {isBatchMode && (
+                  <p className="text-sm text-gray-500">{batchIndex + 1} / {batchEmployees.length} Mitarbeiter</p>
+                )}
+              </div>
+              {isBatchMode && (
+                <button
+                  onClick={() => navigateBatchTo(batchIndex + 1)}
+                  disabled={batchIndex >= batchEmployees.length - 1 || previewMutation.isPending}
+                  className="p-2 hover:bg-gray-100 rounded-lg disabled:opacity-30"
+                >
+                  <ChevronRight size={20} />
+                </button>
+              )}
               <button
-                onClick={() => setShowPreviewModal(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg"
+                onClick={() => isBatchMode ? closeBatch() : setShowPreviewModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg ml-2"
               >
                 <X size={20} />
               </button>
@@ -444,8 +629,17 @@ export default function AdminReports() {
                 <div className="p-4 bg-green-50 rounded-lg">
                   <p className="text-sm text-green-600">Urlaubstage ({previewData.period.year})</p>
                   <p className="text-2xl font-bold text-green-700">
-                    {previewData.summary.vacationDaysUsed} / {previewData.employee.vacationDaysPerYear}
+                    {previewData.summary.vacationDaysUsed} / {previewData.employee.vacationDaysTotal ?? previewData.employee.vacationDaysPerYear}
                   </p>
+                  {previewData.summary.vacationAdjustments?.length > 0 && (
+                    <div className="mt-1.5 space-y-0.5">
+                      {previewData.summary.vacationAdjustments.map((a: any, i: number) => (
+                        <p key={i} className={`text-xs ${a.days > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {a.days > 0 ? '+' : ''}{a.days} Tag(e): {a.reason}
+                        </p>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 {(previewData.summary.sickDaysThisMonth > 0 || previewData.summary.sickDaysTotal > 0) && (
                   <div className="p-4 bg-red-50 rounded-lg">
@@ -487,29 +681,111 @@ export default function AdminReports() {
                 </div>
               )}
 
-              <div className="flex justify-end gap-3 pt-4 border-t">
+              {/* Minusstunden-Abzug Hinweis */}
+              {previewData.summary.suggestedDeductionDays > 0 && (() => {
+                const days = customDeductionDays || previewData.summary.suggestedDeductionDays;
+                const hours = days * 8;
+                // customDeductionDays beim ersten Anzeigen setzen
+                if (customDeductionDays === 0) setCustomDeductionDays(previewData.summary.suggestedDeductionDays);
+                return (
+                <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <div className="p-1.5 bg-amber-100 rounded-lg shrink-0 mt-0.5">
+                      <AlertTriangle size={18} className="text-amber-600" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-amber-800">Minusstunden-Ausgleich</h4>
+                      <p className="text-sm text-amber-700 mt-1">
+                        Der Überstunden-Saldo beträgt <strong>{formatHoursToTime(previewData.summary.cumulativeOvertimeBalance)} h</strong>.
+                        Vorschlag: {previewData.summary.suggestedDeductionDays} Tag(e) abziehen.
+                      </p>
+                      <div className="flex items-center gap-3 mt-3">
+                        <label className="flex items-center gap-2">
+                          <input type="checkbox" checked={applyDeduction} onChange={e => setApplyDeduction(e.target.checked)} className="rounded" />
+                          <span className="text-sm text-amber-800 font-medium">Urlaubsabzug</span>
+                        </label>
+                        {applyDeduction && (
+                          <div className="flex items-center gap-2">
+                            <input type="number" min={1} max={previewData.summary.suggestedDeductionDays} value={customDeductionDays}
+                              onChange={e => setCustomDeductionDays(Math.max(1, Math.min(previewData.summary.suggestedDeductionDays, parseInt(e.target.value) || 1)))}
+                              className="w-16 px-2 py-1 border border-amber-300 rounded text-sm text-center" />
+                            <span className="text-sm text-amber-700">Tag(e) = {hours}h Gutschrift</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                );
+              })()}
+
+              <div className="flex justify-between gap-3 pt-4 border-t">
                 <button
-                  onClick={() => setShowPreviewModal(false)}
+                  onClick={() => isBatchMode ? closeBatch() : setShowPreviewModal(false)}
                   className="btn btn-secondary"
                 >
-                  Abbrechen
+                  {isBatchMode ? 'Abbrechen' : 'Abbrechen'}
                 </button>
-                <button
-                  onClick={() =>
-                    createMutation.mutate({
-                      employeeId: selectedEmployee,
-                      year: selectedYear,
-                      month: selectedMonth,
-                    })
-                  }
-                  disabled={createMutation.isPending}
-                  className="btn btn-primary flex items-center gap-2"
-                >
-                  <FileText size={18} />
-                  Abrechnung erstellen
-                </button>
+                <div className="flex gap-2">
+                  {isBatchMode && (
+                    <button
+                      onClick={() => {
+                        setBatchSkipped(prev => new Set(prev).add(selectedEmployee));
+                        navigateBatchNext();
+                      }}
+                      disabled={createMutation.isPending}
+                      className="btn btn-secondary"
+                    >
+                      Überspringen
+                    </button>
+                  )}
+                  <button
+                    onClick={() =>
+                      createMutation.mutate({
+                        employeeId: selectedEmployee,
+                        year: selectedYear,
+                        month: selectedMonth,
+                        applyVacationDeduction: applyDeduction && customDeductionDays > 0,
+                        deductionDays: customDeductionDays,
+                      } as any)
+                    }
+                    disabled={createMutation.isPending}
+                    className="btn btn-primary flex items-center gap-2"
+                  >
+                    <FileText size={18} />
+                    {isBatchMode ? 'Erstellen & Weiter' : 'Abrechnung erstellen'}
+                  </button>
+                </div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Batch-Zusammenfassung */}
+      {batchDone && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 text-center">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <FileText size={32} className="text-green-600" />
+            </div>
+            <h2 className="text-xl font-semibold mb-2">Sammelabrechnung abgeschlossen</h2>
+            <p className="text-gray-600 mb-4">
+              {MONTHS[selectedMonth - 1]} {selectedYear}
+            </p>
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <div className="p-3 bg-green-50 rounded-lg">
+                <p className="text-2xl font-bold text-green-600">{batchCreated.size}</p>
+                <p className="text-sm text-gray-500">Erstellt</p>
+              </div>
+              <div className="p-3 bg-gray-50 rounded-lg">
+                <p className="text-2xl font-bold text-gray-600">{batchSkipped.size}</p>
+                <p className="text-sm text-gray-500">Übersprungen</p>
+              </div>
+            </div>
+            <button onClick={closeBatch} className="btn btn-primary w-full">
+              Schließen
+            </button>
           </div>
         </div>
       )}

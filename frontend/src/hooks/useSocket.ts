@@ -20,13 +20,9 @@ export function useSocket() {
 
   useEffect(() => {
     // Socket.io Verbindung zum Backend aufbauen
-    // In Development: Backend läuft auf Port 3004
-    // In Production: Gleiche Origin (Proxy)
-    const backendUrl = import.meta.env.DEV
-      ? `${window.location.protocol}//${window.location.hostname}:3004`
-      : window.location.origin;
-
-    const socket = io(backendUrl, {
+    // Über nginx Proxy (gleiche Origin) oder direkt im DEV-Modus ohne nginx
+    const socket = io(window.location.origin, {
+      path: '/socket.io/',
       transports: ['websocket', 'polling'],
     });
 

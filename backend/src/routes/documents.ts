@@ -1,0 +1,302 @@
+import { Router, Response } from 'express';
+import { prisma } from '../index.js';
+import { authMiddleware, adminMiddleware, AuthRequest } from '../middleware/auth.js';
+import { createAuditLog } from '../utils/auditLog.js';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import { encryptFile, decryptFile } from '../utils/encryption.js';
+
+const router = Router();
+
+// ============================================
+// Multer für Dokument-Upload
+// ============================================
+const documentStorage = multer.diskStorage({
+  destination: (req, _file, cb) => {
+    const employeeId = req.params.employeeId;
+    const dir = path.join(process.cwd(), 'uploads', 'documents', employeeId);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (_req, file, cb) => {
+    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `doc-${uniqueSuffix}${ext}.enc`);
+  },
+});
+
+const documentUpload = multer({
+  storage: documentStorage,
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
+});
+
+// ============================================
+// Endpoints
+// ============================================
+
+// Eigene Dokumente abrufen (Mitarbeiter)
+router.get('/my', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { documentTypeId, year, month } = req.query;
+
+    const where: any = { employeeId: req.employee!.id };
+    if (documentTypeId) where.documentTypeId = documentTypeId as string;
+    if (year) where.year = parseInt(year as string);
+    if (month) where.month = parseInt(month as string);
+
+    const documents = await prisma.document.findMany({
+      where,
+      include: { documentType: { select: { id: true, name: true, shortName: true, color: true } } },
+      orderBy: [{ year: 'desc' }, { month: 'desc' }, { createdAt: 'desc' }],
+    });
+
+    res.json(documents);
+  } catch (error) {
+    console.error('Get my documents error:', error);
+    res.status(500).json({ error: 'Fehler beim Laden der Dokumente' });
+  }
+});
+
+// Dokumente eines Mitarbeiters abrufen (Admin)
+router.get('/employee/:employeeId', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { employeeId } = req.params;
+
+    const documents = await prisma.document.findMany({
+      where: { employeeId },
+      include: { documentType: { select: { id: true, name: true, shortName: true, color: true } } },
+      orderBy: [{ year: 'desc' }, { month: 'desc' }, { createdAt: 'desc' }],
+    });
+
+    res.json(documents);
+  } catch (error) {
+    console.error('Get employee documents error:', error);
+    res.status(500).json({ error: 'Fehler beim Laden der Dokumente' });
+  }
+});
+
+// Dokument hochladen (Admin) - wird nach Upload verschlüsselt
+router.post('/employee/:employeeId', authMiddleware, adminMiddleware, documentUpload.single('document'), async (req: AuthRequest, res: Response) => {
+  try {
+    const { employeeId } = req.params;
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'Keine Datei hochgeladen' });
+    }
+
+    const { documentTypeId, year, month, note } = req.body;
+
+    if (!documentTypeId) {
+      fs.unlinkSync(req.file.path);
+      return res.status(400).json({ error: 'Dokumenttyp ist erforderlich' });
+    }
+
+    // Prüfe ob Mitarbeiter existiert
+    const employee = await prisma.employee.findUnique({
+      where: { id: employeeId },
+      select: { id: true, firstName: true, lastName: true },
+    });
+
+    if (!employee) {
+      fs.unlinkSync(req.file.path);
+      return res.status(404).json({ error: 'Mitarbeiter nicht gefunden' });
+    }
+
+    // Prüfe ob Dokumenttyp existiert
+    const docType = await prisma.documentType.findUnique({ where: { id: documentTypeId } });
+    if (!docType) {
+      fs.unlinkSync(req.file.path);
+      return res.status(404).json({ error: 'Dokumenttyp nicht gefunden' });
+    }
+
+    // Datei verschlüsseln (in-place)
+    const originalSize = req.file.size;
+    try {
+      const tempPath = req.file.path + '.tmp';
+      fs.renameSync(req.file.path, tempPath);
+      encryptFile(tempPath, req.file.path);
+      fs.unlinkSync(tempPath);
+    } catch (encError) {
+      console.error('Encryption error:', encError);
+      // Aufräumen
+      if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+      if (fs.existsSync(req.file.path + '.tmp')) fs.unlinkSync(req.file.path + '.tmp');
+      return res.status(500).json({ error: 'Fehler bei der Verschlüsselung' });
+    }
+
+    const filePath = `/uploads/documents/${employeeId}/${req.file.filename}`;
+
+    const document = await prisma.document.create({
+      data: {
+        employeeId,
+        documentTypeId,
+        filePath,
+        originalFilename: req.file.originalname,
+        fileSize: originalSize,
+        mimeType: req.file.mimetype,
+        year: year ? parseInt(year) : null,
+        month: month ? parseInt(month) : null,
+        note: note || null,
+        uploadedBy: req.employee!.id,
+        uploadedByName: `${(req.employee as any).firstName} ${(req.employee as any).lastName}`,
+      },
+      include: { documentType: { select: { id: true, name: true, shortName: true, color: true } } },
+    });
+
+    await createAuditLog({
+      req,
+      action: 'UPLOAD',
+      entityType: 'Document',
+      entityId: document.id,
+      newValues: {
+        employee: `${employee.firstName} ${employee.lastName}`,
+        type: docType.name,
+        filename: req.file.originalname,
+        year: year || null,
+        month: month || null,
+      },
+      note: `Dokument "${req.file.originalname}" (${docType.name}) für ${employee.firstName} ${employee.lastName} hochgeladen (verschlüsselt)`,
+    });
+
+    res.status(201).json(document);
+  } catch (error) {
+    console.error('Upload document error:', error);
+    res.status(500).json({ error: 'Fehler beim Hochladen' });
+  }
+});
+
+// Dokument herunterladen - entschlüsselt on-the-fly
+router.get('/:id/download', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const document = await prisma.document.findUnique({
+      where: { id },
+      include: {
+        employee: { select: { firstName: true, lastName: true, employeeNumber: true } },
+        documentType: { select: { name: true, shortName: true } },
+      },
+    });
+    if (!document) {
+      return res.status(404).json({ error: 'Dokument nicht gefunden' });
+    }
+
+    // Mitarbeiter darf nur eigene Dokumente herunterladen
+    if (!req.employee!.isAdmin && req.employee!.id !== document.employeeId) {
+      return res.status(403).json({ error: 'Kein Zugriff auf dieses Dokument' });
+    }
+
+    const filePath = path.join(process.cwd(), document.filePath);
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'Datei nicht gefunden' });
+    }
+
+    // Datei entschlüsseln
+    let fileBuffer: Buffer;
+    try {
+      fileBuffer = decryptFile(filePath);
+    } catch (decError) {
+      console.error('Decryption error:', decError);
+      return res.status(500).json({ error: 'Fehler bei der Entschlüsselung' });
+    }
+
+    const periodStr = document.year && document.month
+      ? ` (${document.month}/${document.year})`
+      : document.year ? ` (${document.year})` : '';
+
+    await createAuditLog({
+      req,
+      action: 'DOWNLOAD',
+      entityType: 'Document',
+      entityId: document.id,
+      newValues: {
+        datei: document.originalFilename,
+        typ: document.documentType.name,
+        mitarbeiter: `${document.employee.firstName} ${document.employee.lastName} (#${document.employee.employeeNumber})`,
+        zeitraum: periodStr.trim() || undefined,
+        groesse: `${(document.fileSize / 1024).toFixed(1)} KB`,
+      },
+      note: `${document.documentType.name}${periodStr} "${document.originalFilename}" für ${document.employee.firstName} ${document.employee.lastName} heruntergeladen`,
+    });
+
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(document.originalFilename)}"`);
+    res.setHeader('Content-Type', document.mimeType);
+    res.setHeader('Content-Length', fileBuffer.length);
+    res.send(fileBuffer);
+  } catch (error) {
+    console.error('Download document error:', error);
+    res.status(500).json({ error: 'Fehler beim Herunterladen' });
+  }
+});
+
+// Dokument-Metadaten aktualisieren (Admin)
+router.put('/:id', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { documentTypeId, year, month, note } = req.body;
+
+    const document = await prisma.document.update({
+      where: { id },
+      data: {
+        ...(documentTypeId && { documentTypeId }),
+        ...(year !== undefined && { year: year ? parseInt(year) : null }),
+        ...(month !== undefined && { month: month ? parseInt(month) : null }),
+        ...(note !== undefined && { note: note || null }),
+      },
+      include: { documentType: { select: { id: true, name: true, shortName: true, color: true } } },
+    });
+
+    res.json(document);
+  } catch (error) {
+    console.error('Update document error:', error);
+    res.status(500).json({ error: 'Fehler beim Aktualisieren' });
+  }
+});
+
+// Dokument löschen (Admin)
+router.delete('/:id', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const document = await prisma.document.findUnique({
+      where: { id },
+      include: {
+        employee: { select: { firstName: true, lastName: true } },
+        documentType: { select: { name: true } },
+      },
+    });
+
+    if (!document) {
+      return res.status(404).json({ error: 'Dokument nicht gefunden' });
+    }
+
+    // Verschlüsselte Datei löschen
+    const filePath = path.join(process.cwd(), document.filePath);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+
+    await prisma.document.delete({ where: { id } });
+
+    await createAuditLog({
+      req,
+      action: 'DELETE',
+      entityType: 'Document',
+      entityId: id,
+      oldValues: {
+        employee: `${document.employee.firstName} ${document.employee.lastName}`,
+        type: document.documentType.name,
+        filename: document.originalFilename,
+      },
+      note: `Dokument "${document.originalFilename}" (${document.documentType.name}) gelöscht`,
+    });
+
+    res.json({ message: 'Dokument gelöscht' });
+  } catch (error) {
+    console.error('Delete document error:', error);
+    res.status(500).json({ error: 'Fehler beim Löschen' });
+  }
+});
+
+export default router;

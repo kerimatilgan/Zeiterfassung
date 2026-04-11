@@ -2,34 +2,34 @@
 """
 Offline-Queue für das RFID-Terminal
 Speichert Stempelungen lokal wenn der Server nicht erreichbar ist
-und synchronisiert sie bei Wiederverbindung
+und synchronisiert sie bei Wiederverbindung.
+Ungültige Einträge werden nach max. Versuchen automatisch entfernt.
 """
 
 import json
 import os
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional, Callable
 
+# Display-Callback für Sync-Benachrichtigungen
+_display_callback: Optional[Callable] = None
+
+def set_display_callback(callback: Callable):
+    global _display_callback
+    _display_callback = callback
+
 
 class OfflineQueue:
-    """
-    Verwaltet eine Queue von Stempelungen die offline erfasst wurden
-    und synchronisiert sie automatisch wenn der Server wieder erreichbar ist
-    """
+    MAX_ATTEMPTS = 5
+    MAX_AGE_HOURS = 48
+    SYNC_INTERVAL = 15
 
     def __init__(self, queue_file: str = None, sync_callback: Callable = None):
-        """
-        Initialisiert die Offline-Queue
-
-        Args:
-            queue_file: Pfad zur Queue-Datei (default: ~/zeiterfassung_queue.json)
-            sync_callback: Funktion zum Synchronisieren eines Eintrags
-        """
         if queue_file is None:
-            queue_file = Path.home() / 'zeiterfassung_queue.json'
+            queue_file = Path(__file__).parent / 'offline_queue.json'
 
         self.queue_file = Path(queue_file)
         self.sync_callback = sync_callback
@@ -39,46 +39,67 @@ class OfflineQueue:
         self.sync_thread = None
         self.running = False
 
-        # Queue aus Datei laden
         self._load_queue()
+        self._cleanup_old_entries()
 
-        print(f"[OFFLINE-QUEUE] Initialisiert: {self.queue_file}")
-        print(f"[OFFLINE-QUEUE] {len(self.queue)} ausstehende Einträge")
+        pending = len(self.queue)
+        print(f"[QUEUE] Initialisiert: {self.queue_file}")
+        if pending > 0:
+            print(f"[QUEUE] {pending} ausstehende Einträge")
 
     def _load_queue(self):
-        """Lädt die Queue aus der Datei"""
         try:
             if self.queue_file.exists():
                 with open(self.queue_file, 'r') as f:
                     self.queue = json.load(f)
-                    # Validiere Einträge
                     self.queue = [
                         entry for entry in self.queue
                         if isinstance(entry, dict) and 'rfid_card' in entry and 'timestamp' in entry
                     ]
         except (json.JSONDecodeError, IOError) as e:
-            print(f"[OFFLINE-QUEUE] Fehler beim Laden: {e}")
+            print(f"[QUEUE] Fehler beim Laden: {e}")
             self.queue = []
 
     def _save_queue(self):
-        """Speichert die Queue in die Datei"""
         try:
             with open(self.queue_file, 'w') as f:
                 json.dump(self.queue, f, indent=2)
         except IOError as e:
-            print(f"[OFFLINE-QUEUE] Fehler beim Speichern: {e}")
+            print(f"[QUEUE] Fehler beim Speichern: {e}")
+
+    def _cleanup_old_entries(self):
+        cutoff = datetime.now() - timedelta(hours=self.MAX_AGE_HOURS)
+        initial = len(self.queue)
+
+        with self.lock:
+            cleaned = []
+            for entry in self.queue:
+                attempts = entry.get('attempts', 0)
+                last_error = entry.get('last_error', '')
+                is_permanent_error = any(err in (last_error or '') for err in [
+                    'Unbekannte RFID', 'nicht gefunden', 'nicht aktiv'
+                ])
+
+                if attempts >= self.MAX_ATTEMPTS and is_permanent_error:
+                    print(f"[QUEUE] Verwerfe Eintrag (permanenter Fehler): {entry['rfid_card']} - {last_error}")
+                    continue
+
+                try:
+                    ts = datetime.fromisoformat(entry['timestamp'])
+                    if ts < cutoff:
+                        print(f"[QUEUE] Verwerfe Eintrag (zu alt): {entry['rfid_card']} @ {entry['timestamp']}")
+                        continue
+                except:
+                    pass
+
+                cleaned.append(entry)
+
+            self.queue = cleaned
+            if len(cleaned) < initial:
+                self._save_queue()
+                print(f"[QUEUE] {initial - len(cleaned)} alte/fehlerhafte Einträge bereinigt")
 
     def add(self, rfid_card: str, timestamp: datetime = None) -> dict:
-        """
-        Fügt eine Stempelung zur Offline-Queue hinzu
-
-        Args:
-            rfid_card: RFID-Karten-ID
-            timestamp: Zeitpunkt der Stempelung (default: jetzt)
-
-        Returns:
-            dict mit Status-Informationen
-        """
         if timestamp is None:
             timestamp = datetime.now()
 
@@ -95,8 +116,7 @@ class OfflineQueue:
             self._save_queue()
             queue_position = len(self.queue)
 
-        print(f"[OFFLINE-QUEUE] Stempelung gespeichert: {rfid_card} @ {timestamp.strftime('%H:%M:%S')}")
-        print(f"[OFFLINE-QUEUE] Position in Queue: {queue_position}")
+        print(f"[QUEUE] Gespeichert: {rfid_card} @ {timestamp.strftime('%H:%M:%S')} (#{queue_position})")
 
         return {
             'queued': True,
@@ -105,29 +125,22 @@ class OfflineQueue:
         }
 
     def get_pending_count(self) -> int:
-        """Gibt die Anzahl ausstehender Einträge zurück"""
         with self.lock:
             return len(self.queue)
 
     def get_pending(self) -> list:
-        """Gibt alle ausstehenden Einträge zurück"""
         with self.lock:
             return list(self.queue)
 
     def remove(self, entry: dict):
-        """Entfernt einen Eintrag aus der Queue"""
         with self.lock:
-            try:
-                self.queue = [
-                    e for e in self.queue
-                    if not (e['rfid_card'] == entry['rfid_card'] and e['timestamp'] == entry['timestamp'])
-                ]
-                self._save_queue()
-            except ValueError:
-                pass
+            self.queue = [
+                e for e in self.queue
+                if not (e['rfid_card'] == entry['rfid_card'] and e['timestamp'] == entry['timestamp'])
+            ]
+            self._save_queue()
 
     def update_entry(self, entry: dict, error: str = None):
-        """Aktualisiert einen Eintrag (z.B. nach fehlgeschlagenem Sync)"""
         with self.lock:
             for e in self.queue:
                 if e['rfid_card'] == entry['rfid_card'] and e['timestamp'] == entry['timestamp']:
@@ -138,49 +151,41 @@ class OfflineQueue:
             self._save_queue()
 
     def set_online_status(self, is_online: bool):
-        """Setzt den Online-Status"""
         was_offline = not self.is_online
         self.is_online = is_online
 
-        # Wenn gerade online gekommen, sofort Sync versuchen
         if is_online and was_offline and len(self.queue) > 0:
-            print(f"[OFFLINE-QUEUE] Wieder online - starte Synchronisation...")
+            print(f"[QUEUE] Wieder online - starte Sync ({len(self.queue)} Einträge)...")
             self._trigger_sync()
 
     def start_sync_thread(self):
-        """Startet den Hintergrund-Sync-Thread"""
         if self.sync_thread and self.sync_thread.is_alive():
             return
 
         self.running = True
         self.sync_thread = threading.Thread(target=self._sync_loop, daemon=True)
         self.sync_thread.start()
-        print("[OFFLINE-QUEUE] Sync-Thread gestartet")
 
     def stop_sync_thread(self):
-        """Stoppt den Sync-Thread"""
         self.running = False
         if self.sync_thread:
             self.sync_thread.join(timeout=5)
 
     def _sync_loop(self):
-        """Hintergrund-Thread der periodisch versucht zu synchronisieren"""
         while self.running:
             try:
                 if self.is_online and len(self.queue) > 0:
                     self._sync_pending()
+                self._cleanup_old_entries()
             except Exception as e:
-                print(f"[OFFLINE-QUEUE] Sync-Fehler: {e}")
+                print(f"[QUEUE] Sync-Fehler: {e}")
 
-            # Alle 30 Sekunden prüfen
-            time.sleep(30)
+            time.sleep(self.SYNC_INTERVAL)
 
     def _trigger_sync(self):
-        """Triggert eine sofortige Synchronisation"""
         threading.Thread(target=self._sync_pending, daemon=True).start()
 
     def _sync_pending(self):
-        """Synchronisiert ausstehende Einträge"""
         if not self.sync_callback:
             return
 
@@ -190,13 +195,28 @@ class OfflineQueue:
         if not pending:
             return
 
-        print(f"[OFFLINE-QUEUE] Synchronisiere {len(pending)} Einträge...")
+        print(f"[QUEUE] Synchronisiere {len(pending)} Einträge...")
+
+        # Display-Meldung: Sync läuft
+        if _display_callback:
+            _display_callback("Synchronisiere...", f"{len(pending)} Stempelungen", 0)
 
         synced_count = 0
         for entry in pending:
-            # Maximal 5 Versuche pro Eintrag
-            if entry.get('attempts', 0) >= 5:
-                print(f"[OFFLINE-QUEUE] Eintrag übersprungen (zu viele Versuche): {entry['rfid_card']}")
+            attempts = entry.get('attempts', 0)
+            last_error = entry.get('last_error', '')
+
+            is_permanent = any(err in (last_error or '') for err in [
+                'Unbekannte RFID', 'nicht gefunden', 'nicht aktiv'
+            ])
+            if attempts >= self.MAX_ATTEMPTS and is_permanent:
+                self.remove(entry)
+                print(f"[QUEUE] Entfernt (permanenter Fehler): {entry['rfid_card']}")
+                continue
+
+            if attempts >= self.MAX_ATTEMPTS * 2:
+                self.remove(entry)
+                print(f"[QUEUE] Entfernt (max. Versuche): {entry['rfid_card']}")
                 continue
 
             try:
@@ -205,36 +225,33 @@ class OfflineQueue:
                 if result.get('success') or result.get('synced'):
                     self.remove(entry)
                     synced_count += 1
-                    print(f"[OFFLINE-QUEUE] Synchronisiert: {entry['rfid_card']} @ {entry['timestamp']}")
+                    print(f"[QUEUE] ✓ Synchronisiert: {entry['rfid_card']} @ {entry['timestamp']}")
                 else:
                     error = result.get('error', 'Unbekannter Fehler')
-                    # Bei "Keine Verbindung" nicht als Versuch zählen
                     if 'Verbindung' not in error and 'Timeout' not in error:
                         self.update_entry(entry, error)
-                    print(f"[OFFLINE-QUEUE] Sync fehlgeschlagen: {error}")
+                    print(f"[QUEUE] ✗ Sync-Fehler: {error}")
 
             except Exception as e:
-                print(f"[OFFLINE-QUEUE] Sync-Exception: {e}")
+                print(f"[QUEUE] Exception: {e}")
 
-            # Kurze Pause zwischen Syncs
             time.sleep(0.5)
 
         remaining = self.get_pending_count()
         if synced_count > 0:
-            print(f"[OFFLINE-QUEUE] {synced_count} Einträge synchronisiert, {remaining} verbleibend")
+            print(f"[QUEUE] {synced_count} synchronisiert, {remaining} verbleibend")
+            if _display_callback:
+                _display_callback("Sync fertig", f"{synced_count} uebertragen", 2)
 
 
-# Singleton-Instanz
 _queue_instance: Optional[OfflineQueue] = None
 
 
 def get_queue() -> Optional[OfflineQueue]:
-    """Gibt die globale Queue-Instanz zurück"""
     return _queue_instance
 
 
 def init_queue(queue_file: str = None, sync_callback: Callable = None) -> OfflineQueue:
-    """Initialisiert die globale Queue-Instanz"""
     global _queue_instance
     _queue_instance = OfflineQueue(queue_file, sync_callback)
     return _queue_instance

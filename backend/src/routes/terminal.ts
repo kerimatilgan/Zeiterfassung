@@ -256,11 +256,164 @@ router.get('/register-rfid/status', authMiddleware, adminMiddleware, (_req, res)
 });
 
 // ============================================
+// RFID Karten-Abfrage (Lookup)
+// ============================================
+interface LookupSession {
+  socketId: string;
+  adminId: string;
+  startedAt: Date;
+  timeoutId: NodeJS.Timeout;
+}
+
+let activeLookupSession: LookupSession | null = null;
+
+const clearLookupSession = () => {
+  if (activeLookupSession) {
+    clearTimeout(activeLookupSession.timeoutId);
+    activeLookupSession = null;
+  }
+};
+
+const checkLookupMode = async (rfidCard: string): Promise<boolean> => {
+  if (!activeLookupSession) return false;
+
+  const session = activeLookupSession;
+  clearLookupSession();
+
+  // Karte in DB suchen
+  const employee = await prisma.employee.findFirst({
+    where: { rfidCard },
+    select: { id: true, firstName: true, lastName: true, employeeNumber: true, photoUrl: true, isActive: true },
+  });
+
+  if (employee) {
+    io.to(session.socketId).emit('rfid-card-lookup', {
+      success: true,
+      rfidCard,
+      found: true,
+      employee,
+    });
+    console.log(`🔍 RFID-Lookup: Karte ${rfidCard} gehört zu ${employee.firstName} ${employee.lastName}`);
+    await createAuditLog({
+      userId: session.adminId,
+      action: 'RFID_LOOKUP',
+      entityType: 'Terminal',
+      entityId: employee.id,
+      note: `RFID-Karte abgefragt: ${rfidCard} → ${employee.firstName} ${employee.lastName} (#${employee.employeeNumber})`,
+    });
+  } else {
+    io.to(session.socketId).emit('rfid-card-lookup', {
+      success: true,
+      rfidCard,
+      found: false,
+    });
+    console.log(`🔍 RFID-Lookup: Karte ${rfidCard} ist keinem Mitarbeiter zugeordnet`);
+    await createAuditLog({
+      userId: session.adminId,
+      action: 'RFID_LOOKUP',
+      entityType: 'Terminal',
+      note: `RFID-Karte abgefragt: ${rfidCard} → nicht zugeordnet`,
+    });
+  }
+
+  return true;
+};
+
+// Startet den Lookup-Modus
+router.post('/lookup-rfid/start', authMiddleware, adminMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { socketId } = req.body;
+
+    if (!socketId) {
+      return res.status(400).json({ success: false, error: 'socketId erforderlich' });
+    }
+
+    // Alte Sessions beenden
+    clearRegistrationSession();
+    clearLookupSession();
+
+    const timeoutId = setTimeout(() => {
+      if (activeLookupSession) {
+        io.to(socketId).emit('rfid-card-lookup', {
+          success: false,
+          error: 'Timeout - keine Karte gescannt',
+        });
+        clearLookupSession();
+        console.log('⏱️ RFID-Lookup Timeout');
+      }
+    }, REGISTRATION_TIMEOUT);
+
+    activeLookupSession = { socketId, adminId: req.employee!.id, startedAt: new Date(), timeoutId };
+
+    console.log('🔍 RFID-Lookup gestartet');
+    res.json({ success: true, message: 'Abfrage-Modus aktiv', timeout: REGISTRATION_TIMEOUT });
+  } catch (error) {
+    console.error('Start lookup error:', error);
+    res.status(500).json({ success: false, error: 'Fehler beim Starten' });
+  }
+});
+
+// Stoppt den Lookup-Modus
+router.post('/lookup-rfid/stop', authMiddleware, adminMiddleware, (_req, res) => {
+  clearLookupSession();
+  res.json({ success: true, message: 'Abfrage-Modus beendet' });
+});
+
+// ============================================
 // Terminal-Endpoints (Terminal API Key Auth)
 // ============================================
 
 // Terminal authentifizieren
 router.use(terminalAuthMiddleware);
+
+// Aktueller Einstempel-Status aller Mitarbeiter (für Terminal-Cache)
+router.get('/active-status', async (_req, res) => {
+  try {
+    // Alle offenen Einträge (clockOut = null) = eingestempelt
+    const activeEntries = await prisma.timeEntry.findMany({
+      where: { clockOut: null },
+      select: {
+        employeeId: true,
+        employee: {
+          select: { rfidCard: true },
+        },
+      },
+    });
+    const result = activeEntries
+      .filter(e => e.employee.rfidCard)
+      .map(e => ({ rfidCard: e.employee.rfidCard }));
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: 'Fehler beim Laden des Status' });
+  }
+});
+
+// Mitarbeiter-Liste für Terminal-Cache (RFID → Name)
+router.get('/employees', async (_req, res) => {
+  try {
+    const employees = await prisma.employee.findMany({
+      where: { isActive: true },
+      select: {
+        rfidCard: true,
+        firstName: true,
+        lastName: true,
+        employeeNumber: true,
+      },
+    });
+    const result = employees
+      .filter(e => e.rfidCard)
+      .map(e => ({
+        rfidCard: e.rfidCard,
+        name: `${e.firstName} ${e.lastName}`,
+        firstName: e.firstName,
+        lastName: e.lastName,
+        employeeNumber: e.employeeNumber,
+      }));
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: 'Fehler beim Laden der Mitarbeiter' });
+  }
+});
 
 // Heartbeat - Terminal meldet sich regelmäßig
 router.post('/heartbeat', async (req: TerminalAuthRequest, res) => {
@@ -283,7 +436,7 @@ router.post('/heartbeat', async (req: TerminalAuthRequest, res) => {
 // Unterstützt optionalen timestamp-Parameter für Offline-Synchronisation
 router.post('/scan', async (req, res) => {
   try {
-    const { qrCode, rfidCard, timestamp } = req.body;
+    const { qrCode, rfidCard, timestamp, silent } = req.body;
 
     if (!qrCode && !rfidCard) {
       return res.status(400).json({
@@ -320,6 +473,15 @@ router.post('/scan', async (req, res) => {
       });
     }
 
+    // Prüfe ob Lookup-Modus aktiv ist
+    if (rfidCard && await checkLookupMode(rfidCard)) {
+      return res.json({
+        success: true,
+        action: 'lookup',
+        message: 'RFID-Karte abgefragt'
+      });
+    }
+
     // Mitarbeiter anhand RFID-Karte oder QR-Code finden
     let employee = null;
     let authMethod = '';
@@ -335,6 +497,8 @@ router.post('/scan', async (req, res) => {
           photoUrl: true,
           isActive: true,
           isAdmin: true,
+          startDate: true,
+          endDate: true,
           workCategory: { select: { earliestClockIn: true, name: true } },
         },
       });
@@ -352,6 +516,8 @@ router.post('/scan', async (req, res) => {
           photoUrl: true,
           isActive: true,
           isAdmin: true,
+          startDate: true,
+          endDate: true,
           workCategory: { select: { earliestClockIn: true, name: true } },
         },
       });
@@ -359,19 +525,46 @@ router.post('/scan', async (req, res) => {
     }
 
     if (!employee) {
-      return res.status(404).json({
+      const errorData = {
         success: false,
         error: rfidCard ? 'Unbekannte RFID-Karte' : 'Unbekannter QR-Code',
         message: 'Mitarbeiter nicht gefunden'
-      });
+      };
+      if (!silent) io.emit('scan-error', errorData);
+      return res.status(404).json(errorData);
     }
 
     if (!employee.isActive) {
-      return res.status(403).json({
+      const errorData = {
         success: false,
         error: 'Mitarbeiter inaktiv',
         message: `${employee.firstName} ${employee.lastName} ist nicht mehr aktiv`
-      });
+      };
+      if (!silent) io.emit('scan-error', errorData);
+      return res.status(403).json(errorData);
+    }
+
+    // Eintrittsdatum prüfen
+    if (employee.startDate && new Date(employee.startDate) > new Date()) {
+      const startFormatted = new Date(employee.startDate).toLocaleDateString('de-DE');
+      const errorData = {
+        success: false,
+        error: 'Noch nicht eingetreten',
+        message: `${employee.firstName} ${employee.lastName} kann sich erst ab dem ${startFormatted} einstempeln`
+      };
+      if (!silent) io.emit('scan-error', errorData);
+      return res.status(403).json(errorData);
+    }
+
+    // Austrittsdatum prüfen
+    if (employee.endDate && new Date(employee.endDate) <= new Date()) {
+      const errorData = {
+        success: false,
+        error: 'Mitarbeiter ausgetreten',
+        message: `${employee.firstName} ${employee.lastName} ist seit dem ${new Date(employee.endDate).toLocaleDateString('de-DE')} ausgetreten`
+      };
+      if (!silent) io.emit('scan-error', errorData);
+      return res.status(403).json(errorData);
     }
 
     // Admins können nicht am Terminal stempeln
@@ -400,12 +593,7 @@ router.post('/scan', async (req, res) => {
       const dayEntries = splitMultiDayEntry(activeEntry.clockIn, now);
       const isMultiDay = dayEntries.length > 1;
 
-      // Settings für automatische Pause laden
-      const settings = await prisma.settings.findUnique({ where: { id: 'default' } });
-      const defaultBreakMinutes = settings?.defaultBreakMinutes ?? 30;
-
       let updatedEntry;
-      let lastDayBreakMinutes = 0;
 
       if (isMultiDay) {
         // Mehrtägiger Eintrag - aufteilen
@@ -418,41 +606,29 @@ router.post('/scan', async (req, res) => {
 
         // Neue Einträge für jeden Tag erstellen
         for (const dayEntry of dayEntries) {
-          const entryHours = (dayEntry.clockOut.getTime() - dayEntry.clockIn.getTime()) / (1000 * 60 * 60);
-          // Automatische Pause wenn > 6 Stunden an diesem Tag
-          const dayBreakMinutes = entryHours > 6 ? defaultBreakMinutes : 0;
-
           const created = await prisma.timeEntry.create({
             data: {
               employeeId: employee.id,
               clockIn: dayEntry.clockIn,
               clockOut: dayEntry.clockOut,
-              breakMinutes: dayBreakMinutes,
+              breakMinutes: 0,
             },
           });
 
           // Letzter Eintrag für die Antwort merken
           if (dayEntry.isLastDay) {
             updatedEntry = created;
-            lastDayBreakMinutes = dayBreakMinutes;
           }
 
-          console.log(`[MULTI-DAY] Tag erstellt: ${dayEntry.clockIn.toISOString()} - ${dayEntry.clockOut.toISOString()} (${entryHours.toFixed(1)}h, Pause: ${dayBreakMinutes}min)`);
+          const entryHours = (dayEntry.clockOut.getTime() - dayEntry.clockIn.getTime()) / (1000 * 60 * 60);
+          console.log(`[MULTI-DAY] Tag erstellt: ${dayEntry.clockIn.toISOString()} - ${dayEntry.clockOut.toISOString()} (${entryHours.toFixed(1)}h)`);
         }
       } else {
         // Eintägiger Eintrag - normales Update
-        const currentEntryHours = (now.getTime() - activeEntry.clockIn.getTime()) / (1000 * 60 * 60);
-        let breakMinutes = activeEntry.breakMinutes;
-        if (currentEntryHours > 6 && breakMinutes === 0) {
-          breakMinutes = defaultBreakMinutes;
-        }
-        lastDayBreakMinutes = breakMinutes;
-
         updatedEntry = await prisma.timeEntry.update({
           where: { id: activeEntry.id },
           data: {
             clockOut: now,
-            breakMinutes,
           },
         });
       }
@@ -502,24 +678,26 @@ router.post('/scan', async (req, res) => {
         entityId: updatedEntry!.id,
         newValues: {
           clockOut: updatedEntry!.clockOut,
-          breakMinutes: lastDayBreakMinutes,
+          breakMinutes: 0,
           hoursWorked: formattedTime,
           multiDaySplit: isMultiDay ? dayEntries.length : undefined,
         },
       });
 
-      // WebSocket Event für Ausstempeln
-      io.emit('time-entry-updated', {
-        type: 'clock_out',
-        employeeId: employee.id,
-        entry: updatedEntry,
-        employee: {
-          id: employee.id,
-          name: `${employee.firstName} ${employee.lastName}`,
-          employeeNumber: employee.employeeNumber,
-          photoUrl: employee.photoUrl,
-        },
-      });
+      // WebSocket Event für Ausstempeln (nicht bei stiller Sync)
+      if (!silent) {
+        io.emit('time-entry-updated', {
+          type: 'clock_out',
+          employeeId: employee.id,
+          entry: updatedEntry,
+          employee: {
+            id: employee.id,
+            name: `${employee.firstName} ${employee.lastName}`,
+            employeeNumber: employee.employeeNumber,
+            photoUrl: employee.photoUrl,
+          },
+        });
+      }
 
       // Nachricht erstellen
       let message: string;
@@ -544,7 +722,7 @@ router.post('/scan', async (req, res) => {
         entry: {
           clockIn: updatedEntry!.clockIn,
           clockOut: updatedEntry!.clockOut,
-          breakMinutes: lastDayBreakMinutes,
+          breakMinutes: 0,
           hoursWorked: formattedTime,
         },
         message,
@@ -590,18 +768,20 @@ router.post('/scan', async (req, res) => {
         },
       });
 
-      // WebSocket Event für Einstempeln
-      io.emit('time-entry-updated', {
-        type: 'clock_in',
-        employeeId: employee.id,
-        entry: newEntry,
-        employee: {
-          id: employee.id,
-          name: `${employee.firstName} ${employee.lastName}`,
-          employeeNumber: employee.employeeNumber,
-          photoUrl: employee.photoUrl,
-        },
-      });
+      // WebSocket Event für Einstempeln (nicht bei stiller Sync)
+      if (!silent) {
+        io.emit('time-entry-updated', {
+          type: 'clock_in',
+          employeeId: employee.id,
+          entry: newEntry,
+          employee: {
+            id: employee.id,
+            name: `${employee.firstName} ${employee.lastName}`,
+            employeeNumber: employee.employeeNumber,
+            photoUrl: employee.photoUrl,
+          },
+        });
+      }
 
       return res.json({
         success: true,

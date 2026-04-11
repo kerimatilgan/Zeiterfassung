@@ -18,7 +18,13 @@ export type AuditAction =
   | 'COMPLAINT_CREATE'
   | 'COMPLAINT_UPDATE'
   | 'COMPLAINT_DELETE'
-  | 'COMPLAINT_RESOLVE';
+  | 'COMPLAINT_RESOLVE'
+  | 'PASSWORD_RESET_REQUESTED'
+  | 'PASSWORD_RESET'
+  | 'ADMIN_PASSWORD_RESET'
+  | 'RFID_LOOKUP'
+  | 'UPLOAD'
+  | 'DOWNLOAD';
 
 export type EntityType =
   | 'Employee'
@@ -31,7 +37,9 @@ export type EntityType =
   | 'Database'
   | 'WorkCategory'
   | 'MailSettings'
-  | 'Terminal';
+  | 'Terminal'
+  | 'Document'
+  | 'DocumentType';
 
 interface AuditLogParams {
   req?: Request;
@@ -145,6 +153,17 @@ export function formatAction(action: string): string {
     PASSWORD_CHANGE: 'Passwort geändert',
     DB_BACKUP: 'Datenbank-Backup',
     DB_RESTORE: 'Datenbank wiederhergestellt',
+    MAIL_TEST: 'Test-Mail gesendet',
+    COMPLAINT_CREATE: 'Reklamation erstellt',
+    COMPLAINT_UPDATE: 'Reklamation bearbeitet',
+    COMPLAINT_DELETE: 'Reklamation gelöscht',
+    COMPLAINT_RESOLVE: 'Reklamation gelöst',
+    PASSWORD_RESET_REQUESTED: 'Passwort-Reset angefordert',
+    PASSWORD_RESET: 'Passwort zurückgesetzt',
+    ADMIN_PASSWORD_RESET: 'Admin Passwort-Reset',
+    RFID_LOOKUP: 'RFID-Karte abgefragt',
+    UPLOAD: 'Hochgeladen',
+    DOWNLOAD: 'Heruntergeladen',
   };
   return actionMap[action] || action;
 }
@@ -165,6 +184,8 @@ export function formatEntityType(entityType: string): string {
     WorkCategory: 'Arbeitskategorie',
     MailSettings: 'Mail-Einstellungen',
     Terminal: 'Terminal',
+    Document: 'Dokument',
+    DocumentType: 'Dokumenttyp',
   };
   return entityMap[entityType] || entityType;
 }

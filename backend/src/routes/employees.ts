@@ -45,6 +45,7 @@ const router = Router();
 
 const employeeSchema = z.object({
   employeeNumber: z.string().min(1, 'Mitarbeiternummer erforderlich'),
+  username: z.string().min(3, 'Benutzername muss mindestens 3 Zeichen haben').regex(/^[a-zA-Z0-9._-]+$/, 'Benutzername darf nur Buchstaben, Zahlen, Punkte, Bindestriche und Unterstriche enthalten').optional().nullable(),
   firstName: z.string().min(1, 'Vorname erforderlich'),
   lastName: z.string().min(1, 'Nachname erforderlich'),
   email: z.string().email().optional().nullable(),
@@ -55,6 +56,11 @@ const employeeSchema = z.object({
   isAdmin: z.boolean().optional(),
   password: z.string().min(6).optional(),
   workCategoryId: z.string().uuid().optional().nullable(),
+  canClockInPwa: z.boolean().optional(),
+  canClockOutPwa: z.boolean().optional(),
+  defaultClockOut: z.string().optional().nullable(),
+  startDate: z.string().optional().nullable(),
+  endDate: z.string().optional().nullable(),
 });
 
 // Alle Mitarbeiter abrufen (nur Admin)
@@ -64,6 +70,7 @@ router.get('/', authMiddleware, adminMiddleware, async (_req: AuthRequest, res: 
       select: {
         id: true,
         employeeNumber: true,
+        username: true,
         firstName: true,
         lastName: true,
         email: true,
@@ -78,6 +85,17 @@ router.get('/', authMiddleware, adminMiddleware, async (_req: AuthRequest, res: 
         rfidCard: true,
         workCategoryId: true,
         workCategory: { select: { id: true, name: true, earliestClockIn: true } },
+        canClockInPwa: true,
+        canClockOutPwa: true,
+        defaultClockOut: true,
+        startDate: true,
+        endDate: true,
+        carryOverVacationDays: true,
+        initialOvertimeBalance: true,
+        initialVacationDaysUsed: true,
+        initialSickDays: true,
+        initialBalanceYear: true,
+        initialBalanceMonth: true,
         createdAt: true,
       },
       orderBy: { lastName: 'asc' },
@@ -105,6 +123,7 @@ router.get('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
       select: {
         id: true,
         employeeNumber: true,
+        username: true,
         firstName: true,
         lastName: true,
         email: true,
@@ -147,6 +166,16 @@ router.post('/', authMiddleware, adminMiddleware, async (req: AuthRequest, res: 
       return res.status(400).json({ error: 'Mitarbeiternummer bereits vergeben' });
     }
 
+    // Prüfen ob Benutzername bereits existiert
+    if (data.username) {
+      const usernameExists = await prisma.employee.findUnique({
+        where: { username: data.username },
+      });
+      if (usernameExists) {
+        return res.status(400).json({ error: 'Benutzername bereits vergeben' });
+      }
+    }
+
     // QR-Code generieren
     const qrCode = `HI-${data.employeeNumber}-${uuidv4().substring(0, 8)}`;
 
@@ -159,6 +188,7 @@ router.post('/', authMiddleware, adminMiddleware, async (req: AuthRequest, res: 
     const employee = await prisma.employee.create({
       data: {
         employeeNumber: data.employeeNumber,
+        username: data.username || null,
         firstName: data.firstName,
         lastName: data.lastName,
         email: data.email || null,
@@ -168,12 +198,18 @@ router.post('/', authMiddleware, adminMiddleware, async (req: AuthRequest, res: 
         workDays: data.workDays ?? '1,2,3,4,5',
         isAdmin: data.isAdmin ?? false,
         workCategoryId: data.workCategoryId || null,
+        canClockInPwa: data.canClockInPwa ?? false,
+        canClockOutPwa: data.canClockOutPwa ?? false,
+        defaultClockOut: data.defaultClockOut || null,
+        startDate: data.startDate ? new Date(data.startDate) : null,
+        endDate: data.endDate ? new Date(data.endDate) : null,
         qrCode,
         passwordHash,
       },
       select: {
         id: true,
         employeeNumber: true,
+        username: true,
         firstName: true,
         lastName: true,
         email: true,
@@ -187,6 +223,12 @@ router.post('/', authMiddleware, adminMiddleware, async (req: AuthRequest, res: 
         qrCode: true,
         workCategoryId: true,
         workCategory: { select: { id: true, name: true, earliestClockIn: true } },
+        canClockInPwa: true,
+        canClockOutPwa: true,
+        defaultClockOut: true,
+        startDate: true,
+        endDate: true,
+        carryOverVacationDays: true,
         createdAt: true,
       },
     });
@@ -230,6 +272,18 @@ router.put('/:id', authMiddleware, adminMiddleware, async (req: AuthRequest, res
       return res.status(404).json({ error: 'Mitarbeiter nicht gefunden' });
     }
 
+    // Prüfen ob neuer Benutzername bereits vergeben
+    if (data.username !== undefined && data.username !== existing.username) {
+      if (data.username) {
+        const usernameConflict = await prisma.employee.findUnique({
+          where: { username: data.username },
+        });
+        if (usernameConflict) {
+          return res.status(400).json({ error: 'Benutzername bereits vergeben' });
+        }
+      }
+    }
+
     // Prüfen ob neue Mitarbeiternummer bereits vergeben
     if (data.employeeNumber && data.employeeNumber !== existing.employeeNumber) {
       const conflict = await prisma.employee.findUnique({
@@ -237,6 +291,16 @@ router.put('/:id', authMiddleware, adminMiddleware, async (req: AuthRequest, res
       });
       if (conflict) {
         return res.status(400).json({ error: 'Mitarbeiternummer bereits vergeben' });
+      }
+    }
+
+    // Letzten Admin schützen
+    if (existing.isAdmin && data.isAdmin === false) {
+      const adminCount = await prisma.employee.count({
+        where: { isAdmin: true, isActive: true },
+      });
+      if (adminCount <= 1) {
+        return res.status(400).json({ error: 'Der letzte Administrator kann nicht herabgestuft werden' });
       }
     }
 
@@ -263,6 +327,7 @@ router.put('/:id', authMiddleware, adminMiddleware, async (req: AuthRequest, res
       where: { id },
       data: {
         ...(data.employeeNumber && { employeeNumber: data.employeeNumber }),
+        ...(data.username !== undefined && { username: data.username || null }),
         ...(data.firstName && { firstName: data.firstName }),
         ...(data.lastName && { lastName: data.lastName }),
         ...(data.email !== undefined && { email: data.email || null }),
@@ -272,11 +337,17 @@ router.put('/:id', authMiddleware, adminMiddleware, async (req: AuthRequest, res
         ...(data.workDays !== undefined && { workDays: data.workDays }),
         ...(data.isAdmin !== undefined && { isAdmin: data.isAdmin }),
         ...(data.workCategoryId !== undefined && { workCategoryId: data.workCategoryId || null }),
+        ...(data.canClockInPwa !== undefined && { canClockInPwa: data.canClockInPwa }),
+        ...(data.canClockOutPwa !== undefined && { canClockOutPwa: data.canClockOutPwa }),
+        ...(data.defaultClockOut !== undefined && { defaultClockOut: data.defaultClockOut || null }),
+        ...(data.startDate !== undefined && { startDate: data.startDate ? new Date(data.startDate) : null }),
+        ...(data.endDate !== undefined && { endDate: data.endDate ? new Date(data.endDate) : null }),
         ...(passwordHash && { passwordHash }),
       },
       select: {
         id: true,
         employeeNumber: true,
+        username: true,
         firstName: true,
         lastName: true,
         email: true,
@@ -290,6 +361,12 @@ router.put('/:id', authMiddleware, adminMiddleware, async (req: AuthRequest, res
         qrCode: true,
         workCategoryId: true,
         workCategory: { select: { id: true, name: true, earliestClockIn: true } },
+        canClockInPwa: true,
+        canClockOutPwa: true,
+        defaultClockOut: true,
+        startDate: true,
+        endDate: true,
+        carryOverVacationDays: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -333,12 +410,22 @@ router.delete('/:id', authMiddleware, adminMiddleware, async (req: AuthRequest, 
 
     // Nicht sich selbst löschen
     if (req.employee!.id === id) {
-      return res.status(400).json({ error: 'Sie können sich nicht selbst löschen' });
+      return res.status(400).json({ error: 'Sie können sich nicht selbst deaktivieren' });
     }
 
     const existing = await prisma.employee.findUnique({ where: { id } });
     if (!existing) {
       return res.status(404).json({ error: 'Mitarbeiter nicht gefunden' });
+    }
+
+    // Letzten Admin schützen
+    if (existing.isAdmin) {
+      const adminCount = await prisma.employee.count({
+        where: { isAdmin: true, isActive: true },
+      });
+      if (adminCount <= 1) {
+        return res.status(400).json({ error: 'Der letzte Administrator kann nicht deaktiviert werden' });
+      }
     }
 
     // Soft delete: nur deaktivieren
@@ -369,31 +456,6 @@ router.delete('/:id', authMiddleware, adminMiddleware, async (req: AuthRequest, 
   } catch (error) {
     console.error('Delete employee error:', error);
     res.status(500).json({ error: 'Fehler beim Löschen des Mitarbeiters' });
-  }
-});
-
-// QR-Code neu generieren (nur Admin)
-router.post('/:id/regenerate-qr', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
-  try {
-    const { id } = req.params;
-
-    const employee = await prisma.employee.findUnique({ where: { id } });
-    if (!employee) {
-      return res.status(404).json({ error: 'Mitarbeiter nicht gefunden' });
-    }
-
-    const newQrCode = `HI-${employee.employeeNumber}-${uuidv4().substring(0, 8)}`;
-
-    const updated = await prisma.employee.update({
-      where: { id },
-      data: { qrCode: newQrCode },
-      select: { qrCode: true },
-    });
-
-    res.json({ qrCode: updated.qrCode });
-  } catch (error) {
-    console.error('Regenerate QR error:', error);
-    res.status(500).json({ error: 'Fehler beim Generieren des neuen QR-Codes' });
   }
 });
 

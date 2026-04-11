@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { settingsApi } from '../../lib/api';
 import toast from 'react-hot-toast';
-import { Save, Building2, Clock, Calendar, Trash2, Plus, X, Briefcase, Edit2, Wand2, MapPin, AlertCircle, Database, Download, Upload, HardDrive, Mail, Send, CheckCircle, Monitor, Copy, Key } from 'lucide-react';
+import { Save, Building2, Clock, Calendar, Trash2, Plus, X, Briefcase, Edit2, Wand2, MapPin, AlertCircle, Database, Download, Upload, HardDrive, Mail, Send, CheckCircle, Monitor, Copy, Key, Shield, Smartphone } from 'lucide-react';
+import BackupSettings from '../../components/admin/BackupSettings';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 
@@ -42,8 +43,352 @@ interface Terminal {
   createdAt: string;
 }
 
+const MONTHS_SHORT = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+
+function PwaReasonsSection() {
+  const [reasons, setReasons] = useState<any[]>([]);
+  const [newReason, setNewReason] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  const loadReasons = async () => {
+    try {
+      const res = await settingsApi.getPwaReasons();
+      setReasons(res.data);
+    } catch {} finally { setLoading(false); }
+  };
+
+  useEffect(() => { loadReasons(); }, []);
+
+  const addReason = async () => {
+    if (!newReason.trim()) return;
+    try {
+      await settingsApi.createPwaReason(newReason.trim());
+      setNewReason('');
+      loadReasons();
+      toast.success('Grund hinzugefügt');
+    } catch { toast.error('Fehler beim Hinzufügen'); }
+  };
+
+  const toggleActive = async (id: string, isActive: boolean) => {
+    try {
+      await settingsApi.updatePwaReason(id, { isActive: !isActive });
+      loadReasons();
+    } catch {}
+  };
+
+  const deleteReason = async (id: string) => {
+    if (!confirm('Grund wirklich löschen?')) return;
+    try {
+      await settingsApi.deletePwaReason(id);
+      loadReasons();
+      toast.success('Grund gelöscht');
+    } catch { toast.error('Fehler beim Löschen'); }
+  };
+
+  return (
+    <div className="card">
+      <div className="p-6 border-b border-gray-100">
+        <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+          <Smartphone size={20} />
+          PWA-Stempel-Gründe
+        </h2>
+        <p className="text-sm text-gray-500 mt-1">Vordefinierte Gründe für mobiles Ein-/Ausstempeln</p>
+      </div>
+      <div className="p-6">
+        <div className="flex gap-2 mb-4">
+          <input
+            type="text"
+            value={newReason}
+            onChange={(e) => setNewReason(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && addReason()}
+            className="input flex-1"
+            placeholder="z.B. Außentermin, Homeoffice, Arztbesuch..."
+          />
+          <button onClick={addReason} className="btn btn-primary flex items-center gap-1">
+            <Plus size={16} /> Hinzufügen
+          </button>
+        </div>
+        {reasons.length > 0 ? (
+          <div className="space-y-2">
+            {reasons.map((r) => (
+              <div key={r.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <span className={`font-medium ${r.isActive ? 'text-gray-900' : 'text-gray-400 line-through'}`}>
+                    {r.name}
+                  </span>
+                  {!r.isActive && <span className="text-xs text-yellow-600 bg-yellow-50 px-2 py-0.5 rounded">Inaktiv</span>}
+                </div>
+                <div className="flex items-center gap-1">
+                  <button onClick={() => toggleActive(r.id, r.isActive)}
+                    className={`text-xs px-2 py-1 rounded ${r.isActive ? 'text-yellow-700 hover:bg-yellow-100' : 'text-green-700 hover:bg-green-100'}`}>
+                    {r.isActive ? 'Deaktivieren' : 'Aktivieren'}
+                  </button>
+                  <button onClick={() => deleteReason(r.id)} className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded">
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : !loading ? (
+          <p className="text-sm text-gray-500 text-center py-4">Noch keine Gründe erstellt</p>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function DataImportSection() {
+  const queryClient = useQueryClient();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ initialOvertimeBalance: 0, initialVacationDaysUsed: 0, initialSickDays: 0, initialBalanceYear: new Date().getFullYear(), initialBalanceMonth: new Date().getMonth() + 1 });
+  const [csvData, setCsvData] = useState<any[] | null>(null);
+  const [csvImporting, setCsvImporting] = useState(false);
+
+  const { data: employees } = useQuery({
+    queryKey: ['initial-balances'],
+    queryFn: () => settingsApi.getInitialBalances().then(r => r.data),
+  });
+
+  const handleSave = async (id: string) => {
+    try {
+      await settingsApi.setInitialBalance(id, editForm);
+      toast.success('Startsaldo gespeichert');
+      queryClient.invalidateQueries({ queryKey: ['initial-balances'] });
+      setEditingId(null);
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Fehler beim Speichern');
+    }
+  };
+
+  const handleCsvFile = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const text = e.target?.result as string;
+        const lines = text.split('\n').filter(l => l.trim());
+        if (lines.length < 2) { toast.error('CSV muss mindestens eine Kopfzeile und eine Datenzeile haben'); return; }
+
+        // Header parsen (flexible Spalten-Erkennung)
+        const header = lines[0].split(/[;,\t]/).map(h => h.trim().toLowerCase().replace(/"/g, ''));
+        const numCol = header.findIndex(h => h.includes('nummer') || h.includes('number') || h === 'nr');
+        const otCol = header.findIndex(h => h.includes('überstunden') || h.includes('overtime') || h.includes('saldo'));
+        const vacCol = header.findIndex(h => h.includes('urlaub') || h.includes('vacation'));
+        const sickCol = header.findIndex(h => h.includes('krank') || h.includes('sick'));
+        const yearCol = header.findIndex(h => h.includes('jahr') || h.includes('year'));
+        const monthCol = header.findIndex(h => h.includes('monat') || h.includes('month'));
+
+        if (numCol === -1) { toast.error('Spalte "Mitarbeiternummer" nicht gefunden. Erwartete Spaltenüberschriften: Mitarbeiternummer, Überstunden, Urlaubstage, Krankheitstage, Jahr, Monat'); return; }
+
+        const entries = [];
+        for (let i = 1; i < lines.length; i++) {
+          const cols = lines[i].split(/[;,\t]/).map(c => c.trim().replace(/"/g, ''));
+          if (!cols[numCol]) continue;
+          entries.push({
+            employeeNumber: cols[numCol],
+            overtimeBalance: otCol >= 0 ? cols[otCol] : '0',
+            vacationDaysUsed: vacCol >= 0 ? cols[vacCol] : '0',
+            sickDays: sickCol >= 0 ? cols[sickCol] : '0',
+            year: yearCol >= 0 ? cols[yearCol] : String(new Date().getFullYear()),
+            month: monthCol >= 0 ? cols[monthCol] : String(new Date().getMonth() + 1),
+          });
+        }
+        setCsvData(entries);
+        toast.success(`${entries.length} Einträge erkannt`);
+      } catch { toast.error('Fehler beim Lesen der CSV-Datei'); }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleCsvImport = async () => {
+    if (!csvData) return;
+    setCsvImporting(true);
+    try {
+      const res = await settingsApi.importCsvBalances(csvData);
+      toast.success(`${res.data.imported} Einträge importiert`);
+      if (res.data.errors?.length) {
+        res.data.errors.forEach((e: string) => toast.error(e, { duration: 5000 }));
+      }
+      queryClient.invalidateQueries({ queryKey: ['initial-balances'] });
+      setCsvData(null);
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Fehler beim Import');
+    } finally {
+      setCsvImporting(false);
+    }
+  };
+
+  return (
+    <div className="card">
+      <div className="p-6 border-b border-gray-100">
+        <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+          <Database size={20} />
+          Daten-Import (Startsalden)
+        </h2>
+        <p className="text-sm text-gray-500 mt-1">
+          Überstunden-Saldo, bereits genommene Urlaubstage und Krankheitstage aus der vorherigen Software importieren
+        </p>
+      </div>
+
+      {/* CSV Upload */}
+      <div className="p-6 border-b border-gray-100">
+        <h3 className="text-sm font-semibold text-gray-700 mb-3">CSV-Import</h3>
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="btn btn-secondary text-sm flex items-center gap-2 cursor-pointer">
+            <Upload size={16} />
+            CSV-Datei wählen
+            <input type="file" accept=".csv,.txt" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCsvFile(f); e.target.value = ''; }} />
+          </label>
+          {csvData && (
+            <>
+              <span className="text-sm text-gray-600">{csvData.length} Einträge erkannt</span>
+              <button onClick={handleCsvImport} disabled={csvImporting} className="btn btn-primary text-sm">
+                {csvImporting ? 'Importiere...' : 'Importieren'}
+              </button>
+              <button onClick={() => setCsvData(null)} className="text-sm text-gray-500 hover:text-gray-700">Abbrechen</button>
+            </>
+          )}
+        </div>
+        <p className="text-xs text-gray-400 mt-2">
+          Erwartete Spalten: Mitarbeiternummer; Überstunden; Urlaubstage (bereits genommen); Krankheitstage; Jahr; Monat (Trennzeichen: ; oder ,)
+        </p>
+
+        {/* CSV Preview */}
+        {csvData && csvData.length > 0 && (
+          <div className="mt-3 max-h-40 overflow-y-auto border rounded-lg">
+            <table className="w-full text-xs">
+              <thead className="bg-gray-50 sticky top-0">
+                <tr>
+                  <th className="px-3 py-1.5 text-left">Nr.</th>
+                  <th className="px-3 py-1.5 text-right">Überstunden</th>
+                  <th className="px-3 py-1.5 text-right">Urlaub</th>
+                  <th className="px-3 py-1.5 text-right">Krank</th>
+                  <th className="px-3 py-1.5 text-left">Stichtag</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {csvData.map((row, i) => (
+                  <tr key={i}>
+                    <td className="px-3 py-1">#{row.employeeNumber}</td>
+                    <td className="px-3 py-1 text-right">{row.overtimeBalance}h</td>
+                    <td className="px-3 py-1 text-right">{row.vacationDaysUsed} Tage</td>
+                    <td className="px-3 py-1 text-right">{row.sickDays} Tage</td>
+                    <td className="px-3 py-1">{row.month}/{row.year}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Manual Entry Table */}
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mitarbeiter</th>
+              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Überstunden (h)</th>
+              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase" title="Bereits genommene Urlaubstage">Urlaubstage (genommen)</th>
+              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Krankheitstage</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stichtag</th>
+              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Aktionen</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {employees?.map((emp: any) => {
+              const isEditing = editingId === emp.id;
+              return (
+                <tr key={emp.id} className={isEditing ? 'bg-primary-50' : ''}>
+                  <td className="px-4 py-3">
+                    <p className="text-sm font-medium text-gray-900">{emp.firstName} {emp.lastName}</p>
+                    <p className="text-xs text-gray-500">#{emp.employeeNumber}</p>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {isEditing ? (
+                      <input type="text" inputMode="decimal" value={editForm.initialOvertimeBalance} onChange={(e) => setEditForm({...editForm, initialOvertimeBalance: e.target.value as any})} onBlur={(e) => { const v = parseFloat(e.target.value.replace(',', '.')); setEditForm(f => ({...f, initialOvertimeBalance: isNaN(v) ? 0 : v})); }} className="input py-1 text-sm text-right w-24" />
+                    ) : (
+                      <span className={`text-sm ${emp.initialOvertimeBalance > 0 ? 'text-green-600' : emp.initialOvertimeBalance < 0 ? 'text-red-600' : 'text-gray-500'}`}>
+                        {emp.initialOvertimeBalance !== 0 ? `${emp.initialOvertimeBalance > 0 ? '+' : ''}${emp.initialOvertimeBalance}h` : '-'}
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {isEditing ? (
+                      <input type="number" min="0" value={editForm.initialVacationDaysUsed} onChange={(e) => setEditForm({...editForm, initialVacationDaysUsed: parseInt(e.target.value) || 0})} className="input py-1 text-sm text-right w-20" />
+                    ) : (
+                      <span className="text-sm text-gray-700">{emp.initialVacationDaysUsed || '-'}</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {isEditing ? (
+                      <input type="number" min="0" value={editForm.initialSickDays} onChange={(e) => setEditForm({...editForm, initialSickDays: parseInt(e.target.value) || 0})} className="input py-1 text-sm text-right w-20" />
+                    ) : (
+                      <span className="text-sm text-gray-700">{emp.initialSickDays || '-'}</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    {isEditing ? (
+                      <div className="flex gap-1">
+                        <select value={editForm.initialBalanceMonth} onChange={(e) => setEditForm({...editForm, initialBalanceMonth: parseInt(e.target.value)})} className="input py-1 text-sm w-20">
+                          {MONTHS_SHORT.map((m, i) => <option key={i} value={i+1}>{m}</option>)}
+                        </select>
+                        <select value={editForm.initialBalanceYear} onChange={(e) => setEditForm({...editForm, initialBalanceYear: parseInt(e.target.value)})} className="input py-1 text-sm w-20">
+                          {[2024,2025,2026,2027].map(y => <option key={y} value={y}>{y}</option>)}
+                        </select>
+                      </div>
+                    ) : (
+                      <span className="text-sm text-gray-500">
+                        {emp.initialBalanceYear ? `${MONTHS_SHORT[(emp.initialBalanceMonth || 1) - 1]} ${emp.initialBalanceYear}` : '-'}
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {isEditing ? (
+                      <div className="flex justify-end gap-1">
+                        <button onClick={() => handleSave(emp.id)} className="btn btn-primary text-xs py-1 px-2">Speichern</button>
+                        <button onClick={() => setEditingId(null)} className="btn btn-secondary text-xs py-1 px-2">Abbrechen</button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setEditingId(emp.id);
+                          setEditForm({
+                            initialOvertimeBalance: emp.initialOvertimeBalance || 0,
+                            initialVacationDaysUsed: emp.initialVacationDaysUsed || 0,
+                            initialSickDays: emp.initialSickDays || 0,
+                            initialBalanceYear: emp.initialBalanceYear || new Date().getFullYear(),
+                            initialBalanceMonth: emp.initialBalanceMonth || new Date().getMonth() + 1,
+                          });
+                        }}
+                        className="p-1.5 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
+                      >
+                        <Edit2 size={16} />
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+            {!employees?.length && (
+              <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-500">Keine Mitarbeiter vorhanden</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminSettings() {
   const queryClient = useQueryClient();
+  const [backendBaseUrl, setBackendBaseUrl] = useState('');
+
+  useEffect(() => {
+    fetch('/api/health').then(r => r.json()).then(d => {
+      if (d.baseUrl) setBackendBaseUrl(d.baseUrl);
+    }).catch(() => {});
+  }, []);
 
   const { data: settings, isLoading } = useQuery({
     queryKey: ['settings'],
@@ -98,6 +443,7 @@ export default function AdminSettings() {
     companyEmail: '',
     defaultBreakMinutes: 30,
     overtimeThreshold: 40,
+    pdfShowWorkCategory: false,
   });
 
   const [showHolidayModal, setShowHolidayModal] = useState(false);
@@ -133,6 +479,7 @@ export default function AdminSettings() {
     shortName: '',
     requiredHours: 0,
     color: '#3B82F6',
+    countsAsVacation: false,
     isActive: true,
     sortOrder: 0,
   });
@@ -147,12 +494,70 @@ export default function AdminSettings() {
     sortOrder: 0,
   });
 
+  // Terminal Logo
+  const { data: terminalLogo, refetch: refetchLogo } = useQuery({
+    queryKey: ['terminal-logo'],
+    queryFn: () => settingsApi.getTerminalLogo().then((r) => r.data),
+  });
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [logoDragging, setLogoDragging] = useState(false);
+
+  // Dokumenttypen
+  const { data: documentTypes } = useQuery({
+    queryKey: ['document-types'],
+    queryFn: () => settingsApi.getAllDocumentTypes().then((r) => r.data),
+  });
+  const [showDocTypeModal, setShowDocTypeModal] = useState(false);
+  const [editingDocType, setEditingDocType] = useState<any>(null);
+  const [docTypeForm, setDocTypeForm] = useState({ name: '', shortName: '', color: '#6366F1', isActive: true, sortOrder: 0 });
+
+  const createDocTypeMutation = useMutation({
+    mutationFn: (data: any) => settingsApi.createDocumentType(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['document-types'] });
+      toast.success('Dokumenttyp erstellt');
+      setShowDocTypeModal(false);
+    },
+    onError: (error: any) => toast.error(error.response?.data?.error || 'Fehler'),
+  });
+
+  const updateDocTypeMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => settingsApi.updateDocumentType(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['document-types'] });
+      toast.success('Dokumenttyp aktualisiert');
+      setShowDocTypeModal(false);
+    },
+    onError: (error: any) => toast.error(error.response?.data?.error || 'Fehler'),
+  });
+
+  const deleteDocTypeMutation = useMutation({
+    mutationFn: (id: string) => settingsApi.deleteDocumentType(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['document-types'] });
+      toast.success('Dokumenttyp gelöscht');
+    },
+    onError: (error: any) => toast.error(error.response?.data?.error || 'Fehler'),
+  });
+
+  const openDocTypeModal = (docType?: any) => {
+    if (docType) {
+      setEditingDocType(docType);
+      setDocTypeForm({ name: docType.name, shortName: docType.shortName, color: docType.color, isActive: docType.isActive, sortOrder: docType.sortOrder });
+    } else {
+      setEditingDocType(null);
+      setDocTypeForm({ name: '', shortName: '', color: '#6366F1', isActive: true, sortOrder: 0 });
+    }
+    setShowDocTypeModal(true);
+  };
+
   // Terminal State
   const [showTerminalModal, setShowTerminalModal] = useState(false);
   const [editingTerminal, setEditingTerminal] = useState<Terminal | null>(null);
   const [terminalForm, setTerminalForm] = useState({ name: '', isActive: true });
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [displayedApiKey, setDisplayedApiKey] = useState('');
+  const [displayedTerminalId, setDisplayedTerminalId] = useState('');
   const [apiKeyCopied, setApiKeyCopied] = useState(false);
 
   useEffect(() => {
@@ -164,6 +569,7 @@ export default function AdminSettings() {
         companyEmail: settings.companyEmail || '',
         defaultBreakMinutes: settings.defaultBreakMinutes || 30,
         overtimeThreshold: settings.overtimeThreshold || 40,
+        pdfShowWorkCategory: settings.pdfShowWorkCategory || false,
       });
     }
   }, [settings]);
@@ -337,8 +743,9 @@ export default function AdminSettings() {
       queryClient.invalidateQueries({ queryKey: ['terminals'] });
       toast.success('Terminal erstellt');
       setShowTerminalModal(false);
-      // API-Key einmalig anzeigen
+      // API-Key + Install-Befehl anzeigen
       setDisplayedApiKey(response.data.apiKey);
+      setDisplayedTerminalId(response.data.id);
       setApiKeyCopied(false);
       setShowApiKeyModal(true);
     },
@@ -442,6 +849,7 @@ export default function AdminSettings() {
       shortName: '',
       requiredHours: 0,
       color: '#3B82F6',
+      countsAsVacation: false,
       isActive: true,
       sortOrder: absenceTypes?.length ?? 0,
     });
@@ -455,6 +863,7 @@ export default function AdminSettings() {
       shortName: type.shortName,
       requiredHours: type.requiredHours,
       color: type.color,
+      countsAsVacation: (type as any).countsAsVacation || false,
       isActive: type.isActive,
       sortOrder: type.sortOrder,
     });
@@ -658,6 +1067,20 @@ export default function AdminSettings() {
                 />
               </div>
             </div>
+            <div className="mt-4">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.pdfShowWorkCategory}
+                  onChange={(e) => setFormData({ ...formData, pdfShowWorkCategory: e.target.checked })}
+                  className="rounded"
+                />
+                <div>
+                  <p className="text-sm font-medium text-gray-700">Arbeitskategorie auf Abrechnung anzeigen</p>
+                  <p className="text-xs text-gray-500">Zeigt Kategorie und früheste Einstempelzeit auf dem PDF</p>
+                </div>
+              </label>
+            </div>
           </div>
           <div className="p-6 border-t border-gray-100 flex justify-end">
             <button
@@ -737,89 +1160,6 @@ export default function AdminSettings() {
             ) : (
               <div className="p-8 text-center text-gray-500">Keine Feiertage eingetragen</div>
             )}
-          </div>
-        </div>
-
-        {/* Database Management */}
-        <div className="card">
-          <div className="p-6 border-b border-gray-100">
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <Database size={20} />
-              Datenbank
-            </h2>
-          </div>
-          <div className="p-6 space-y-4">
-            {/* DB Info */}
-            {databaseInfo && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <HardDrive size={20} className="text-gray-500" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">Datenbank-Größe</p>
-                      <p className="text-xs text-gray-500">SQLite Datenbank</p>
-                    </div>
-                  </div>
-                  <span className="text-lg font-semibold text-gray-900">
-                    {databaseInfo.sizeFormatted}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div className="p-2 bg-gray-50 rounded">
-                    <span className="text-gray-500">Mitarbeiter:</span>
-                    <span className="ml-2 font-medium">{databaseInfo.stats?.employees ?? 0}</span>
-                  </div>
-                  <div className="p-2 bg-gray-50 rounded">
-                    <span className="text-gray-500">Zeiteinträge:</span>
-                    <span className="ml-2 font-medium">{databaseInfo.stats?.timeEntries ?? 0}</span>
-                  </div>
-                  <div className="p-2 bg-gray-50 rounded">
-                    <span className="text-gray-500">Abrechnungen:</span>
-                    <span className="ml-2 font-medium">{databaseInfo.stats?.monthlyReports ?? 0}</span>
-                  </div>
-                  <div className="p-2 bg-gray-50 rounded">
-                    <span className="text-gray-500">Feiertage:</span>
-                    <span className="ml-2 font-medium">{databaseInfo.stats?.holidays ?? 0}</span>
-                  </div>
-                </div>
-
-                {databaseInfo.lastModified && (
-                  <p className="text-xs text-gray-500">
-                    Letzte Änderung: {format(new Date(databaseInfo.lastModified), 'dd.MM.yyyy HH:mm', { locale: de })}
-                  </p>
-                )}
-              </div>
-            )}
-
-            {/* Actions */}
-            <div className="pt-4 border-t border-gray-100 space-y-3">
-              <button
-                onClick={handleBackupDownload}
-                disabled={isDownloading}
-                className="w-full btn btn-secondary flex items-center justify-center gap-2"
-              >
-                {isDownloading ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-gray-600 border-t-transparent rounded-full animate-spin" />
-                    Lade herunter...
-                  </>
-                ) : (
-                  <>
-                    <Download size={18} />
-                    Backup herunterladen
-                  </>
-                )}
-              </button>
-
-              <button
-                onClick={() => setShowRestoreModal(true)}
-                className="w-full btn btn-secondary flex items-center justify-center gap-2 text-amber-700 border-amber-300 hover:bg-amber-50"
-              >
-                <Upload size={18} />
-                Backup wiederherstellen
-              </button>
-            </div>
           </div>
         </div>
 
@@ -1256,8 +1596,327 @@ export default function AdminSettings() {
         </div>
       )}
 
+      {/* PWA-Stempel-Gründe */}
+      <PwaReasonsSection />
+
+      {/* Datenbank & Backups */}
+      <div className="card">
+        <div className="p-6 border-b border-gray-100">
+          <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+            <Shield size={20} />
+            Datenbank & Backups
+          </h2>
+        </div>
+        <div className="p-6 space-y-6">
+          {/* DB Info */}
+          {databaseInfo && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <HardDrive size={20} className="text-gray-500" />
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">Datenbank-Größe</p>
+                    <p className="text-xs text-gray-500">SQLite Datenbank</p>
+                  </div>
+                </div>
+                <span className="text-lg font-semibold text-gray-900">
+                  {databaseInfo.sizeFormatted}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                <div className="p-2 bg-gray-50 rounded">
+                  <span className="text-gray-500">Mitarbeiter:</span>
+                  <span className="ml-2 font-medium">{databaseInfo.stats?.employees ?? 0}</span>
+                </div>
+                <div className="p-2 bg-gray-50 rounded">
+                  <span className="text-gray-500">Zeiteinträge:</span>
+                  <span className="ml-2 font-medium">{databaseInfo.stats?.timeEntries ?? 0}</span>
+                </div>
+                <div className="p-2 bg-gray-50 rounded">
+                  <span className="text-gray-500">Abrechnungen:</span>
+                  <span className="ml-2 font-medium">{databaseInfo.stats?.monthlyReports ?? 0}</span>
+                </div>
+                <div className="p-2 bg-gray-50 rounded">
+                  <span className="text-gray-500">Feiertage:</span>
+                  <span className="ml-2 font-medium">{databaseInfo.stats?.holidays ?? 0}</span>
+                </div>
+              </div>
+              {databaseInfo.lastModified && (
+                <p className="text-xs text-gray-500">
+                  Letzte Änderung: {format(new Date(databaseInfo.lastModified), 'dd.MM.yyyy HH:mm', { locale: de })}
+                </p>
+              )}
+              <div className="flex gap-3">
+                <button
+                  onClick={handleBackupDownload}
+                  disabled={isDownloading}
+                  className="btn btn-secondary flex items-center gap-2 text-sm"
+                >
+                  {isDownloading ? (
+                    <><div className="w-4 h-4 border-2 border-gray-600 border-t-transparent rounded-full animate-spin" /> Lade...</>
+                  ) : (
+                    <><Download size={16} /> DB herunterladen</>
+                  )}
+                </button>
+                <button
+                  onClick={() => setShowRestoreModal(true)}
+                  className="btn btn-secondary flex items-center gap-2 text-sm text-amber-700 border-amber-300 hover:bg-amber-50"
+                >
+                  <Upload size={16} /> DB wiederherstellen
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Backup-System */}
+          <div className="border-t border-gray-100 pt-6">
+            <BackupSettings />
+          </div>
+        </div>
+      </div>
+
+      {/* Daten-Import */}
+      <DataImportSection />
+
+      {/* Dokumenttypen */}
+      <div className="card">
+        <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <Briefcase size={20} />
+              Dokumenttypen
+            </h2>
+            <p className="text-sm text-gray-500 mt-1">Typen für Mitarbeiter-Dokumente verwalten</p>
+          </div>
+          <button onClick={() => openDocTypeModal()} className="btn btn-secondary flex items-center gap-2 text-sm">
+            <Plus size={16} />
+            Neuer Typ
+          </button>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Farbe</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kürzel</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Aktionen</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {documentTypes?.map((dt: any) => (
+                <tr key={dt.id}>
+                  <td className="px-6 py-3">
+                    <div className="w-4 h-4 rounded-full" style={{ backgroundColor: dt.color }} />
+                  </td>
+                  <td className="px-6 py-3 text-sm font-medium text-gray-900">{dt.name}</td>
+                  <td className="px-6 py-3 text-sm text-gray-500">{dt.shortName}</td>
+                  <td className="px-6 py-3">
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${dt.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                      {dt.isActive ? 'Aktiv' : 'Inaktiv'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-3">
+                    <div className="flex items-center justify-end gap-2">
+                      <button onClick={() => openDocTypeModal(dt)} className="p-1.5 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg">
+                        <Edit2 size={16} />
+                      </button>
+                      <button
+                        onClick={() => { if (confirm(`"${dt.name}" wirklich löschen?`)) deleteDocTypeMutation.mutate(dt.id); }}
+                        className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {!documentTypes?.length && (
+                <tr><td colSpan={5} className="px-6 py-8 text-center text-gray-500">Keine Dokumenttypen vorhanden</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Dokumenttyp Modal */}
+      {showDocTypeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowDocTypeModal(false)}>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+              <h2 className="text-xl font-semibold">{editingDocType ? 'Dokumenttyp bearbeiten' : 'Neuer Dokumenttyp'}</h2>
+              <button onClick={() => setShowDocTypeModal(false)} className="p-2 hover:bg-gray-100 rounded-lg"><X size={20} /></button>
+            </div>
+            <form
+              className="p-6 space-y-4"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (editingDocType) {
+                  updateDocTypeMutation.mutate({ id: editingDocType.id, data: docTypeForm });
+                } else {
+                  createDocTypeMutation.mutate(docTypeForm);
+                }
+              }}
+            >
+              <div>
+                <label className="label">Name</label>
+                <input type="text" value={docTypeForm.name} onChange={(e) => setDocTypeForm({ ...docTypeForm, name: e.target.value })} className="input" required />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="label">Kürzel</label>
+                  <input type="text" value={docTypeForm.shortName} onChange={(e) => setDocTypeForm({ ...docTypeForm, shortName: e.target.value })} className="input" maxLength={10} required />
+                </div>
+                <div>
+                  <label className="label">Farbe</label>
+                  <div className="flex items-center gap-2">
+                    <input type="color" value={docTypeForm.color} onChange={(e) => setDocTypeForm({ ...docTypeForm, color: e.target.value })} className="w-10 h-10 rounded border cursor-pointer" />
+                    <input type="text" value={docTypeForm.color} onChange={(e) => setDocTypeForm({ ...docTypeForm, color: e.target.value })} className="input flex-1" />
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <input type="checkbox" id="docTypeActive" checked={docTypeForm.isActive} onChange={(e) => setDocTypeForm({ ...docTypeForm, isActive: e.target.checked })} className="w-4 h-4 text-primary-600 rounded border-gray-300" />
+                <label htmlFor="docTypeActive" className="text-sm text-gray-700">Aktiv</label>
+              </div>
+              <div className="flex justify-end gap-3 pt-4">
+                <button type="button" onClick={() => setShowDocTypeModal(false)} className="btn btn-secondary">Abbrechen</button>
+                <button type="submit" className="btn btn-primary">{editingDocType ? 'Speichern' : 'Erstellen'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Terminals */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Terminal Logo */}
+        <div className="card lg:col-span-2">
+          <div className="p-6 border-b border-gray-100">
+            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <Monitor size={20} />
+              Terminal-Logo
+            </h2>
+            <p className="text-sm text-gray-500 mt-1">
+              Logo wird oben links auf dem PI-Display angezeigt
+            </p>
+          </div>
+          <div className="p-6">
+            {terminalLogo?.logoUrl ? (
+              <div className="flex items-center gap-6">
+                <div className="relative group">
+                  <img
+                    src={terminalLogo.logoUrl}
+                    alt="Terminal Logo"
+                    className="w-24 h-24 object-contain rounded-lg border border-gray-200 bg-gray-900 p-2"
+                  />
+                  <button
+                    onClick={async () => {
+                      if (!confirm('Logo wirklich löschen?')) return;
+                      try {
+                        await settingsApi.deleteTerminalLogo();
+                        toast.success('Logo gelöscht');
+                        refetchLogo();
+                      } catch {
+                        toast.error('Fehler beim Löschen');
+                      }
+                    }}
+                    className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="Logo löschen"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+                <div>
+                  <label className="btn btn-secondary text-sm flex items-center gap-2 cursor-pointer">
+                    <Upload size={16} />
+                    {logoUploading ? 'Wird hochgeladen...' : 'Logo ersetzen'}
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                      className="hidden"
+                      disabled={logoUploading}
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        setLogoUploading(true);
+                        try {
+                          await settingsApi.uploadTerminalLogo(file);
+                          toast.success('Logo hochgeladen');
+                          refetchLogo();
+                        } catch (err: any) {
+                          toast.error(err.response?.data?.error || 'Fehler beim Hochladen');
+                        } finally {
+                          setLogoUploading(false);
+                          e.target.value = '';
+                        }
+                      }}
+                    />
+                  </label>
+                </div>
+              </div>
+            ) : (
+              <label
+                className={`flex flex-col items-center justify-center w-full h-36 rounded-lg border-2 border-dashed cursor-pointer transition-colors ${
+                  logoDragging
+                    ? 'border-primary-500 bg-primary-50'
+                    : 'border-gray-300 bg-gray-50 hover:bg-gray-100 hover:border-gray-400'
+                }`}
+                onDragOver={(e) => { e.preventDefault(); setLogoDragging(true); }}
+                onDragLeave={() => setLogoDragging(false)}
+                onDrop={async (e) => {
+                  e.preventDefault();
+                  setLogoDragging(false);
+                  const file = e.dataTransfer.files[0];
+                  if (!file) return;
+                  if (!['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'].includes(file.type)) {
+                    toast.error('Nur PNG, JPG, WebP oder SVG erlaubt');
+                    return;
+                  }
+                  setLogoUploading(true);
+                  try {
+                    await settingsApi.uploadTerminalLogo(file);
+                    toast.success('Logo hochgeladen');
+                    refetchLogo();
+                  } catch (err: any) {
+                    toast.error(err.response?.data?.error || 'Fehler beim Hochladen');
+                  } finally {
+                    setLogoUploading(false);
+                  }
+                }}
+              >
+                <Upload size={28} className={logoDragging ? 'text-primary-500' : 'text-gray-400'} />
+                <p className="mt-2 text-sm text-gray-600">
+                  {logoUploading ? 'Wird hochgeladen...' : logoDragging ? 'Logo hier ablegen' : 'Logo hierhin ziehen oder klicken'}
+                </p>
+                <p className="text-xs text-gray-400 mt-1">PNG, JPG, WebP oder SVG (max. 5MB)</p>
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                  className="hidden"
+                  disabled={logoUploading}
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    setLogoUploading(true);
+                    try {
+                      await settingsApi.uploadTerminalLogo(file);
+                      toast.success('Logo hochgeladen');
+                      refetchLogo();
+                    } catch (err: any) {
+                      toast.error(err.response?.data?.error || 'Fehler beim Hochladen');
+                    } finally {
+                      setLogoUploading(false);
+                      e.target.value = '';
+                    }
+                  }}
+                />
+              </label>
+            )}
+          </div>
+        </div>
+
         <div className="card lg:col-span-2">
           <div className="p-6 border-b border-gray-100 flex items-center justify-between">
             <div>
@@ -1337,6 +1996,17 @@ export default function AdminSettings() {
                             title="Bearbeiten"
                           >
                             <Edit2 size={18} />
+                          </button>
+                          <button
+                            onClick={() => {
+                              const cmd = `curl -sL ${backendBaseUrl || window.location.origin}/api/setup/terminal-install/${terminal.id} | bash`;
+                              navigator.clipboard.writeText(cmd);
+                              toast.success('Install-Befehl kopiert!');
+                            }}
+                            className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-lg"
+                            title="Install-Befehl kopieren"
+                          >
+                            <Copy size={18} />
                           </button>
                           <button
                             onClick={() => {
@@ -1459,9 +2129,26 @@ export default function AdminSettings() {
                   {apiKeyCopied ? <CheckCircle size={16} /> : <Copy size={16} />}
                 </button>
               </div>
+              {displayedTerminalId && (
+                <div>
+                  <p className="text-sm font-medium text-gray-700 mb-2">Schnellinstallation auf dem Raspberry Pi:</p>
+                  <div className="bg-gray-900 text-gray-100 rounded-lg p-3 font-mono text-xs overflow-x-auto">
+                    <span className="text-gray-400">$</span> curl -sL {backendBaseUrl || window.location.origin}/api/setup/terminal-install/{displayedTerminalId} | bash
+                  </div>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(`curl -sL ${backendBaseUrl || window.location.origin}/api/setup/terminal-install/${displayedTerminalId} | bash`);
+                      toast.success('Install-Befehl kopiert!');
+                    }}
+                    className="text-sm text-blue-600 hover:text-blue-700 mt-1"
+                  >
+                    Befehl kopieren
+                  </button>
+                </div>
+              )}
               <div className="flex justify-end pt-2">
                 <button
-                  onClick={() => { setShowApiKeyModal(false); setDisplayedApiKey(''); }}
+                  onClick={() => { setShowApiKeyModal(false); setDisplayedApiKey(''); setDisplayedTerminalId(''); }}
                   className="btn btn-primary"
                 >
                   Verstanden
@@ -1587,6 +2274,18 @@ export default function AdminSettings() {
                     className="input"
                   />
                   <p className="text-xs text-gray-500 mt-1">0 = keine Pflichtstunden</p>
+                </div>
+                <div>
+                  <label className="flex items-center gap-2 mt-2">
+                    <input
+                      type="checkbox"
+                      checked={absenceTypeForm.countsAsVacation}
+                      onChange={(e) => setAbsenceTypeForm({ ...absenceTypeForm, countsAsVacation: e.target.checked })}
+                      className="rounded"
+                    />
+                    <span className="text-sm">Zählt als Urlaubstag</span>
+                  </label>
+                  <p className="text-xs text-gray-500 mt-1">Wenn aktiviert, wird dieser Typ vom Urlaubskontingent abgezogen</p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">

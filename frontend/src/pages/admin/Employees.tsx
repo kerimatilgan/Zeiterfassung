@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useSearchParams } from 'react-router-dom';
-import { employeesApi, timeEntriesApi, settingsApi, terminalApi } from '../../lib/api';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { employeesApi, timeEntriesApi, settingsApi, terminalApi, authApi, twoFactorApi, documentsApi, reportsApi } from '../../lib/api';
 import toast from 'react-hot-toast';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -10,10 +10,8 @@ import {
   Plus,
   Edit2,
   Trash2,
-  QrCode,
   Search,
   X,
-  Download,
   Calendar,
   ChevronLeft,
   ChevronRight,
@@ -27,11 +25,18 @@ import {
   AlertTriangle,
   CheckCircle,
   MessageSquare,
+  KeyRound,
+  FolderOpen,
+  Download,
+  Upload,
+  Clock,
+  MapPin,
 } from 'lucide-react';
 
 interface Employee {
   id: string;
   employeeNumber: string;
+  username: string | null;
   firstName: string;
   lastName: string;
   email: string | null;
@@ -42,7 +47,6 @@ interface Employee {
   workDays: string;
   isActive: boolean;
   isAdmin: boolean;
-  qrCode: string;
   rfidCard: string | null;
   workCategoryId: string | null;
   workCategory?: { id: string; name: string; earliestClockIn: string } | null;
@@ -50,6 +54,7 @@ interface Employee {
 
 interface EmployeeFormData {
   employeeNumber: string;
+  username: string;
   firstName: string;
   lastName: string;
   email: string;
@@ -60,10 +65,16 @@ interface EmployeeFormData {
   isAdmin: boolean;
   password: string;
   workCategoryId: string;
+  canClockInPwa: boolean;
+  canClockOutPwa: boolean;
+  defaultClockOut: string;
+  startDate: string;
+  endDate: string;
 }
 
 const initialFormData: EmployeeFormData = {
   employeeNumber: '',
+  username: '',
   firstName: '',
   lastName: '',
   email: '',
@@ -74,6 +85,11 @@ const initialFormData: EmployeeFormData = {
   isAdmin: false,
   password: '',
   workCategoryId: '',
+  canClockInPwa: false,
+  canClockOutPwa: false,
+  defaultClockOut: '17:00',
+  startDate: '',
+  endDate: '',
 };
 
 // Wochentage für Checkbox-Auswahl
@@ -146,12 +162,232 @@ interface Holiday {
   isRecurring: boolean;
 }
 
+// 2FA Admin Management Sub-Component
+function TwoFactorAdminSection({ employeeId, employeeName }: { employeeId: string; employeeName: string }) {
+  const [status, setStatus] = useState<{ totpEnabled: boolean; passkeys: any[] } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const loadStatus = async () => {
+    try {
+      const res = await twoFactorApi.getAdminStatus(employeeId);
+      setStatus(res.data);
+    } catch {
+      setStatus(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { loadStatus(); }, [employeeId]);
+
+  if (loading) return <p className="text-sm text-gray-400">Laden...</p>;
+  if (!status) return <p className="text-sm text-gray-400">Status nicht verfügbar</p>;
+
+  const has2FA = status.totpEnabled || status.passkeys.length > 0;
+
+  if (!has2FA) {
+    return <p className="text-sm text-gray-500">Keine 2FA konfiguriert.</p>;
+  }
+
+  return (
+    <div className="space-y-3">
+      {status.totpEnabled && (
+        <div className="flex items-center justify-between p-2 bg-amber-50 rounded-lg">
+          <span className="text-sm text-amber-800">TOTP (Authenticator-App) aktiv</span>
+          <button
+            type="button"
+            onClick={async () => {
+              if (!confirm(`2FA für ${employeeName} wirklich deaktivieren?`)) return;
+              try {
+                await twoFactorApi.adminDisableTotp(employeeId);
+                toast.success('2FA deaktiviert');
+                loadStatus();
+              } catch (err: any) {
+                toast.error(err.response?.data?.error || 'Fehler');
+              }
+            }}
+            className="text-xs text-red-600 hover:text-red-700 hover:underline"
+          >
+            Deaktivieren
+          </button>
+        </div>
+      )}
+      {status.passkeys.length > 0 && (
+        <div className="space-y-1">
+          {status.passkeys.map((pk: any) => (
+            <div key={pk.id} className="flex items-center justify-between p-2 bg-indigo-50 rounded-lg">
+              <span className="text-sm text-indigo-800">
+                Passkey: {pk.deviceName} ({new Date(pk.createdAt).toLocaleDateString('de-DE')})
+              </span>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!confirm(`Passkey "${pk.deviceName}" löschen?`)) return;
+                  try {
+                    await twoFactorApi.adminDeletePasskey(pk.id);
+                    toast.success('Passkey gelöscht');
+                    loadStatus();
+                  } catch (err: any) {
+                    toast.error(err.response?.data?.error || 'Fehler');
+                  }
+                }}
+                className="text-xs text-red-600 hover:text-red-700 hover:underline"
+              >
+                Löschen
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Helper components for document modal
+function DocumentTypeQuery({ children }: { children: (types: any[]) => React.ReactNode }) {
+  const { data } = useQuery({ queryKey: ['document-types-active'], queryFn: () => settingsApi.getDocumentTypes().then(r => r.data) });
+  return <>{children(data || [])}</>;
+}
+
+const REPORT_DOC_TYPE = { id: '__report__', name: 'Stundenabrechnung', shortName: 'SA', color: '#0EA5E9' };
+
+function EmployeeDocumentList({ employeeId, formatFileSize, MONTHS, filterYear, filterMonth }: { employeeId: string; formatFileSize: (b: number) => string; MONTHS: string[]; filterYear?: number; filterMonth?: number }) {
+  const queryClient = useQueryClient();
+  const { data: docs, isLoading } = useQuery({
+    queryKey: ['employee-documents', employeeId],
+    queryFn: () => documentsApi.getForEmployee(employeeId).then(r => r.data),
+  });
+
+  // Abrechnungen als virtuelle Dokumente laden
+  const { data: reports } = useQuery({
+    queryKey: ['employee-reports-for-docs', employeeId],
+    queryFn: () => reportsApi.getAll({ employeeId }).then(r => r.data),
+  });
+
+  const handleDownload = async (id: string, filename: string) => {
+    try {
+      const response = await documentsApi.download(id);
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Fehler beim Herunterladen');
+    }
+  };
+
+  const handleReportDownload = async (reportId: string, year: number, month: number) => {
+    try {
+      const response = await reportsApi.downloadPdf(reportId);
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Stundenabrechnung_${year}_${String(month).padStart(2, '0')}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Fehler beim Herunterladen');
+    }
+  };
+
+  const handleDelete = async (doc: any) => {
+    if (!confirm(`"${doc.originalFilename}" wirklich löschen?`)) return;
+    try {
+      await documentsApi.delete(doc.id);
+      toast.success('Dokument gelöscht');
+      queryClient.invalidateQueries({ queryKey: ['employee-documents', employeeId] });
+    } catch {
+      toast.error('Fehler beim Löschen');
+    }
+  };
+
+  // Reports zu virtuellen Dokumenten konvertieren
+  const reportDocs = (reports || [])
+    .filter((r: any) => r.status === 'finalized' && r.pdfPath)
+    .map((r: any) => ({
+      id: `report-${r.id}`,
+      _isReport: true,
+      _reportId: r.id,
+      documentType: REPORT_DOC_TYPE,
+      originalFilename: `Stundenabrechnung_${r.year}_${String(r.month).padStart(2, '0')}.pdf`,
+      fileSize: 0,
+      year: r.year,
+      month: r.month,
+      createdAt: r.finalizedAt || r.createdAt,
+    }));
+
+  const allDocs = [...(docs || []), ...reportDocs];
+
+  const filteredDocs = allDocs.filter((doc: any) => {
+    if (filterYear && doc.year !== filterYear) return false;
+    if (filterMonth && doc.month !== filterMonth) return false;
+    return true;
+  });
+
+  if (isLoading) return <p className="text-sm text-gray-500 text-center py-4">Laden...</p>;
+  if (!allDocs.length) return <p className="text-sm text-gray-500 text-center py-4">Keine Dokumente vorhanden</p>;
+  if (!filteredDocs.length) return <p className="text-sm text-gray-500 text-center py-4">Keine Dokumente für {MONTHS[(filterMonth || 1) - 1]} {filterYear}</p>;
+
+  return (
+    <div className="space-y-2">
+      <h3 className="text-sm font-semibold text-gray-700">Dokumente für {MONTHS[(filterMonth || 1) - 1]} {filterYear} ({filteredDocs.length})</h3>
+      {filteredDocs.map((doc: any) => (
+        <div key={doc.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+          <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full text-white flex-shrink-0" style={{ backgroundColor: doc.documentType.color }}>
+            {doc.documentType.shortName}
+          </span>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-gray-900 truncate">{doc.originalFilename}</p>
+            <p className="text-xs text-gray-500">
+              {doc.year && doc.month ? `${MONTHS[doc.month-1]} ${doc.year}` : doc.year ? `${doc.year}` : ''}
+              {doc.year ? ' • ' : ''}{!doc._isReport && doc.fileSize > 0 ? formatFileSize(doc.fileSize) + ' • ' : ''}
+              {new Date(doc.createdAt).toLocaleDateString('de-DE')} {new Date(doc.createdAt).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
+            </p>
+          </div>
+          <button
+            onClick={() => doc._isReport ? handleReportDownload(doc._reportId, doc.year, doc.month) : handleDownload(doc.id, doc.originalFilename)}
+            className="p-1.5 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
+            title="Herunterladen"
+          >
+            <Download size={16} />
+          </button>
+          {!doc._isReport && (
+            <button onClick={() => handleDelete(doc)} className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg" title="Löschen">
+              <Trash2 size={16} />
+            </button>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function AdminEmployees() {
   const [showModal, setShowModal] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [formData, setFormData] = useState<EmployeeFormData>(initialFormData);
   const [searchQuery, setSearchQuery] = useState('');
-  const [showQrModal, setShowQrModal] = useState<string | null>(null);
+  // RFID Lookup State
+  const [showLookupModal, setShowLookupModal] = useState(false);
+  const [lookupScanning, setLookupScanning] = useState(false);
+  const [lookupCountdown, setLookupCountdown] = useState(0);
+  const [lookupResult, setLookupResult] = useState<any>(null);
+  const [lookupSocketConnected, setLookupSocketConnected] = useState(false);
+  const lookupSocketRef = useRef<Socket | null>(null);
+
+  // Documents Modal State
+  const [showDocumentsModal, setShowDocumentsModal] = useState(false);
+  const [selectedEmployeeForDocs, setSelectedEmployeeForDocs] = useState<Employee | null>(null);
+  const [docUploadFile, setDocUploadFile] = useState<File | null>(null);
+  const [docUploadForm, setDocUploadForm] = useState({ documentTypeId: '', year: new Date().getFullYear(), month: new Date().getMonth() + 1, note: '' });
+  const [docUploading, setDocUploading] = useState(false);
+  const [docDragging, setDocDragging] = useState(false);
 
   // RFID Modal State
   const [showRfidModal, setShowRfidModal] = useState(false);
@@ -200,6 +436,17 @@ export default function AdminEmployees() {
   const absencePopupRef = useRef<HTMLDivElement>(null);
   const complaintModalRef = useRef<HTMLDivElement>(null);
 
+  // Pause State
+  const [showPausePopup, setShowPausePopup] = useState(false);
+  const [pauseDate, setPauseDate] = useState<Date | null>(null);
+  const [pauseEntryId, setPauseEntryId] = useState<string | null>(null);
+  const [pauseStart, setPauseStart] = useState('12:00');
+  const [pauseEnd, setPauseEnd] = useState('12:30');
+  const pausePopupRef = useRef<HTMLDivElement>(null);
+
+  // Auswärtsstempelung Detail
+  const [pwaDetailEntry, setPwaDetailEntry] = useState<any>(null);
+
   // Multi-Select State für Abwesenheiten (Drag-Auswahl)
   const [isSelecting, setIsSelecting] = useState(false);
   const [selectionStart, setSelectionStart] = useState<Date | null>(null);
@@ -208,6 +455,7 @@ export default function AdminEmployees() {
 
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
 
   const { data: employees, isLoading } = useQuery({
     queryKey: ['employees'],
@@ -422,6 +670,7 @@ export default function AdminEmployees() {
     setEditingEmployee(employee);
     setFormData({
       employeeNumber: employee.employeeNumber,
+      username: employee.username || '',
       firstName: employee.firstName,
       lastName: employee.lastName,
       email: employee.email || '',
@@ -432,6 +681,11 @@ export default function AdminEmployees() {
       isAdmin: employee.isAdmin,
       password: '',
       workCategoryId: employee.workCategoryId || '',
+      canClockInPwa: (employee as any).canClockInPwa || false,
+      canClockOutPwa: (employee as any).canClockOutPwa || false,
+      defaultClockOut: (employee as any).defaultClockOut || '17:00',
+      startDate: (employee as any).startDate ? (employee as any).startDate.split('T')[0] : '',
+      endDate: (employee as any).endDate ? (employee as any).endDate.split('T')[0] : '',
     });
     setShowModal(true);
   };
@@ -499,9 +753,9 @@ export default function AdminEmployees() {
       return;
     }
 
-    // Verbinde zum Backend-Server (nicht zum Frontend-Dev-Server)
-    const backendUrl = window.location.origin.replace(':5175', ':3004');
-    const socket = io(backendUrl, {
+    // Verbinde über nginx Proxy (gleiche Origin)
+    const socket = io(window.location.origin, {
+      path: '/socket.io/',
       transports: ['websocket', 'polling'],
       timeout: 5000,
     });
@@ -591,8 +845,84 @@ export default function AdminEmployees() {
     setScanCountdown(0);
   };
 
-  const generateQrCodeUrl = (qrCode: string) => {
-    return `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrCode)}`;
+  // WebSocket für RFID-Lookup
+  useEffect(() => {
+    if (!showLookupModal) {
+      setLookupSocketConnected(false);
+      return;
+    }
+
+    const socket = io(window.location.origin, {
+      path: '/socket.io/',
+      transports: ['websocket', 'polling'],
+      timeout: 5000,
+    });
+    lookupSocketRef.current = socket;
+
+    socket.on('connect', () => setLookupSocketConnected(true));
+    socket.on('disconnect', () => setLookupSocketConnected(false));
+    socket.on('connect_error', () => setLookupSocketConnected(false));
+
+    socket.on('rfid-card-lookup', (data: any) => {
+      setLookupScanning(false);
+      setLookupCountdown(0);
+
+      if (data.success) {
+        setLookupResult(data);
+      } else {
+        toast.error(data.error || 'Abfrage fehlgeschlagen');
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+      lookupSocketRef.current = null;
+      setLookupSocketConnected(false);
+    };
+  }, [showLookupModal]);
+
+  // Lookup Countdown Timer
+  useEffect(() => {
+    if (!lookupScanning || lookupCountdown <= 0) return;
+
+    const timer = setInterval(() => {
+      setLookupCountdown((prev) => {
+        if (prev <= 1) {
+          setLookupScanning(false);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [lookupScanning, lookupCountdown]);
+
+  const startLookupScan = async () => {
+    if (!lookupSocketConnected || !lookupSocketRef.current?.id) {
+      toast.error('WebSocket nicht verbunden - bitte warten...');
+      return;
+    }
+
+    setLookupResult(null);
+    try {
+      const response = await terminalApi.startRfidLookup(lookupSocketRef.current.id);
+      if (response.data.success) {
+        setLookupScanning(true);
+        setLookupCountdown(30);
+        toast.success('Bitte Karte am Terminal scannen...');
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Fehler beim Starten');
+    }
+  };
+
+  const stopLookupScan = async () => {
+    try {
+      await terminalApi.stopRfidLookup();
+    } catch { /* ignore */ }
+    setLookupScanning(false);
+    setLookupCountdown(0);
   };
 
   // Time Entries Functions
@@ -624,6 +954,7 @@ export default function AdminEmployees() {
   const openTimeEntriesModal = (employee: Employee) => {
     setSelectedEmployeeForTime(employee);
     setSelectedMonth(new Date());
+    setEditingDate(new Date());
     setShowTimeEntriesModal(true);
     loadTimeEntries(employee.id, new Date());
   };
@@ -771,7 +1102,6 @@ export default function AdminEmployees() {
 
   const closeQuickEdit = () => {
     setEditingTimeEntry(null);
-    setEditingDate(null);
     setShowCreateEntry(false);
   };
 
@@ -892,6 +1222,35 @@ export default function AdminEmployees() {
     setShowAbsencePopup(true);
   };
 
+  // Pause Functions
+  const openPausePopup = (date: Date, entryId: string) => {
+    setPauseDate(date);
+    setPauseEntryId(entryId);
+    setPauseStart('12:00');
+    setPauseEnd('12:30');
+    setShowPausePopup(true);
+  };
+
+  const handleInsertPause = async () => {
+    if (!pauseEntryId || !pauseDate) return;
+    try {
+      const dateStr = format(pauseDate, 'yyyy-MM-dd');
+      await timeEntriesApi.insertPause(pauseEntryId, {
+        pauseStart: `${dateStr}T${pauseStart}:00`,
+        pauseEnd: `${dateStr}T${pauseEnd}:00`,
+      });
+      toast.success('Pause eingefügt');
+      setShowPausePopup(false);
+      // Reload time entries
+      const from = format(startOfMonth(selectedMonth), 'yyyy-MM-dd');
+      const to = format(endOfMonth(selectedMonth), 'yyyy-MM-dd');
+      const res = await timeEntriesApi.getAll({ employeeId: selectedEmployeeForTime!.id, from, to });
+      setTimeEntries(res.data);
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Fehler beim Einfügen der Pause');
+    }
+  };
+
   // Multi-Select: Popup mit mehreren Tagen öffnen
   const openMultiAbsencePopup = (dates: Date[]) => {
     setEditingDate(dates[0]);
@@ -909,7 +1268,6 @@ export default function AdminEmployees() {
   const closeAbsencePopup = () => {
     setShowAbsencePopup(false);
     setEditingAbsence(null);
-    setEditingDate(null);
     setSelectedDates([]);
     // Reset multi-select state
     setIsSelecting(false);
@@ -918,13 +1276,21 @@ export default function AdminEmployees() {
   };
 
   // Multi-Select: Berechnet alle Tage zwischen Start und Ende
+  // Bei gleichem Wochentag (vertikal im Kalender) → nur diesen Wochentag auswählen
   const getSelectedDateRange = (): Date[] => {
     if (!selectionStart || !selectionEnd) return [];
 
     const start = selectionStart < selectionEnd ? selectionStart : selectionEnd;
     const end = selectionStart < selectionEnd ? selectionEnd : selectionStart;
+    const allDays = eachDayOfInterval({ start, end });
 
-    return eachDayOfInterval({ start, end });
+    // Wenn Start und Ende der gleiche Wochentag sind (vertikaler Drag)
+    // → nur diesen Wochentag auswählen
+    if (selectionStart.getDay() === selectionEnd.getDay() && !isSameDay(selectionStart, selectionEnd)) {
+      return allDays.filter(d => d.getDay() === selectionStart.getDay());
+    }
+
+    return allDays;
   };
 
   // Prüft ob ein Datum in der aktuellen Auswahl ist
@@ -939,14 +1305,6 @@ export default function AdminEmployees() {
   const handleSelectionStart = (date: Date, e: React.MouseEvent) => {
     // Nur mit linker Maustaste und wenn kein Popup offen ist
     if (e.button !== 0 || showAbsencePopup || editingTimeEntry || showCreateEntry) return;
-
-    // Prüfen ob der Tag bereits eine Abwesenheit hat - NICHT automatisch öffnen
-    // Abwesenheit wird nur bearbeitet wenn man explizit auf das Abwesenheit-Element klickt
-    const absence = getAbsenceForDate(date);
-    if (absence) {
-      // Tag mit Abwesenheit nicht in die Auswahl einschließen
-      return;
-    }
 
     setIsSelecting(true);
     setSelectionStart(date);
@@ -967,7 +1325,6 @@ export default function AdminEmployees() {
     const dates = getSelectedDateRange();
 
     // Bei Einzelklick (nur ein Tag) KEIN Abwesenheit-Popup öffnen
-    // Abwesenheit wird nur über den "Abwesenheit" Button oder bei Drag über mehrere Tage erstellt
     if (dates.length <= 1) {
       setIsSelecting(false);
       setSelectionStart(null);
@@ -1145,10 +1502,19 @@ export default function AdminEmployees() {
           <h1 className="text-2xl font-bold text-gray-900">Mitarbeiter</h1>
           <p className="text-gray-500">Mitarbeiter verwalten</p>
         </div>
-        <button onClick={openCreateModal} className="btn btn-primary flex items-center gap-2">
-          <Plus size={20} />
-          Neuer Mitarbeiter
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => { setShowLookupModal(true); setLookupResult(null); }}
+            className="btn btn-secondary flex items-center gap-2"
+          >
+            <CreditCard size={20} />
+            Karte abfragen
+          </button>
+          <button onClick={openCreateModal} className="btn btn-primary flex items-center gap-2">
+            <Plus size={20} />
+            Neuer Mitarbeiter
+          </button>
+        </div>
       </div>
 
       {/* Search */}
@@ -1254,10 +1620,16 @@ export default function AdminEmployees() {
                       <p className="text-sm text-gray-500">{employee.phone || '-'}</p>
                     </td>
                     <td className="px-6 py-4">
-                      <p className="text-gray-900">{employee.vacationDaysPerYear} Tage/Jahr</p>
-                      <p className="text-sm text-gray-500">{employee.weeklyHours}h/Woche</p>
-                      {employee.workCategory && (
-                        <p className="text-xs text-primary-600">{employee.workCategory.name}</p>
+                      {employee.isAdmin ? (
+                        <span className="text-sm text-gray-400">—</span>
+                      ) : (
+                        <>
+                          <p className="text-gray-900">{employee.vacationDaysPerYear} Tage/Jahr</p>
+                          <p className="text-sm text-gray-500">{employee.weeklyHours}h/Woche</p>
+                          {employee.workCategory && (
+                            <p className="text-xs text-primary-600">{employee.workCategory.name}</p>
+                          )}
+                        </>
                       )}
                     </td>
                     <td className="px-6 py-4">
@@ -1280,13 +1652,8 @@ export default function AdminEmployees() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => setShowQrModal(employee.qrCode)}
-                          className="p-2 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
-                          title="QR-Code"
-                        >
-                          <QrCode size={18} />
-                        </button>
+                        {!employee.isAdmin && (
+                        <>
                         <button
                           onClick={() => openRfidModal(employee)}
                           className={`p-2 rounded-lg ${
@@ -1299,11 +1666,20 @@ export default function AdminEmployees() {
                           <CreditCard size={18} />
                         </button>
                         <button
-                          onClick={() => openTimeEntriesModal(employee)}
+                          onClick={() => navigate(`/admin/time-entries?employee=${employee.id}`)}
                           className="p-2 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
                           title="Zeiteinträge"
                         >
                           <Calendar size={18} />
+                        </button>
+                        </>
+                        )}
+                        <button
+                          onClick={() => { setSelectedEmployeeForDocs(employee); setShowDocumentsModal(true); }}
+                          className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"
+                          title="Dokumente"
+                        >
+                          <FolderOpen size={18} />
                         </button>
                         <button
                           onClick={() => openEditModal(employee)}
@@ -1358,9 +1734,22 @@ export default function AdminEmployees() {
                     onChange={(e) => setFormData({ ...formData, employeeNumber: e.target.value })}
                     className="input"
                     required
-                    disabled={!!editingEmployee}
                   />
                 </div>
+                <div>
+                  <label className="label">Benutzername</label>
+                  <input
+                    type="text"
+                    value={formData.username}
+                    onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                    className="input"
+                    placeholder="z.B. max.mustermann"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Für die Anmeldung im Dashboard</p>
+                </div>
+              </div>
+              {!formData.isAdmin && (
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="label">Urlaubstage/Jahr</label>
                   <input
@@ -1374,6 +1763,7 @@ export default function AdminEmployees() {
                   />
                 </div>
               </div>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="label">Vorname</label>
@@ -1414,6 +1804,8 @@ export default function AdminEmployees() {
                   className="input"
                 />
               </div>
+              {!formData.isAdmin && (
+              <>
               <div>
                 <label className="label">Wochenstunden</label>
                 <input
@@ -1475,6 +1867,65 @@ export default function AdminEmployees() {
                   ))}
                 </select>
               </div>
+              {/* Eintritts-/Austrittsdatum */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="label">Eintrittsdatum</label>
+                  <input
+                    type="date"
+                    value={formData.startDate}
+                    onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                    className="input"
+                  />
+                </div>
+                <div>
+                  <label className="label">Austrittsdatum</label>
+                  <input
+                    type="date"
+                    value={formData.endDate}
+                    onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                    className="input"
+                  />
+                  {formData.endDate && <p className="text-xs text-red-500 mt-1">MA kann sich ab diesem Datum nicht mehr einstempeln</p>}
+                </div>
+              </div>
+              {/* Reguläres Arbeitszeitende */}
+              <div>
+                <label className="label">Reguläres Arbeitszeitende</label>
+                <input
+                  type="time"
+                  value={formData.defaultClockOut}
+                  onChange={(e) => setFormData({ ...formData, defaultClockOut: e.target.value })}
+                  className="input"
+                />
+                <p className="text-xs text-gray-400 mt-1">Wird für Auto-Ausstempeln verwendet wenn der MA sich nicht ausstempelt</p>
+              </div>
+              {/* PWA-Stempelung */}
+              <div>
+                <label className="label">PWA-Stempelung (mobil)</label>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={formData.canClockInPwa}
+                      onChange={(e) => setFormData({ ...formData, canClockInPwa: e.target.checked })}
+                      className="rounded"
+                    />
+                    <span className="text-sm">Einstempeln über PWA erlauben</span>
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={formData.canClockOutPwa}
+                      onChange={(e) => setFormData({ ...formData, canClockOutPwa: e.target.checked })}
+                      className="rounded"
+                    />
+                    <span className="text-sm">Ausstempeln über PWA erlauben</span>
+                  </label>
+                </div>
+              </div>
+              </>
+              )}
               <div>
                 <label className="label">
                   {editingEmployee ? 'Neues Passwort (leer lassen = unverändert)' : 'Passwort'}
@@ -1487,6 +1938,31 @@ export default function AdminEmployees() {
                   minLength={editingEmployee ? 0 : 6}
                   required={!editingEmployee}
                 />
+                {editingEmployee && editingEmployee.email && (
+                  <button
+                    type="button"
+                    id="reset-pw-btn"
+                    className="mt-2 text-sm text-primary-600 hover:text-primary-700 inline-flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={async (e) => {
+                      const btn = e.currentTarget;
+                      btn.disabled = true;
+                      const originalText = btn.innerHTML;
+                      btn.innerHTML = '<svg class="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Wird gesendet...';
+                      try {
+                        const res = await authApi.adminResetPassword(editingEmployee.id);
+                        toast.success(res.data.message || 'Passwort-Reset E-Mail wurde gesendet', { duration: 5000 });
+                      } catch (err: any) {
+                        toast.error(err.response?.data?.error || 'Fehler beim Senden');
+                      } finally {
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
+                      }
+                    }}
+                  >
+                    <KeyRound size={14} />
+                    Passwort-Reset per E-Mail senden
+                  </button>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <input
@@ -1500,6 +1976,14 @@ export default function AdminEmployees() {
                   Administrator-Rechte
                 </label>
               </div>
+              {/* 2FA Management (only in edit mode) */}
+              {editingEmployee && (
+                <div className="border-t pt-4 mt-4">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3">Zwei-Faktor-Authentifizierung</h4>
+                  <TwoFactorAdminSection employeeId={editingEmployee.id} employeeName={`${editingEmployee.firstName} ${editingEmployee.lastName}`} />
+                </div>
+              )}
+
               <div className="flex justify-end gap-3 pt-4">
                 <button type="button" onClick={closeModal} className="btn btn-secondary">
                   Abbrechen
@@ -1513,37 +1997,6 @@ export default function AdminEmployees() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* QR Code Modal */}
-      {showQrModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full text-center">
-            <h3 className="text-lg font-semibold mb-4">QR-Code für Zeiterfassung</h3>
-            <img
-              src={generateQrCodeUrl(showQrModal)}
-              alt="QR-Code"
-              className="mx-auto mb-4"
-            />
-            <p className="text-sm text-gray-500 mb-4 font-mono">{showQrModal}</p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowQrModal(null)}
-                className="btn btn-secondary flex-1"
-              >
-                Schließen
-              </button>
-              <a
-                href={generateQrCodeUrl(showQrModal)}
-                download={`qrcode-${showQrModal}.png`}
-                className="btn btn-primary flex-1 flex items-center justify-center gap-2"
-              >
-                <Download size={18} />
-                Download
-              </a>
-            </div>
           </div>
         </div>
       )}
@@ -1681,29 +2134,12 @@ export default function AdminEmployees() {
               </button>
             </div>
 
-            {/* Month Navigation & Stats */}
-            <div className="p-4 border-b border-gray-100 shrink-0">
-              <div className="flex items-center justify-between">
-                <button
-                  onClick={() => handleMonthChange('prev')}
-                  className="p-2 hover:bg-gray-100 rounded-lg"
-                >
-                  <ChevronLeft size={20} />
-                </button>
-                <h3 className="text-lg font-semibold">
-                  {format(selectedMonth, 'MMMM yyyy', { locale: de })}
-                </h3>
-                <button
-                  onClick={() => handleMonthChange('next')}
-                  className="p-2 hover:bg-gray-100 rounded-lg"
-                >
-                  <ChevronRight size={20} />
-                </button>
-              </div>
+            {/* Stats */}
+            <div className="px-4 py-2 border-b border-gray-100 shrink-0">
               {(() => {
                 const totals = calculateTotalMinutes();
                 return (
-                  <div className="mt-3 bg-primary-50 rounded-lg p-3 flex justify-center gap-8">
+                  <div className="bg-primary-50 rounded-lg p-2.5 flex justify-center gap-8 text-sm">
                     <span className="text-primary-700 font-medium">
                       Arbeitszeit: {formatMinutesToHours(totals.workMinutes)} h
                     </span>
@@ -1715,36 +2151,306 @@ export default function AdminEmployees() {
               })()}
             </div>
 
-            {/* Calendar Table */}
-            <div className="flex-1 overflow-y-auto px-4 pb-4">
-              {loadingTimeEntries ? (
-                <div className="text-center text-gray-500 py-8">Laden...</div>
-              ) : (
-                <div className="relative">
-                  <table className="w-full">
-                    <thead className="bg-gray-50 sticky top-0">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                          Datum
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                          Tag
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                          Zeiten
-                        </th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                          Stunden
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
+            {/* Chipdrive-Style Layout: Detail links, Kalender rechts */}
+            <div className={`flex-1 overflow-hidden px-4 pb-4 transition-opacity duration-200 ${loadingTimeEntries ? 'opacity-50' : ''}`}>
+                <div className="flex gap-4 h-full">
+                  {/* LINKE SEITE: Tagesdetails */}
+                  <div className="flex-1 overflow-y-auto">
+                    {editingDate ? (() => {
+                      const summary = calculateDaySummary(editingDate);
+                      const employeeWorkDays = selectedEmployeeForTime?.workDays?.split(',').map(d => parseInt(d.trim())).filter(d => !isNaN(d)) || [1,2,3,4,5];
+                      const isNonWorkDay = !employeeWorkDays.includes(editingDate.getDay());
+                      const hasEntries = summary.entries.length > 0;
+                      const hasAbsence = !!summary.absence;
+                      const isHolidayOnWorkDay = !!summary.holiday && !isNonWorkDay;
+
+                      return (
+                        <div className="space-y-4">
+                          {/* Tages-Header */}
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h3 className="text-lg font-semibold text-gray-900">
+                                {format(editingDate, 'EEEE, dd. MMMM yyyy', { locale: de })}
+                              </h3>
+                              <p className="text-sm text-gray-500">
+                                {hasEntries ? `${formatMinutesToHours(summary.totalWorkMinutes)} h gearbeitet` : ''}
+                                {summary.totalBreakMinutes > 0 ? ` · ${formatMinutesToHours(summary.totalBreakMinutes)} h Pause` : ''}
+                                {summary.isActive ? ' · Aktiv' : ''}
+                                {isHolidayOnWorkDay ? ` · Feiertag: ${summary.holiday!.name}` : ''}
+                                {isNonWorkDay ? ' · Kein Arbeitstag' : ''}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Abwesenheit */}
+                          {hasAbsence && (
+                            <div
+                              className="flex items-center gap-2 cursor-pointer rounded-lg px-3 py-2"
+                              style={{ backgroundColor: summary.absence!.absenceType.color + '20', borderLeft: `3px solid ${summary.absence!.absenceType.color}` }}
+                              onClick={() => openAbsencePopup(editingDate, summary.absence)}
+                            >
+                              <Briefcase size={16} style={{ color: summary.absence!.absenceType.color }} />
+                              <span className="font-medium" style={{ color: summary.absence!.absenceType.color }}>{summary.absence!.absenceType.name}</span>
+                              {summary.absence!.absenceType.requiredHours > 0 && (
+                                <span className="text-sm text-gray-500">({formatHoursToTime(summary.absence!.absenceType.requiredHours)} h Pflicht)</span>
+                              )}
+                              <Edit2 size={14} className="ml-auto text-gray-400" />
+                            </div>
+                          )}
+
+                          {/* Stempelungen */}
+                          {hasEntries ? (
+                            <div className="bg-white border rounded-lg divide-y">
+                              <div className="px-3 py-2 bg-gray-50 rounded-t-lg">
+                                <span className="text-xs font-medium text-gray-500 uppercase">Buchungen</span>
+                              </div>
+                              {summary.entries.map((entry, idx) => (
+                                <div key={entry.id}>
+                                  {/* Pause zwischen Einträgen */}
+                                  {idx > 0 && summary.entries[idx - 1].clockOut && (() => {
+                                    const prevEnd = new Date(summary.entries[idx - 1].clockOut!);
+                                    const currStart = new Date(entry.clockIn);
+                                    const gapMinutes = Math.round((currStart.getTime() - prevEnd.getTime()) / 60000);
+                                    if (gapMinutes > 0) {
+                                      return (
+                                        <div className="px-3 py-1.5 bg-orange-50 flex items-center gap-2 text-xs text-orange-600">
+                                          <Clock size={12} />
+                                          Pause: {format(prevEnd, 'HH:mm')} - {format(currStart, 'HH:mm')} ({gapMinutes} min)
+                                        </div>
+                                      );
+                                    }
+                                    return null;
+                                  })()}
+                                  <div
+                                    className={`px-3 py-2 flex items-center gap-3 cursor-pointer hover:bg-gray-50 ${entry.complaintMessage && !entry.complaintResolvedAt ? 'bg-amber-50' : ''}`}
+                                    onClick={() => handleDayClick(editingDate, entry)}
+                                  >
+                                    {entry.complaintMessage && (
+                                      entry.complaintResolvedAt ? (
+                                        <CheckCircle size={14} className="text-green-500 flex-shrink-0" />
+                                      ) : (
+                                        <AlertTriangle size={14} className="text-amber-500 flex-shrink-0" />
+                                      )
+                                    )}
+                                    {((entry as any).clockInViaPwa || (entry as any).clockOutViaPwa) && (
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); setPwaDetailEntry(entry); }}
+                                        className="flex-shrink-0 p-0.5 rounded hover:bg-blue-100"
+                                      >
+                                        <MapPin size={14} className="text-blue-500" />
+                                      </button>
+                                    )}
+                                    <span className="font-mono text-sm font-medium w-28">
+                                      {format(new Date(entry.clockIn), 'HH:mm')} - {entry.clockOut ? format(new Date(entry.clockOut), 'HH:mm') : <span className="text-green-600">Aktiv</span>}
+                                    </span>
+                                    {entry.clockOut && (
+                                      <span className="text-sm text-gray-500">
+                                        {formatMinutesToHours(Math.floor((new Date(entry.clockOut).getTime() - new Date(entry.clockIn).getTime()) / 60000))} h
+                                      </span>
+                                    )}
+                                    {entry.note && <span className="text-xs text-gray-400 truncate ml-auto max-w-[150px]">{entry.note}</span>}
+                                    <Edit2 size={14} className="text-gray-400 flex-shrink-0 ml-auto" />
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : !hasAbsence && !isHolidayOnWorkDay && !isNonWorkDay ? (
+                            <div className="text-center text-gray-400 py-8 border rounded-lg border-dashed">
+                              Keine Einträge für diesen Tag
+                            </div>
+                          ) : null}
+
+                          {/* Action Buttons */}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <button
+                              onClick={() => handleDayClick(editingDate)}
+                              className="text-sm text-primary-600 hover:bg-primary-50 border border-primary-200 rounded px-3 py-1.5 flex items-center gap-1.5"
+                            >
+                              <Plus size={14} /> Eintrag hinzufügen
+                            </button>
+                            {!hasAbsence && absenceTypes && absenceTypes.length > 0 && (
+                              <button
+                                onClick={() => openAbsencePopup(editingDate)}
+                                className="text-sm text-purple-600 hover:bg-purple-50 border border-purple-200 rounded px-3 py-1.5 flex items-center gap-1.5"
+                              >
+                                <Briefcase size={14} /> Abwesenheit
+                              </button>
+                            )}
+                            {hasEntries && summary.entries.some((e: TimeEntry) => e.clockOut) && (
+                              <button
+                                onClick={() => {
+                                  const completedEntry = summary.entries.find((e: TimeEntry) => e.clockOut);
+                                  if (completedEntry) openPausePopup(editingDate, completedEntry.id);
+                                }}
+                                className="text-sm text-orange-600 hover:bg-orange-50 border border-orange-200 rounded px-3 py-1.5 flex items-center gap-1.5"
+                              >
+                                <Clock size={14} /> Pause
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })() : (
+                      <div className="flex items-center justify-center h-full text-gray-400">
+                        <div className="text-center">
+                          <Calendar size={48} className="mx-auto mb-3 opacity-30" />
+                          <p>Wähle einen Tag im Kalender</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* RECHTE SEITE: Kompakter Monatskalender */}
+                  <div className="w-72 shrink-0 bg-white border rounded-lg p-3 self-start">
+                    {(() => {
+                      const monthStart = startOfMonth(selectedMonth);
+                      const monthEnd = endOfMonth(selectedMonth);
+                      const allDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
+                      const employeeWorkDays = selectedEmployeeForTime?.workDays?.split(',').map(d => parseInt(d.trim())).filter(d => !isNaN(d)) || [1,2,3,4,5];
+
+                      // Wochen gruppieren (Mo=0)
+                      const weeks: Date[][] = [];
+                      let currentWeek: Date[] = [];
+                      // Padding für erste Woche
+                      const firstDayOfWeek = (monthStart.getDay() + 6) % 7; // Mo=0
+                      for (let i = 0; i < firstDayOfWeek; i++) currentWeek.push(null as any);
+                      for (const day of allDays) {
+                        currentWeek.push(day);
+                        if (currentWeek.length === 7) {
+                          weeks.push(currentWeek);
+                          currentWeek = [];
+                        }
+                      }
+                      if (currentWeek.length > 0) {
+                        while (currentWeek.length < 7) currentWeek.push(null as any);
+                        weeks.push(currentWeek);
+                      }
+
+                      const MONTHS = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+
+                      return (
+                        <>
+                          {/* Monat/Jahr Navigation */}
+                          <div className="flex items-center gap-1 mb-3">
+                            <button onClick={() => handleMonthChange('prev')} className="p-1 hover:bg-gray-100 rounded">
+                              <ChevronLeft size={16} />
+                            </button>
+                            <select
+                              value={selectedMonth.getMonth()}
+                              onChange={(e) => {
+                                const newMonth = new Date(selectedMonth);
+                                newMonth.setMonth(parseInt(e.target.value));
+                                setSelectedMonth(newMonth);
+                                if (selectedEmployeeForTime) loadTimeEntries(selectedEmployeeForTime.id, newMonth);
+                              }}
+                              className="text-sm font-medium bg-transparent border rounded px-1.5 py-0.5 cursor-pointer"
+                            >
+                              {MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
+                            </select>
+                            <select
+                              value={selectedMonth.getFullYear()}
+                              onChange={(e) => {
+                                const newMonth = new Date(selectedMonth);
+                                newMonth.setFullYear(parseInt(e.target.value));
+                                setSelectedMonth(newMonth);
+                                if (selectedEmployeeForTime) loadTimeEntries(selectedEmployeeForTime.id, newMonth);
+                              }}
+                              className="text-sm font-medium bg-transparent border rounded px-1.5 py-0.5 cursor-pointer"
+                            >
+                              {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map(y => (
+                                <option key={y} value={y}>{y}</option>
+                              ))}
+                            </select>
+                            <button onClick={() => handleMonthChange('next')} className="p-1 hover:bg-gray-100 rounded">
+                              <ChevronRight size={16} />
+                            </button>
+                          </div>
+
+                          {/* Wochentag-Header */}
+                          <div className="grid grid-cols-7 gap-0.5 mb-2">
+                            {['Mo','Di','Mi','Do','Fr','Sa','So'].map(d => (
+                              <div key={d} className="text-center text-[10px] font-medium text-gray-400 py-1">{d}</div>
+                            ))}
+                          </div>
+                          <div className="grid grid-cols-7 gap-0.5">
+                            {weeks.flat().map((day, i) => {
+                              if (!day) return <div key={`empty-${i}`} className="aspect-square" />;
+
+                              const summary = calculateDaySummary(day);
+                              const isNonWork = !employeeWorkDays.includes(day.getDay());
+                              const isToday = isSameDay(day, new Date());
+                              const isSelected = editingDate && isSameDay(day, editingDate);
+                              const hasEntries = summary.entries.length > 0;
+                              const hasAbsence = !!summary.absence;
+                              const isHoliday = !!summary.holiday && !isNonWork;
+                              const isFuture = day > new Date();
+
+                              // Farbcode
+                              let bgColor = '';
+                              let textColor = 'text-gray-900';
+                              if (isSelected) {
+                                bgColor = 'bg-primary-600'; textColor = 'text-white';
+                              } else if (isNonWork) {
+                                bgColor = 'bg-gray-100'; textColor = 'text-gray-400';
+                              } else if (isHoliday) {
+                                bgColor = 'bg-red-100'; textColor = 'text-red-700';
+                              } else if (hasAbsence) {
+                                bgColor = 'bg-blue-100'; textColor = 'text-blue-700';
+                              } else if (hasEntries && summary.totalWorkMinutes > 0) {
+                                bgColor = 'bg-green-100'; textColor = 'text-green-800';
+                              } else if (summary.isActive) {
+                                bgColor = 'bg-green-200'; textColor = 'text-green-900';
+                              } else if (!isFuture && !isNonWork) {
+                                bgColor = 'bg-orange-100'; textColor = 'text-orange-700';
+                              } else {
+                                bgColor = 'bg-gray-50';
+                              }
+
+                              const inSelection = isDateInSelection(day);
+
+                              return (
+                                <div
+                                  key={day.toISOString()}
+                                  onClick={() => { if (!isSelecting) setEditingDate(day); }}
+                                  onMouseDown={(e) => { e.preventDefault(); handleSelectionStart(day, e); }}
+                                  onMouseEnter={() => handleSelectionMove(day)}
+                                  onMouseUp={() => handleSelectionEnd()}
+                                  className={`aspect-square rounded flex flex-col items-center justify-center text-xs font-medium transition-all hover:ring-2 hover:ring-primary-300 select-none cursor-pointer ${inSelection ? 'bg-purple-200 text-purple-900 ring-2 ring-purple-400' : `${bgColor} ${textColor}`} ${isToday && !inSelection ? 'ring-2 ring-primary-500' : ''}`}
+                                  title={`${format(day, 'dd.MM.')} - ${hasEntries ? formatMinutesToHours(summary.totalWorkMinutes) + 'h' : hasAbsence ? summary.absence!.absenceType.shortName : isHoliday ? 'Feiertag' : isNonWork ? 'Frei' : isFuture ? '' : 'Kein Eintrag'}`}
+                                >
+                                  <span className={`${isSelected ? 'font-bold' : ''}`}>{format(day, 'd')}</span>
+                                  {hasEntries && !isSelected && !inSelection && (
+                                    <span className="text-[8px] leading-none mt-0.5 opacity-75 pointer-events-none">{formatMinutesToHours(summary.totalWorkMinutes)}</span>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {/* Legende */}
+                          <div className="mt-3 pt-3 border-t flex flex-wrap gap-x-3 gap-y-1">
+                            <div className="flex items-center gap-1 text-[10px] text-gray-500"><div className="w-2.5 h-2.5 rounded bg-green-100" /> Gearbeitet</div>
+                            <div className="flex items-center gap-1 text-[10px] text-gray-500"><div className="w-2.5 h-2.5 rounded bg-orange-100" /> Fehlt</div>
+                            <div className="flex items-center gap-1 text-[10px] text-gray-500"><div className="w-2.5 h-2.5 rounded bg-blue-100" /> Abwesend</div>
+                            <div className="flex items-center gap-1 text-[10px] text-gray-500"><div className="w-2.5 h-2.5 rounded bg-red-100" /> Feiertag</div>
+                            <div className="flex items-center gap-1 text-[10px] text-gray-500"><div className="w-2.5 h-2.5 rounded bg-gray-100" /> Frei</div>
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                </div>
+
+              {/* Popups container */}
+              <div className="relative">
+                  {/* Hidden reference table */}
+                  <table className="hidden">
+                    <tbody>
                       {eachDayOfInterval({
                         start: startOfMonth(selectedMonth),
                         end: endOfMonth(selectedMonth),
                       }).map((date) => {
                         const summary = calculateDaySummary(date);
-                        // Prüfe ob Tag ein Nicht-Arbeitstag ist (basierend auf employee.workDays)
                         const employeeWorkDays = selectedEmployeeForTime?.workDays?.split(',').map(d => parseInt(d.trim())).filter(d => !isNaN(d)) || [1,2,3,4,5];
                         const isNonWorkDay = !employeeWorkDays.includes(date.getDay());
                         const isEditing = editingDate && isSameDay(date, editingDate);
@@ -1857,6 +2563,15 @@ export default function AdminEmployees() {
                                           <AlertTriangle size={14} className="text-amber-500 flex-shrink-0" />
                                         )
                                       )}
+                                      {((entry as any).clockInViaPwa || (entry as any).clockOutViaPwa) && (
+                                        <button
+                                          onClick={(e) => { e.stopPropagation(); setPwaDetailEntry(entry); }}
+                                          className="flex-shrink-0 p-0.5 rounded hover:bg-blue-100"
+                                          title="Auswärtsstempelung – Details anzeigen"
+                                        >
+                                          <MapPin size={14} className="text-blue-500" />
+                                        </button>
+                                      )}
                                       <span className="text-gray-900">
                                         {format(new Date(entry.clockIn), 'HH:mm')} -{' '}
                                         {entry.clockOut ? (
@@ -1878,28 +2593,44 @@ export default function AdminEmployees() {
                                       e.stopPropagation();
                                       handleDayClick(date);
                                     }}
-                                    className="text-xs text-primary-600 hover:text-primary-700 mt-1"
+                                    className="text-xs text-primary-600 hover:bg-primary-50 border border-primary-200 rounded px-2 py-1 mt-1 flex items-center gap-1"
                                   >
-                                    + Eintrag hinzufügen
+                                    <Plus size={12} />
+                                    Eintrag
                                   </button>
                                 </div>
                               ) : !hasAbsence ? (
                                 <span className="text-gray-400">-</span>
                               ) : null}
 
-                              {/* Button zum Hinzufügen einer Abwesenheit wenn keine vorhanden */}
-                              {!hasAbsence && absenceTypes && absenceTypes.length > 0 && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    openAbsencePopup(date);
-                                  }}
-                                  className="text-xs text-gray-500 hover:text-gray-700 mt-1 flex items-center gap-1"
-                                >
-                                  <Briefcase size={12} />
-                                  Abwesenheit
-                                </button>
-                              )}
+                              {/* Buttons: Abwesenheit + Pause */}
+                              <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                                {!hasAbsence && absenceTypes && absenceTypes.length > 0 && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      openAbsencePopup(date);
+                                    }}
+                                    className="text-xs text-purple-600 hover:bg-purple-50 border border-purple-200 rounded px-2 py-1 flex items-center gap-1"
+                                  >
+                                    <Briefcase size={12} />
+                                    Abwesenheit
+                                  </button>
+                                )}
+                                {hasEntries && summary.entries.some((e: TimeEntry) => e.clockOut) && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const completedEntry = summary.entries.find((e: TimeEntry) => e.clockOut);
+                                      if (completedEntry) openPausePopup(date, completedEntry.id);
+                                    }}
+                                    className="text-xs text-orange-600 hover:bg-orange-50 border border-orange-200 rounded px-2 py-1 flex items-center gap-1"
+                                  >
+                                    <Clock size={12} />
+                                    Pause
+                                  </button>
+                                )}
+                              </div>
                             </td>
                             <td className="px-4 py-3 text-right font-medium align-top">
                               {hasEntries ? (
@@ -2234,9 +2965,342 @@ export default function AdminEmployees() {
                       </form>
                     </div>
                   )}
+
+                  {/* Pause Popup */}
+                  {showPausePopup && pauseDate && (
+                    <div
+                      ref={pausePopupRef}
+                      className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-xl shadow-2xl border border-gray-200 p-4 w-80 z-50"
+                    >
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="font-semibold flex items-center gap-2">
+                          <Clock size={18} className="text-orange-500" />
+                          Pause einfügen
+                        </h4>
+                        <button onClick={() => setShowPausePopup(false)} className="p-1 hover:bg-gray-100 rounded">
+                          <X size={16} />
+                        </button>
+                      </div>
+                      <p className="text-sm text-gray-500 mb-3">
+                        {format(pauseDate, 'EEEE, dd. MMMM yyyy', { locale: de })}
+                      </p>
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-500 mb-1">Pause von</label>
+                          <input
+                            type="time"
+                            value={pauseStart}
+                            onChange={(e) => setPauseStart(e.target.value)}
+                            className="input text-sm py-1.5"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-500 mb-1">Pause bis</label>
+                          <input
+                            type="time"
+                            value={pauseEnd}
+                            onChange={(e) => setPauseEnd(e.target.value)}
+                            className="input text-sm py-1.5"
+                          />
+                        </div>
+                        <p className="text-xs text-gray-400">
+                          Der Zeiteintrag wird aufgeteilt: Ausstempeln um {pauseStart}, Einstempeln um {pauseEnd}.
+                        </p>
+                        <div className="flex justify-end gap-2 pt-2">
+                          <button
+                            onClick={() => setShowPausePopup(false)}
+                            className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
+                          >
+                            Abbrechen
+                          </button>
+                          <button
+                            onClick={handleInsertPause}
+                            className="px-3 py-1.5 text-sm bg-orange-500 text-white rounded-lg hover:bg-orange-600"
+                          >
+                            Pause einfügen
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* Auswärtsstempelung Detail-Popup (Admin) */}
+      {pwaDetailEntry && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setPwaDetailEntry(null)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+            <div className="bg-blue-600 text-white p-5 rounded-t-xl">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <MapPin size={20} /> Auswärtsstempelung
+                </h3>
+                <button onClick={() => setPwaDetailEntry(null)} className="p-1 hover:bg-white/20 rounded">
+                  <X size={18} />
+                </button>
+              </div>
+              <p className="text-blue-100 text-sm mt-1">
+                {format(new Date(pwaDetailEntry.clockIn), 'EEEE, dd. MMMM yyyy', { locale: de })}
+              </p>
+            </div>
+            <div className="p-5 space-y-4">
+              {pwaDetailEntry.clockInViaPwa && (
+                <div className="p-3 bg-green-50 rounded-lg">
+                  <p className="text-green-600 font-semibold text-sm mb-2">Eingestempelt um {format(new Date(pwaDetailEntry.clockIn), 'HH:mm')} Uhr</p>
+                  <div className="space-y-1 text-sm">
+                    <p className="text-gray-600"><span className="text-gray-500">Grund:</span> <span className="font-medium">{pwaDetailEntry.pwaClockInReasonText || 'Nicht angegeben'}</span></p>
+                    {pwaDetailEntry.clockInLatitude && pwaDetailEntry.clockInLongitude && (
+                      <a href={`https://www.openstreetmap.org/?mlat=${pwaDetailEntry.clockInLatitude}&mlon=${pwaDetailEntry.clockInLongitude}#map=17/${pwaDetailEntry.clockInLatitude}/${pwaDetailEntry.clockInLongitude}`}
+                        target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-blue-600 hover:underline">
+                        <MapPin size={12} /> Standort auf Karte anzeigen
+                      </a>
+                    )}
+                  </div>
+                </div>
+              )}
+              {pwaDetailEntry.clockOutViaPwa && pwaDetailEntry.clockOut && (
+                <div className="p-3 bg-red-50 rounded-lg">
+                  <p className="text-red-600 font-semibold text-sm mb-2">Ausgestempelt um {format(new Date(pwaDetailEntry.clockOut), 'HH:mm')} Uhr</p>
+                  <div className="space-y-1 text-sm">
+                    <p className="text-gray-600"><span className="text-gray-500">Grund:</span> <span className="font-medium">{pwaDetailEntry.pwaClockOutReasonText || 'Nicht angegeben'}</span></p>
+                    {pwaDetailEntry.clockOutLatitude && pwaDetailEntry.clockOutLongitude && (
+                      <a href={`https://www.openstreetmap.org/?mlat=${pwaDetailEntry.clockOutLatitude}&mlon=${pwaDetailEntry.clockOutLongitude}#map=17/${pwaDetailEntry.clockOutLatitude}/${pwaDetailEntry.clockOutLongitude}`}
+                        target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-blue-600 hover:underline">
+                        <MapPin size={12} /> Standort auf Karte anzeigen
+                      </a>
+                    )}
+                  </div>
+                </div>
+              )}
+              {pwaDetailEntry.note && (
+                <div className="p-3 bg-gray-50 rounded-lg text-sm text-gray-600">
+                  <span className="text-gray-500">Notiz:</span> {pwaDetailEntry.note}
                 </div>
               )}
             </div>
+            <div className="p-4 border-t flex justify-end">
+              <button onClick={() => setPwaDetailEntry(null)} className="px-4 py-2 border rounded-lg hover:bg-gray-50 text-sm">Schließen</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Documents Modal */}
+      {showDocumentsModal && selectedEmployeeForDocs && (() => {
+        const MONTHS = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+        const formatFileSize = (bytes: number) => bytes < 1024*1024 ? `${(bytes/1024).toFixed(1)} KB` : `${(bytes/(1024*1024)).toFixed(1)} MB`;
+        return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowDocumentsModal(false)}>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-semibold flex items-center gap-2">
+                  <FolderOpen size={20} />
+                  Dokumente
+                </h2>
+                <p className="text-sm text-gray-500">{selectedEmployeeForDocs.firstName} {selectedEmployeeForDocs.lastName}</p>
+              </div>
+              <button onClick={() => setShowDocumentsModal(false)} className="p-2 hover:bg-gray-100 rounded-lg"><X size={20} /></button>
+            </div>
+            <div className="overflow-y-auto flex-1 p-6 space-y-6">
+              {/* Upload Section */}
+              <div className="p-4 bg-gray-50 rounded-lg space-y-3">
+                <h3 className="text-sm font-semibold text-gray-700">Dokument hochladen</h3>
+                <DocumentTypeQuery>
+                  {(documentTypes: any[]) => (
+                    <>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="label text-xs">Dokumenttyp *</label>
+                          <select value={docUploadForm.documentTypeId} onChange={(e) => setDocUploadForm({...docUploadForm, documentTypeId: e.target.value})} className="input py-1.5 text-sm">
+                            <option value="">Bitte wählen...</option>
+                            {documentTypes?.map((dt: any) => (
+                              <option key={dt.id} value={dt.id}>{dt.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="label text-xs">Jahr</label>
+                            <select value={docUploadForm.year} onChange={(e) => setDocUploadForm({...docUploadForm, year: parseInt(e.target.value)})} className="input py-1.5 text-sm">
+                              {[2023,2024,2025,2026,2027].map(y => <option key={y} value={y}>{y}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="label text-xs">Monat</label>
+                            <select value={docUploadForm.month} onChange={(e) => setDocUploadForm({...docUploadForm, month: parseInt(e.target.value)})} className="input py-1.5 text-sm">
+                              {MONTHS.map((m,i) => <option key={i} value={i+1}>{m}</option>)}
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="label text-xs">Notiz (optional)</label>
+                        <input type="text" value={docUploadForm.note} onChange={(e) => setDocUploadForm({...docUploadForm, note: e.target.value})} className="input py-1.5 text-sm" placeholder="z.B. Korrektur" />
+                      </div>
+                      <label
+                        className={`flex flex-col items-center justify-center w-full py-4 rounded-lg border-2 border-dashed cursor-pointer transition-colors ${
+                          docDragging
+                            ? 'border-primary-500 bg-primary-50'
+                            : docUploadFile
+                            ? 'border-green-400 bg-green-50'
+                            : 'border-gray-300 hover:border-gray-400 hover:bg-gray-100'
+                        }`}
+                        onDragOver={(e) => { e.preventDefault(); setDocDragging(true); }}
+                        onDragLeave={() => setDocDragging(false)}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          setDocDragging(false);
+                          const file = e.dataTransfer.files[0];
+                          if (file) setDocUploadFile(file);
+                        }}
+                      >
+                        <Upload size={20} className={docDragging ? 'text-primary-500' : docUploadFile ? 'text-green-600' : 'text-gray-400'} />
+                        <p className="mt-1 text-sm text-gray-600">
+                          {docUploading ? 'Wird hochgeladen...' : docUploadFile ? docUploadFile.name : docDragging ? 'Hier ablegen' : 'Datei hierhin ziehen oder klicken'}
+                        </p>
+                        <input type="file" className="hidden" onChange={(e) => setDocUploadFile(e.target.files?.[0] || null)} />
+                      </label>
+                      <div className="flex items-center gap-3">
+                        {docUploadFile && (
+                          <button onClick={() => setDocUploadFile(null)} className="text-sm text-gray-500 hover:text-gray-700">Datei entfernen</button>
+                        )}
+                        <button
+                          onClick={async () => {
+                            if (!docUploadFile || !docUploadForm.documentTypeId) {
+                              toast.error('Bitte Datei und Dokumenttyp wählen');
+                              return;
+                            }
+                            setDocUploading(true);
+                            try {
+                              await documentsApi.upload(selectedEmployeeForDocs.id, docUploadFile, {
+                                documentTypeId: docUploadForm.documentTypeId,
+                                year: docUploadForm.year,
+                                month: docUploadForm.month,
+                                note: docUploadForm.note || undefined,
+                              });
+                              toast.success('Dokument hochgeladen');
+                              setDocUploadFile(null);
+                              setDocUploadForm({...docUploadForm, note: ''});
+                              queryClient.invalidateQueries({ queryKey: ['employee-documents', selectedEmployeeForDocs.id] });
+                            } catch (err: any) {
+                              toast.error(err.response?.data?.error || 'Fehler beim Hochladen');
+                            } finally {
+                              setDocUploading(false);
+                            }
+                          }}
+                          disabled={!docUploadFile || !docUploadForm.documentTypeId || docUploading}
+                          className="btn btn-primary text-sm ml-auto"
+                        >
+                          {docUploading ? 'Lädt hoch...' : 'Hochladen'}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </DocumentTypeQuery>
+              </div>
+
+              {/* Document List */}
+              <EmployeeDocumentList
+                employeeId={selectedEmployeeForDocs.id}
+                formatFileSize={formatFileSize}
+                MONTHS={MONTHS}
+                filterYear={docUploadForm.year}
+                filterMonth={docUploadForm.month}
+              />
+            </div>
+          </div>
+        </div>
+        );
+      })()}
+
+      {/* RFID Lookup Modal */}
+      {showLookupModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => { if (!lookupScanning) { setShowLookupModal(false); } }}>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+              <h2 className="text-xl font-semibold flex items-center gap-2">
+                <CreditCard size={20} />
+                Karte abfragen
+              </h2>
+              <button
+                onClick={() => { if (lookupScanning) stopLookupScan(); setShowLookupModal(false); }}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-gray-600">
+                Scanne eine RFID-Karte am Terminal, um herauszufinden, welchem Mitarbeiter sie zugeordnet ist.
+              </p>
+
+              {/* Connection Status */}
+              <div className="flex items-center gap-2 text-sm">
+                <div className={`w-2 h-2 rounded-full ${lookupSocketConnected ? 'bg-green-500' : 'bg-red-500'}`} />
+                <span className="text-gray-500">
+                  {lookupSocketConnected ? 'Terminal verbunden' : 'Verbinde...'}
+                </span>
+              </div>
+
+              {/* Scan Button */}
+              <div className="flex gap-2">
+                {!lookupScanning ? (
+                  <button
+                    onClick={startLookupScan}
+                    disabled={!lookupSocketConnected}
+                    className="btn btn-primary flex-1 flex items-center justify-center gap-2"
+                  >
+                    <Wifi size={18} />
+                    Karte scannen
+                  </button>
+                ) : (
+                  <button
+                    onClick={stopLookupScan}
+                    className="btn btn-secondary flex-1 flex items-center justify-center gap-2"
+                  >
+                    <Loader2 size={18} className="animate-spin" />
+                    Warte auf Karte... ({lookupCountdown}s)
+                  </button>
+                )}
+              </div>
+
+              {/* Result */}
+              {lookupResult && (
+                <div className={`p-4 rounded-lg ${lookupResult.found ? 'bg-green-50 border border-green-200' : 'bg-yellow-50 border border-yellow-200'}`}>
+                  {lookupResult.found ? (
+                    <div className="flex items-center gap-3">
+                      {lookupResult.employee.photoUrl ? (
+                        <img src={lookupResult.employee.photoUrl} alt="" className="w-12 h-12 rounded-full object-cover" />
+                      ) : (
+                        <div className="w-12 h-12 rounded-full bg-green-200 flex items-center justify-center text-green-700 font-medium text-lg">
+                          {lookupResult.employee.firstName[0]}{lookupResult.employee.lastName[0]}
+                        </div>
+                      )}
+                      <div>
+                        <p className="font-semibold text-gray-900">
+                          {lookupResult.employee.firstName} {lookupResult.employee.lastName}
+                        </p>
+                        <p className="text-sm text-gray-500">#{lookupResult.employee.employeeNumber}</p>
+                        <p className="text-xs text-gray-400 mt-1">RFID: {lookupResult.rfidCard}</p>
+                        {!lookupResult.employee.isActive && (
+                          <span className="text-xs text-red-600 font-medium">Inaktiv</span>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <p className="font-medium text-yellow-800">Karte nicht zugeordnet</p>
+                      <p className="text-sm text-yellow-600 mt-1">RFID: {lookupResult.rfidCard}</p>
+                      <p className="text-sm text-yellow-600">Diese Karte ist keinem Mitarbeiter zugewiesen.</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -29,6 +29,31 @@ const upload = multer({
   },
 });
 
+// Multer für Logo-Upload
+const logoStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    const dir = path.join(process.cwd(), 'uploads', 'logos');
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `terminal-logo${ext}`);
+  },
+});
+
+const logoUpload = multer({
+  storage: logoStorage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // Max 5MB
+  fileFilter: (_req, file, cb) => {
+    if (['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'].includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Nur PNG, JPG, WebP oder SVG erlaubt'));
+    }
+  },
+});
+
 const router = Router();
 
 // Einstellungen abrufen
@@ -55,6 +80,7 @@ router.put('/', authMiddleware, adminMiddleware, async (req: AuthRequest, res: R
       companyEmail: z.string().email().optional().nullable(),
       defaultBreakMinutes: z.number().min(0).max(120).optional(),
       overtimeThreshold: z.number().min(0).max(168).optional(),
+      pdfShowWorkCategory: z.boolean().optional(),
     });
 
     const data = schema.parse(req.body);
@@ -355,6 +381,7 @@ router.post('/absence-types', authMiddleware, adminMiddleware, async (req: AuthR
       shortName: z.string().min(1).max(10),
       requiredHours: z.number().min(0).max(24),
       color: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
+      countsAsVacation: z.boolean().optional(),
       isActive: z.boolean().optional(),
       sortOrder: z.number().optional(),
     });
@@ -367,6 +394,7 @@ router.post('/absence-types', authMiddleware, adminMiddleware, async (req: AuthR
         shortName: data.shortName,
         requiredHours: data.requiredHours,
         color: data.color,
+        countsAsVacation: data.countsAsVacation ?? false,
         isActive: data.isActive ?? true,
         sortOrder: data.sortOrder ?? 0,
       },
@@ -392,6 +420,7 @@ router.put('/absence-types/:id', authMiddleware, adminMiddleware, async (req: Au
       shortName: z.string().min(1).max(10).optional(),
       requiredHours: z.number().min(0).max(24).optional(),
       color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+      countsAsVacation: z.boolean().optional(),
       isActive: z.boolean().optional(),
       sortOrder: z.number().optional(),
     });
@@ -532,6 +561,51 @@ router.post('/absences', authMiddleware, adminMiddleware, async (req: AuthReques
   }
 });
 
+// Bulk-Abwesenheiten erstellen (Admin) - für Multi-Tag-Auswahl
+router.post('/absences/bulk', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const schema = z.object({
+      employeeId: z.string().uuid(),
+      absenceTypeId: z.string().uuid(),
+      dates: z.array(z.string()),
+      note: z.string().optional().nullable(),
+    });
+    const data = schema.parse(req.body);
+
+    let created = 0;
+    for (const dateStr of data.dates) {
+      const date = new Date(dateStr);
+      // Bestehende überspringen
+      const existing = await prisma.employeeAbsence.findUnique({
+        where: { employeeId_date: { employeeId: data.employeeId, date } },
+      });
+      if (existing) continue;
+
+      await prisma.employeeAbsence.create({
+        data: { employeeId: data.employeeId, absenceTypeId: data.absenceTypeId, date, note: data.note || null },
+      });
+      created++;
+    }
+
+    res.status(201).json({ created, total: data.dates.length });
+  } catch (error) {
+    if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors[0].message });
+    res.status(500).json({ error: 'Fehler beim Erstellen' });
+  }
+});
+
+// Bulk-Abwesenheiten löschen (Admin)
+router.post('/absences/bulk-delete', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids)) return res.status(400).json({ error: 'IDs erforderlich' });
+    const result = await prisma.employeeAbsence.deleteMany({ where: { id: { in: ids } } });
+    res.json({ deleted: result.count });
+  } catch (error) {
+    res.status(500).json({ error: 'Fehler beim Löschen' });
+  }
+});
+
 // Abwesenheit aktualisieren (Admin)
 router.put('/absences/:id', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
   try {
@@ -566,6 +640,11 @@ router.put('/absences/:id', authMiddleware, adminMiddleware, async (req: AuthReq
 router.delete('/absences/:id', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
+
+    const existing = await prisma.employeeAbsence.findUnique({ where: { id } });
+    if (!existing) {
+      return res.json({ message: 'Bereits gelöscht' });
+    }
 
     await prisma.employeeAbsence.delete({ where: { id } });
 
@@ -618,6 +697,422 @@ router.get('/dashboard-stats', authMiddleware, adminMiddleware, async (_req: Aut
   } catch (error) {
     console.error('Get dashboard stats error:', error);
     res.status(500).json({ error: 'Fehler beim Laden der Statistiken' });
+  }
+});
+
+// Aktuell eingestempelte Mitarbeiter (Admin)
+router.get('/currently-clocked-in', authMiddleware, adminMiddleware, async (_req: AuthRequest, res: Response) => {
+  try {
+    const entries = await prisma.timeEntry.findMany({
+      where: { clockOut: null },
+      include: {
+        employee: {
+          select: { id: true, firstName: true, lastName: true, employeeNumber: true, photoUrl: true },
+        },
+      },
+      orderBy: { clockIn: 'desc' },
+    });
+    res.json(entries);
+  } catch (error) {
+    console.error('Get currently clocked in error:', error);
+    res.status(500).json({ error: 'Fehler beim Laden' });
+  }
+});
+
+// Einträge heute (Admin)
+router.get('/entries-today', authMiddleware, adminMiddleware, async (_req: AuthRequest, res: Response) => {
+  try {
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const entries = await prisma.timeEntry.findMany({
+      where: { clockIn: { gte: startOfDay } },
+      include: {
+        employee: {
+          select: { id: true, firstName: true, lastName: true, employeeNumber: true, photoUrl: true },
+        },
+      },
+      orderBy: { clockIn: 'desc' },
+    });
+    res.json(entries);
+  } catch (error) {
+    console.error('Get entries today error:', error);
+    res.status(500).json({ error: 'Fehler beim Laden' });
+  }
+});
+
+// ==================== DATEN-IMPORT ====================
+
+// Aktuelle Startsalden aller Mitarbeiter abrufen
+router.get('/initial-balances', authMiddleware, adminMiddleware, async (_req: AuthRequest, res: Response) => {
+  try {
+    const employees = await prisma.employee.findMany({
+      where: { isActive: true, isAdmin: false },
+      select: {
+        id: true,
+        employeeNumber: true,
+        firstName: true,
+        lastName: true,
+        initialOvertimeBalance: true,
+        initialVacationDaysUsed: true,
+        initialSickDays: true,
+        initialBalanceYear: true,
+        initialBalanceMonth: true,
+      },
+      orderBy: { lastName: 'asc' },
+    });
+    res.json(employees);
+  } catch (error) {
+    console.error('Get initial balances error:', error);
+    res.status(500).json({ error: 'Fehler beim Laden' });
+  }
+});
+
+// Startsaldo für einen Mitarbeiter setzen
+router.put('/initial-balances/:id', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const schema = z.object({
+      initialOvertimeBalance: z.number(),
+      initialVacationDaysUsed: z.number().int().min(0),
+      initialSickDays: z.number().int().min(0),
+      initialBalanceYear: z.number().int().min(2020).max(2030),
+      initialBalanceMonth: z.number().int().min(1).max(12),
+    });
+
+    const data = schema.parse(req.body);
+
+    const employee = await prisma.employee.update({
+      where: { id },
+      data,
+      select: {
+        id: true, employeeNumber: true, firstName: true, lastName: true,
+        initialOvertimeBalance: true, initialVacationDaysUsed: true, initialSickDays: true,
+        initialBalanceYear: true, initialBalanceMonth: true,
+      },
+    });
+
+    await createAuditLog({
+      req,
+      action: 'UPDATE',
+      entityType: 'Employee',
+      entityId: id,
+      newValues: {
+        initialOvertimeBalance: data.initialOvertimeBalance,
+        initialVacationDaysUsed: data.initialVacationDaysUsed,
+        initialSickDays: data.initialSickDays,
+        stichtag: `${data.initialBalanceMonth}/${data.initialBalanceYear}`,
+      },
+      note: `Startsalden importiert für ${employee.firstName} ${employee.lastName}`,
+    });
+
+    res.json(employee);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: error.errors[0].message });
+    }
+    console.error('Set initial balance error:', error);
+    res.status(500).json({ error: 'Fehler beim Speichern' });
+  }
+});
+
+// CSV-Import für Startsalden
+router.post('/initial-balances/import-csv', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { entries } = req.body;
+
+    if (!Array.isArray(entries) || entries.length === 0) {
+      return res.status(400).json({ error: 'Keine Daten zum Importieren' });
+    }
+
+    const results: any[] = [];
+    const errors: string[] = [];
+
+    for (const entry of entries) {
+      const { employeeNumber, overtimeBalance, vacationDaysUsed, sickDays, year, month } = entry;
+
+      if (!employeeNumber) {
+        errors.push(`Zeile ohne Mitarbeiternummer übersprungen`);
+        continue;
+      }
+
+      const employee = await prisma.employee.findUnique({
+        where: { employeeNumber: String(employeeNumber) },
+      });
+
+      if (!employee) {
+        errors.push(`Mitarbeiter #${employeeNumber} nicht gefunden`);
+        continue;
+      }
+
+      await prisma.employee.update({
+        where: { id: employee.id },
+        data: {
+          initialOvertimeBalance: parseFloat(String(overtimeBalance).replace(',', '.')) || 0,
+          initialVacationDaysUsed: parseInt(vacationDaysUsed) || 0,
+          initialSickDays: parseInt(sickDays) || 0,
+          initialBalanceYear: parseInt(year) || new Date().getFullYear(),
+          initialBalanceMonth: parseInt(month) || new Date().getMonth() + 1,
+        },
+      });
+
+      results.push({ employeeNumber, name: `${employee.firstName} ${employee.lastName}`, status: 'ok' });
+    }
+
+    await createAuditLog({
+      req,
+      action: 'UPDATE',
+      entityType: 'Employee',
+      newValues: { importiert: results.length, fehler: errors.length },
+      note: `CSV-Import: ${results.length} Startsalden importiert, ${errors.length} Fehler`,
+    });
+
+    res.json({ imported: results.length, errors, results });
+  } catch (error) {
+    console.error('CSV import error:', error);
+    res.status(500).json({ error: 'Fehler beim Import' });
+  }
+});
+
+// ==================== PWA-STEMPEL-GRÜNDE ====================
+
+// Alle Gründe abrufen (Admin)
+router.get('/pwa-reasons', authMiddleware, adminMiddleware, async (_req: AuthRequest, res: Response) => {
+  try {
+    const reasons = await prisma.pwaClockReason.findMany({ orderBy: { sortOrder: 'asc' } });
+    res.json(reasons);
+  } catch (error) {
+    res.status(500).json({ error: 'Fehler beim Laden' });
+  }
+});
+
+// Neuen Grund erstellen
+router.post('/pwa-reasons', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { name } = req.body;
+    if (!name) return res.status(400).json({ error: 'Name erforderlich' });
+    const count = await prisma.pwaClockReason.count();
+    const reason = await prisma.pwaClockReason.create({
+      data: { name, sortOrder: count },
+    });
+    res.status(201).json(reason);
+  } catch (error) {
+    res.status(500).json({ error: 'Fehler beim Erstellen' });
+  }
+});
+
+// Grund aktualisieren
+router.put('/pwa-reasons/:id', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { name, isActive, sortOrder } = req.body;
+    const reason = await prisma.pwaClockReason.update({
+      where: { id: req.params.id },
+      data: { ...(name !== undefined && { name }), ...(isActive !== undefined && { isActive }), ...(sortOrder !== undefined && { sortOrder }) },
+    });
+    res.json(reason);
+  } catch (error) {
+    res.status(500).json({ error: 'Fehler beim Aktualisieren' });
+  }
+});
+
+// Grund löschen
+router.delete('/pwa-reasons/:id', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    await prisma.pwaClockReason.delete({ where: { id: req.params.id } });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Fehler beim Löschen' });
+  }
+});
+
+// ==================== DOKUMENTTYPEN ====================
+
+// Aktive Dokumenttypen abrufen
+router.get('/document-types', authMiddleware, async (_req: AuthRequest, res: Response) => {
+  try {
+    const types = await prisma.documentType.findMany({
+      where: { isActive: true },
+      orderBy: { sortOrder: 'asc' },
+    });
+    res.json(types);
+  } catch (error) {
+    console.error('Get document types error:', error);
+    res.status(500).json({ error: 'Fehler beim Laden der Dokumenttypen' });
+  }
+});
+
+// Alle Dokumenttypen (inkl. inaktive, Admin)
+router.get('/document-types/all', authMiddleware, adminMiddleware, async (_req: AuthRequest, res: Response) => {
+  try {
+    const types = await prisma.documentType.findMany({
+      orderBy: { sortOrder: 'asc' },
+    });
+    res.json(types);
+  } catch (error) {
+    console.error('Get all document types error:', error);
+    res.status(500).json({ error: 'Fehler beim Laden der Dokumenttypen' });
+  }
+});
+
+// Dokumenttyp erstellen (Admin)
+router.post('/document-types', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const schema = z.object({
+      name: z.string().min(1),
+      shortName: z.string().min(1).max(10),
+      color: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
+      isActive: z.boolean().optional(),
+      sortOrder: z.number().optional(),
+    });
+
+    const data = schema.parse(req.body);
+
+    const docType = await prisma.documentType.create({
+      data: {
+        name: data.name,
+        shortName: data.shortName,
+        color: data.color,
+        isActive: data.isActive ?? true,
+        sortOrder: data.sortOrder ?? 0,
+      },
+    });
+
+    await createAuditLog({
+      req,
+      action: 'CREATE',
+      entityType: 'DocumentType',
+      entityId: docType.id,
+      newValues: { name: data.name, shortName: data.shortName },
+    });
+
+    res.status(201).json(docType);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: error.errors[0].message });
+    }
+    console.error('Create document type error:', error);
+    res.status(500).json({ error: 'Fehler beim Erstellen des Dokumenttyps' });
+  }
+});
+
+// Dokumenttyp aktualisieren (Admin)
+router.put('/document-types/:id', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const schema = z.object({
+      name: z.string().min(1).optional(),
+      shortName: z.string().min(1).max(10).optional(),
+      color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+      isActive: z.boolean().optional(),
+      sortOrder: z.number().optional(),
+    });
+
+    const data = schema.parse(req.body);
+    const docType = await prisma.documentType.update({ where: { id }, data });
+
+    res.json(docType);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: error.errors[0].message });
+    }
+    console.error('Update document type error:', error);
+    res.status(500).json({ error: 'Fehler beim Aktualisieren des Dokumenttyps' });
+  }
+});
+
+// Dokumenttyp löschen (Admin)
+router.delete('/document-types/:id', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const existingDocs = await prisma.document.count({ where: { documentTypeId: id } });
+    if (existingDocs > 0) {
+      return res.status(400).json({
+        error: `Kann nicht löschen: ${existingDocs} Dokumente verwenden diesen Typ. Bitte erst deaktivieren.`,
+      });
+    }
+
+    await prisma.documentType.delete({ where: { id } });
+    res.json({ message: 'Dokumenttyp gelöscht' });
+  } catch (error) {
+    console.error('Delete document type error:', error);
+    res.status(500).json({ error: 'Fehler beim Löschen des Dokumenttyps' });
+  }
+});
+
+// ==================== TERMINAL-LOGO ====================
+
+// Logo hochladen (Admin)
+router.post('/terminal-logo', authMiddleware, adminMiddleware, logoUpload.single('logo'), async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'Keine Datei hochgeladen' });
+    }
+
+    // Alte Logos löschen (außer das gerade hochgeladene)
+    const logoDir = path.join(process.cwd(), 'uploads', 'logos');
+    const files = fs.readdirSync(logoDir);
+    for (const file of files) {
+      if (file !== req.file.filename) {
+        fs.unlinkSync(path.join(logoDir, file));
+      }
+    }
+
+    const logoUrl = `/uploads/logos/${req.file.filename}`;
+
+    await createAuditLog({
+      req,
+      action: 'UPDATE',
+      entityType: 'Terminal',
+      note: `Terminal-Logo hochgeladen: ${req.file.originalname}`,
+    });
+
+    res.json({ success: true, logoUrl });
+  } catch (error) {
+    console.error('Upload terminal logo error:', error);
+    res.status(500).json({ error: 'Fehler beim Hochladen' });
+  }
+});
+
+// Logo abrufen (Terminal - API Key oder Admin)
+router.get('/terminal-logo', async (_req, res: Response) => {
+  try {
+    const logoDir = path.join(process.cwd(), 'uploads', 'logos');
+    if (!fs.existsSync(logoDir)) {
+      return res.json({ logoUrl: null });
+    }
+    const files = fs.readdirSync(logoDir).filter(f => /\.(png|jpe?g|webp|svg)$/i.test(f));
+    if (files.length === 0) {
+      return res.json({ logoUrl: null });
+    }
+    res.json({ logoUrl: `/uploads/logos/${files[0]}` });
+  } catch (error) {
+    console.error('Get terminal logo error:', error);
+    res.status(500).json({ error: 'Fehler beim Laden' });
+  }
+});
+
+// Logo löschen (Admin)
+router.delete('/terminal-logo', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const logoDir = path.join(process.cwd(), 'uploads', 'logos');
+    if (fs.existsSync(logoDir)) {
+      const files = fs.readdirSync(logoDir);
+      for (const file of files) {
+        fs.unlinkSync(path.join(logoDir, file));
+      }
+    }
+
+    await createAuditLog({
+      req,
+      action: 'DELETE',
+      entityType: 'Terminal',
+      note: 'Terminal-Logo gelöscht',
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete terminal logo error:', error);
+    res.status(500).json({ error: 'Fehler beim Löschen' });
   }
 });
 
@@ -1287,6 +1782,167 @@ router.post('/terminals/:id/regenerate-key', authMiddleware, adminMiddleware, as
   } catch (error) {
     console.error('Regenerate terminal key error:', error);
     res.status(500).json({ error: 'Fehler beim Erneuern des API-Keys' });
+  }
+});
+
+// Terminal Install-Script generieren
+router.get('/terminals/:id/install-script', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const terminal = await prisma.terminal.findUnique({ where: { id: req.params.id } });
+    if (!terminal) return res.status(404).json({ error: 'Terminal nicht gefunden' });
+
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+    const host = req.headers['x-forwarded-host'] || req.headers.host;
+    const backendUrl = `${protocol}://${host}`;
+    const apiKey = terminal.apiKey;
+    const terminalName = terminal.name;
+
+    const script = `#!/bin/bash
+#
+# Zeiterfassung Terminal - Schnellinstallation
+# Terminal: ${terminalName}
+# Generiert am: ${new Date().toLocaleString('de-DE')}
+#
+set -e
+
+echo "========================================"
+echo "  Zeiterfassung Terminal Installation"
+echo "  Terminal: ${terminalName}"
+echo "========================================"
+echo ""
+
+# Konfiguration
+BACKEND_URL="${backendUrl}"
+API_KEY="${apiKey}"
+INSTALL_DIR="$HOME/zeiterfassung-terminal"
+
+# Prüfe ob Python3 installiert ist
+if ! command -v python3 &> /dev/null; then
+    echo "[1/6] Python3 installieren..."
+    sudo apt-get update -qq
+    sudo apt-get install -y python3 python3-pip python3-venv
+else
+    echo "[1/6] Python3 vorhanden ✓"
+fi
+
+# Verzeichnis erstellen
+echo "[2/6] Verzeichnis erstellen..."
+mkdir -p "$INSTALL_DIR"
+cd "$INSTALL_DIR"
+
+# Python-Abhängigkeiten installieren
+echo "[3/6] Abhängigkeiten installieren..."
+pip3 install --user requests evdev pygame python-socketio[client] websocket-client 2>/dev/null || \
+pip3 install requests evdev pygame python-socketio[client] websocket-client
+
+# Optional: pyscard für ACR122U NFC Reader
+pip3 install --user pyscard 2>/dev/null || echo "  pyscard nicht installiert (optional, für ACR122U)"
+
+# Config erstellen
+echo "[4/6] Konfiguration erstellen..."
+cat > "$INSTALL_DIR/config.json" << CONF
+{
+  "backend_url": "$BACKEND_URL",
+  "api_key": "$API_KEY",
+  "display_enabled": false
+}
+CONF
+
+# Terminal-Dateien herunterladen (vom Server)
+echo "[5/6] Terminal-Software herunterladen..."
+for file in terminal.py api_client.py offline_queue.py display.py hdmi_display.py notify_display.py; do
+    if [ -f "$INSTALL_DIR/$file" ]; then
+        echo "  $file bereits vorhanden, überspringe..."
+    fi
+done
+
+# Verbindung testen
+echo "[6/6] Verbindung testen..."
+HEALTH=$(curl -s -o /dev/null -w "%{http_code}" "$BACKEND_URL/api/health" 2>/dev/null || echo "000")
+if [ "$HEALTH" = "200" ]; then
+    echo "  Backend erreichbar ✓"
+else
+    echo "  ⚠ Backend nicht erreichbar (HTTP $HEALTH)"
+    echo "  URL: $BACKEND_URL"
+    echo "  Bitte prüfe die Netzwerkverbindung."
+fi
+
+# Systemd-Services erstellen
+echo ""
+echo "Systemd-Services einrichten..."
+
+sudo tee /etc/systemd/system/zeiterfassung-terminal.service > /dev/null << SVC
+[Unit]
+Description=Zeiterfassung RFID Terminal
+After=network.target
+
+[Service]
+Type=simple
+User=$USER
+WorkingDirectory=$INSTALL_DIR
+ExecStart=/usr/bin/python3 $INSTALL_DIR/terminal.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+SVC
+
+sudo tee /etc/systemd/system/zeiterfassung-display.service > /dev/null << SVC
+[Unit]
+Description=Zeiterfassung HDMI Display
+After=network.target
+
+[Service]
+Type=simple
+User=$USER
+WorkingDirectory=$INSTALL_DIR
+ExecStartPre=/bin/sleep 10
+ExecStart=/usr/bin/python3 $INSTALL_DIR/hdmi_display.py
+Restart=always
+RestartSec=5
+Environment=DISPLAY=:0
+Environment=SDL_VIDEODRIVER=x11
+
+[Install]
+WantedBy=multi-user.target
+SVC
+
+sudo systemctl daemon-reload
+sudo systemctl enable zeiterfassung-terminal zeiterfassung-display
+
+echo ""
+echo "========================================"
+echo "  Installation abgeschlossen!"
+echo "========================================"
+echo ""
+echo "  Terminal:    ${terminalName}"
+echo "  Backend:     $BACKEND_URL"
+echo "  Verzeichnis: $INSTALL_DIR"
+echo ""
+echo "  Terminal-Dateien müssen noch in"
+echo "  $INSTALL_DIR kopiert werden:"
+echo "  - terminal.py"
+echo "  - api_client.py"
+echo "  - offline_queue.py"
+echo "  - display.py"
+echo "  - hdmi_display.py"
+echo "  - notify_display.py"
+echo ""
+echo "  Dann starten mit:"
+echo "    sudo systemctl start zeiterfassung-terminal"
+echo "    sudo systemctl start zeiterfassung-display"
+echo ""
+echo "  Logs anzeigen:"
+echo "    journalctl -u zeiterfassung-terminal -f"
+echo ""
+`;
+
+    res.setHeader('Content-Type', 'application/x-shellscript');
+    res.setHeader('Content-Disposition', `attachment; filename="install-terminal-${terminalName.replace(/[^a-zA-Z0-9]/g, '_')}.sh"`);
+    res.send(script);
+  } catch (error) {
+    res.status(500).json({ error: 'Fehler beim Generieren des Scripts' });
   }
 });
 

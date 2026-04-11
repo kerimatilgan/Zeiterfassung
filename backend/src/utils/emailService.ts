@@ -131,6 +131,52 @@ export async function sendTestEmail(to: string): Promise<void> {
 }
 
 /**
+ * Sendet eine Passwort-Reset-E-Mail
+ */
+export async function sendPasswordResetEmail(
+  to: string,
+  firstName: string,
+  resetUrl: string
+): Promise<void> {
+  await sendEmail({
+    to,
+    subject: 'Zeiterfassung - Passwort zurücksetzen',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #3B82F6;">Passwort zurücksetzen</h2>
+
+        <p>Hallo ${firstName},</p>
+        <p>es wurde eine Anfrage zum Zurücksetzen Ihres Passworts gestellt.</p>
+
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${resetUrl}"
+             style="display: inline-block; background: #3B82F6; color: white; padding: 12px 30px;
+                    text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px;">
+            Neues Passwort setzen
+          </a>
+        </div>
+
+        <p style="color: #6B7280; font-size: 14px;">
+          Dieser Link ist <strong>1 Stunde</strong> gültig. Falls Sie diese Anfrage nicht gestellt haben,
+          können Sie diese E-Mail ignorieren.
+        </p>
+
+        <p style="color: #9CA3AF; font-size: 12px; margin-top: 20px;">
+          Falls der Button nicht funktioniert, kopieren Sie diesen Link in Ihren Browser:<br>
+          <a href="${resetUrl}" style="color: #3B82F6; word-break: break-all;">${resetUrl}</a>
+        </p>
+
+        <hr style="border: none; border-top: 1px solid #E5E7EB; margin: 20px 0;">
+        <p style="color: #6B7280; font-size: 12px;">
+          Diese Nachricht wurde automatisch von der Zeiterfassung-Anwendung gesendet.
+        </p>
+      </div>
+    `,
+    text: `Hallo ${firstName},\n\nes wurde eine Anfrage zum Zurücksetzen Ihres Passworts gestellt.\n\nBitte öffnen Sie folgenden Link: ${resetUrl}\n\nDieser Link ist 1 Stunde gültig.\n\nFalls Sie diese Anfrage nicht gestellt haben, können Sie diese E-Mail ignorieren.`,
+  });
+}
+
+/**
  * Holt alle Admin-E-Mail-Adressen
  */
 async function getAdminEmails(): Promise<string[]> {

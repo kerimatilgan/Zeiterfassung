@@ -6,6 +6,7 @@ export default defineConfig({
   server: {
     port: 5175,
     host: '0.0.0.0',
+    allowedHosts: ['zeit.kerimatilgan.de'],
     proxy: {
       '/api': {
         target: 'http://localhost:3004',
@@ -14,6 +15,11 @@ export default defineConfig({
       '/uploads': {
         target: 'http://localhost:3004',
         changeOrigin: true,
+      },
+      '/socket.io': {
+        target: 'http://localhost:3004',
+        changeOrigin: true,
+        ws: true,
       },
     },
   },
