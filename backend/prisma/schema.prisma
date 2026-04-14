@@ -60,6 +60,7 @@ model Employee {
   documents           Document[]
   vacationDeductions  VacationDeduction[]
   vacationAdjustments VacationAdjustment[]
+  complaints          Complaint[]
 }
 
 // Passkeys (WebAuthn)
@@ -116,8 +117,48 @@ model TimeEntry {
   complaintOriginalClockOut    DateTime?
   complaintOriginalBreakMinutes Int?
 
+  // Reklamations-Historie (mehrere Reklamationen pro Eintrag möglich)
+  complaints  Complaint[]
+
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+}
+
+// Reklamationen (jede Reklamation ein eigener Datensatz - Historie)
+model Complaint {
+  id                String   @id @default(uuid())
+  employeeId        String
+  employee          Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  // Optional: zu welchem TimeEntry gehört die Reklamation
+  // Bei Standalone-Reklamationen (Tag ohne Stempelung) bleibt das null
+  timeEntryId       String?
+  timeEntry         TimeEntry? @relation(fields: [timeEntryId], references: [id], onDelete: SetNull)
+
+  // Tag, auf den sich die Reklamation bezieht (für Standalone wichtig)
+  date              DateTime
+
+  // Nachricht des Mitarbeiters
+  message           String
+
+  // Snapshot der Werte zum Zeitpunkt der Reklamation (für Vorher-/Nachher-Anzeige)
+  originalClockIn       DateTime?
+  originalClockOut      DateTime?
+  originalBreakMinutes  Int?
+
+  // Bearbeitung durch Admin
+  resolvedAt        DateTime?
+  resolvedBy        String?   // Admin-ID
+  resolvedByName    String?   // Admin-Name (Snapshot)
+  response          String?
+
+  // Werte nach Bearbeitung (für Vorher-/Nachher-Vergleich auch nach späteren Änderungen)
+  newClockIn        DateTime?
+  newClockOut       DateTime?
+  newBreakMinutes   Int?
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }
 
 // Monatsabrechnungen

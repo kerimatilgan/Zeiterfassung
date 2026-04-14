@@ -132,6 +132,21 @@ export const timeEntriesApi = {
     api.get('/time-entries/complaints/pending', { params: { limit } }),
 };
 
+// Reklamationen (neue API mit Historie)
+export const complaintsApi = {
+  getMy: () => api.get('/complaints/my'),
+  getByEntry: (timeEntryId: string) => api.get(`/complaints/by-entry/${timeEntryId}`),
+  create: (data: { timeEntryId?: string | null; date?: string; message: string }) =>
+    api.post('/complaints', data),
+  delete: (id: string) => api.delete(`/complaints/${id}`),
+  // Admin
+  getAll: (params?: { resolved?: boolean; employeeId?: string; from?: string; to?: string }) =>
+    api.get('/complaints/all', { params }),
+  getPendingCount: () => api.get('/complaints/pending/count'),
+  resolve: (id: string, data: { response?: string; applyChanges?: { clockIn?: string; clockOut?: string | null; breakMinutes?: number } }) =>
+    api.post(`/complaints/${id}/resolve`, data),
+};
+
 // Reports
 export const reportsApi = {
   getMy: () => api.get('/reports/my'),

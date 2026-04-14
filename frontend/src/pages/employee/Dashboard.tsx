@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { timeEntriesApi } from '../../lib/api';
 import { useAuthStore } from '../../store/authStore';
-import { Clock, Calendar, Timer, Umbrella, Thermometer, MapPin, LogIn, LogOut, X, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Clock, Calendar, Timer, Umbrella, Thermometer, MapPin, LogIn, LogOut, X, Loader2, ChevronLeft, ChevronRight, MessageSquare, AlertTriangle, CheckCircle, Coffee } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, getISOWeek, addWeeks, subWeeks, isAfter } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { useState, useEffect, useCallback } from 'react';
@@ -61,6 +61,12 @@ export default function EmployeeDashboard() {
 
   // Wochenansicht State
   const [weekDate, setWeekDate] = useState(new Date());
+  const [expandedDay, setExpandedDay] = useState<string | null>(null);
+  const [complaintEntryId, setComplaintEntryId] = useState<string | null>(null);
+  const [complaintStandaloneDate, setComplaintStandaloneDate] = useState<Date | null>(null);
+  const [complaintMessage, setComplaintMessage] = useState('');
+  const [complaintInitial, setComplaintInitial] = useState<{ message: string; resolvedAt: string | null; response: string | null; resolved: boolean } | null>(null);
+  const [complaintSubmitting, setComplaintSubmitting] = useState(false);
   const weekStart = startOfWeek(weekDate, { weekStartsOn: 1 });
   const weekEnd = endOfWeek(weekDate, { weekStartsOn: 1 });
   const weekDays = eachDayOfInterval({ start: weekStart, end: weekEnd });
@@ -453,14 +459,18 @@ export default function EmployeeDashboard() {
                   const isToday = isSameDay(day, new Date());
                   const isFuture = isAfter(day, new Date());
 
+                  const dayKey = format(day, 'yyyy-MM-dd');
+                  const isExpanded = expandedDay === dayKey;
+                  const canInteract = !isFuture;
                   return (
+                    <div key={day.toISOString()}>
                     <div
-                      key={day.toISOString()}
-                      className={`flex items-center gap-4 px-5 py-3.5 ${
+                      onClick={() => canInteract && setExpandedDay(isExpanded ? null : dayKey)}
+                      className={`flex items-center gap-4 px-5 py-3.5 transition ${
                         isToday ? 'bg-primary-50' :
                         !hasTarget && !isSpecial ? 'bg-gray-50' :
                         isFuture ? 'opacity-40' : ''
-                      }`}
+                      } ${canInteract ? 'cursor-pointer hover:bg-gray-100' : ''} ${isExpanded ? 'border-b' : ''}`}
                     >
                       {/* Progress Ring */}
                       <div className="flex-shrink-0">
@@ -525,12 +535,184 @@ export default function EmployeeDashboard() {
                         </div>
                       ) : null}
                     </div>
+                    {isExpanded && (
+                      <div className="bg-gray-50 px-5 py-3 border-b">
+                        {dayEntries.length > 0 ? (
+                          <div className="space-y-2">
+                            {dayEntries.map((entry: any, idx: number) => (
+                              <div key={entry.id}>
+                                {idx > 0 && dayEntries[idx - 1].clockOut && (() => {
+                                  const prevEnd = new Date(dayEntries[idx - 1].clockOut);
+                                  const currStart = new Date(entry.clockIn);
+                                  const gap = Math.round((currStart.getTime() - prevEnd.getTime()) / 60000);
+                                  if (gap <= 0) return null;
+                                  const pauseLabel = `${format(prevEnd, 'HH:mm')} - ${format(currStart, 'HH:mm')}`;
+                                  return (
+                                    <div className="flex items-center gap-2 text-xs text-orange-600 py-1 px-2 bg-orange-50 rounded">
+                                      <Coffee size={12} />
+                                      <span>Pause: {pauseLabel} ({gap >= 60 ? `${Math.floor(gap / 60)}:${String(gap % 60).padStart(2, '0')}h` : `${gap} min`})</span>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          const prev = dayEntries[idx - 1];
+                                          setComplaintEntryId(prev.id);
+                                          setComplaintStandaloneDate(null);
+                                          setComplaintMessage(prev.complaintMessage || `Reklamation zur Pause (${pauseLabel}): `);
+                                          setComplaintInitial(prev.complaintMessage ? { message: prev.complaintMessage, resolvedAt: prev.complaintResolvedAt, response: prev.complaintResponse, resolved: !!prev.complaintResolvedAt } : null);
+                                        }}
+                                        className="ml-auto text-xs px-2 py-0.5 rounded text-orange-600 hover:bg-orange-100"
+                                      >
+                                        Reklamieren
+                                      </button>
+                                    </div>
+                                  );
+                                })()}
+                                <div className="bg-white border rounded px-3 py-2 flex items-center gap-2 flex-wrap">
+                                  {entry.complaintMessage && (
+                                    entry.complaintResolvedAt
+                                      ? <CheckCircle size={14} className="text-green-500" />
+                                      : <AlertTriangle size={14} className="text-amber-500" />
+                                  )}
+                                  {(entry.clockInViaPwa || entry.clockOutViaPwa) && <MapPin size={14} className="text-blue-500" />}
+                                  <span className="font-mono text-sm font-medium">
+                                    {format(new Date(entry.clockIn), 'HH:mm')}
+                                    {' - '}
+                                    {entry.clockOut ? format(new Date(entry.clockOut), 'HH:mm') : <span className="text-green-600">Aktiv</span>}
+                                  </span>
+                                  {entry.breakMinutes > 0 && (
+                                    <span className="text-xs text-gray-400">
+                                      ({entry.breakMinutes >= 60 ? `${Math.floor(entry.breakMinutes / 60)}:${String(entry.breakMinutes % 60).padStart(2, '0')}h` : `${entry.breakMinutes} min`} Pause)
+                                    </span>
+                                  )}
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setComplaintEntryId(entry.id);
+                                      setComplaintStandaloneDate(null);
+                                      setComplaintMessage(entry.complaintMessage || '');
+                                      setComplaintInitial(entry.complaintMessage ? { message: entry.complaintMessage, resolvedAt: entry.complaintResolvedAt, response: entry.complaintResponse, resolved: !!entry.complaintResolvedAt } : null);
+                                    }}
+                                    className={`ml-auto text-xs px-2 py-1 rounded ${
+                                      entry.complaintMessage
+                                        ? entry.complaintResolvedAt
+                                          ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                                          : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
+                                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                    }`}
+                                  >
+                                    {entry.complaintMessage ? (entry.complaintResolvedAt ? 'Bearbeitet' : 'Offen') : 'Reklamieren'}
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-between text-sm text-gray-500">
+                            <span>Keine Zeiteinträge an diesem Tag</span>
+                            {canInteract && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setComplaintStandaloneDate(day);
+                                  setComplaintEntryId(null);
+                                  setComplaintMessage('');
+                                  setComplaintInitial(null);
+                                }}
+                                className="text-xs px-3 py-1 rounded bg-amber-100 text-amber-700 hover:bg-amber-200 flex items-center gap-1"
+                              >
+                                <MessageSquare size={12} /> Tag reklamieren
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    </div>
                   );
                 })}
               </div>
             </div>
           );
         })()}
+
+        {/* Reklamations-Modal */}
+        {(complaintEntryId || complaintStandaloneDate) && (
+          <div
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={() => {
+              setComplaintEntryId(null);
+              setComplaintStandaloneDate(null);
+              setComplaintMessage('');
+              setComplaintInitial(null);
+            }}
+          >
+            <div className="bg-white rounded-lg shadow-xl max-w-lg w-full" onClick={(e) => e.stopPropagation()}>
+              <div className="p-5 border-b flex items-center justify-between">
+                <h2 className="text-lg font-semibold">
+                  {complaintInitial?.resolved ? 'Reklamation (bearbeitet)' : complaintInitial ? 'Reklamation (offen)' : 'Neue Reklamation'}
+                </h2>
+                <button onClick={() => { setComplaintEntryId(null); setComplaintStandaloneDate(null); setComplaintMessage(''); setComplaintInitial(null); }} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+              </div>
+              <div className="p-5 space-y-3">
+                {complaintInitial?.resolved && complaintInitial.response && (
+                  <div className="bg-green-50 border border-green-200 rounded p-3 text-sm">
+                    <div className="text-xs font-semibold text-green-700 mb-1">Antwort vom Admin:</div>
+                    <div className="text-gray-700 whitespace-pre-wrap">{complaintInitial.response}</div>
+                  </div>
+                )}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">
+                    {complaintInitial ? 'Deine Nachricht' : 'Was möchtest du reklamieren?'}
+                  </label>
+                  <textarea
+                    value={complaintMessage}
+                    onChange={(e) => setComplaintMessage(e.target.value)}
+                    rows={5}
+                    placeholder="z.B. Habe vergessen auszustempeln, war eigentlich bis 17:00 da..."
+                    disabled={!!complaintInitial?.resolved}
+                    className="w-full border rounded px-3 py-2 text-sm disabled:bg-gray-50"
+                  />
+                </div>
+              </div>
+              <div className="p-5 border-t flex items-center justify-end gap-2">
+                <button onClick={() => { setComplaintEntryId(null); setComplaintStandaloneDate(null); setComplaintMessage(''); setComplaintInitial(null); }} className="text-sm text-gray-600 hover:bg-gray-100 px-4 py-2 rounded-lg">
+                  Schließen
+                </button>
+                {!complaintInitial?.resolved && (
+                  <button
+                    disabled={complaintSubmitting || !complaintMessage.trim()}
+                    onClick={async () => {
+                      if (!complaintMessage.trim()) { toast.error('Bitte Nachricht eingeben'); return; }
+                      setComplaintSubmitting(true);
+                      try {
+                        if (complaintEntryId) {
+                          await timeEntriesApi.createComplaint(complaintEntryId, complaintMessage);
+                        } else if (complaintStandaloneDate) {
+                          const dateStr = format(complaintStandaloneDate, 'yyyy-MM-dd');
+                          await timeEntriesApi.createStandaloneComplaint(dateStr, complaintMessage);
+                        }
+                        toast.success('Reklamation gesendet');
+                        queryClient.invalidateQueries({ queryKey: ['week-entries'] });
+                        queryClient.invalidateQueries({ queryKey: ['myStats'] });
+                        setComplaintEntryId(null);
+                        setComplaintStandaloneDate(null);
+                        setComplaintMessage('');
+                        setComplaintInitial(null);
+                      } catch (err: any) {
+                        toast.error(err.response?.data?.error || 'Fehler beim Senden');
+                      } finally {
+                        setComplaintSubmitting(false);
+                      }
+                    }}
+                    className="text-sm bg-primary-600 text-white hover:bg-primary-700 px-4 py-2 rounded-lg disabled:opacity-50"
+                  >
+                    {complaintInitial ? 'Aktualisieren' : 'Reklamation senden'}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Arbeitszeit Monat */}
         <div className="card p-5">

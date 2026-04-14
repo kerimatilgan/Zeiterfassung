@@ -1,7 +1,7 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { useQuery } from '@tanstack/react-query';
-import { timeEntriesApi } from '../lib/api';
+import { complaintsApi } from '../lib/api';
 import {
   LayoutDashboard,
   Users,
@@ -34,7 +34,7 @@ export default function Layout({ isAdmin = false }: LayoutProps) {
   // Offene Reklamationen abfragen (nur für Admin)
   const { data: pendingComplaints } = useQuery({
     queryKey: ['pendingComplaints'],
-    queryFn: () => timeEntriesApi.getPendingComplaints(5).then((r) => r.data),
+    queryFn: () => complaintsApi.getPendingCount().then((r) => r.data),
     enabled: isAdmin,
     refetchInterval: 30000, // Alle 30 Sekunden aktualisieren
   });

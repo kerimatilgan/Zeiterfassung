@@ -1394,17 +1394,21 @@ router.post('/:id/complaint', authMiddleware, async (req: AuthRequest, res: Resp
     }
 
     // Reklamation speichern (bei neuer Reklamation auch Originalwerte speichern)
-    const isNewComplaint = !entry.complaintMessage;
+    // Eine Reklamation gilt als "neu" wenn entweder noch keine existiert ODER die letzte bereits gelöst wurde
+    const isNewComplaint = !entry.complaintMessage || !!entry.complaintResolvedAt;
     const updatedEntry = await prisma.timeEntry.update({
       where: { id },
       data: {
         complaintMessage: message,
         complaintAt: isNewComplaint ? new Date() : entry.complaintAt,
-        // Originalwerte nur bei neuer Reklamation speichern
+        // Bei neuer Reklamation: Originalwerte speichern und alte Resolve-Daten zurücksetzen
         ...(isNewComplaint && {
           complaintOriginalClockIn: entry.clockIn,
           complaintOriginalClockOut: entry.clockOut,
           complaintOriginalBreakMinutes: entry.breakMinutes,
+          complaintResolvedAt: null,
+          complaintResolvedBy: null,
+          complaintResponse: null,
         }),
       },
     });

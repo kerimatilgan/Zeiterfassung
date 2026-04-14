@@ -17,6 +17,7 @@ import twoFactorRoutes from './routes/twoFactor.js';
 import documentRoutes from './routes/documents.js';
 import backupRoutes from './routes/backup.js';
 import setupRoutes from './routes/setup.js';
+import complaintRoutes from './routes/complaints.js';
 import { startBackupScheduler } from './services/backup/scheduler.js';
 import { startAutoClockOutScheduler } from './services/autoClockOut.js';
 import { startVacationCarryOverScheduler } from './services/vacationCarryOver.js';
@@ -71,6 +72,7 @@ app.use('/api/2fa', twoFactorRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/backup', backupRoutes);
 app.use('/api/setup', setupRoutes);
+app.use('/api/complaints', complaintRoutes);
 
 // Health Check
 app.get('/api/health', (req, res) => {
