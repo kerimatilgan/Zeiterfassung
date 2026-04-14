@@ -245,7 +245,10 @@ router.delete('/:id', authMiddleware, async (req: AuthRequest, res: Response) =>
 router.get('/all', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const { resolved, employeeId, from, to } = req.query;
-    const where: any = {};
+    const where: any = {
+      // Admins stempeln sich nicht, daher keine Admin-Reklamationen anzeigen
+      employee: { isAdmin: false },
+    };
     if (resolved === 'true') where.resolvedAt = { not: null };
     else if (resolved === 'false') where.resolvedAt = null;
     if (employeeId) where.employeeId = employeeId;
@@ -269,7 +272,9 @@ router.get('/all', authMiddleware, adminMiddleware, async (req: AuthRequest, res
 // Pending count für Badge
 router.get('/pending/count', authMiddleware, adminMiddleware, async (_req: AuthRequest, res: Response) => {
   try {
-    const count = await prisma.complaint.count({ where: { resolvedAt: null } });
+    const count = await prisma.complaint.count({
+      where: { resolvedAt: null, employee: { isAdmin: false } },
+    });
     res.json({ count });
   } catch (error) {
     res.status(500).json({ error: 'Fehler' });

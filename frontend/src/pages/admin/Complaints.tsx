@@ -41,6 +41,7 @@ interface Employee {
   firstName: string;
   lastName: string;
   employeeNumber: string;
+  isAdmin?: boolean;
 }
 
 export default function AdminComplaints() {
@@ -179,7 +180,7 @@ export default function AdminComplaints() {
         </div>
         <select value={filterEmployee} onChange={(e) => setFilterEmployee(e.target.value)} className="text-sm border rounded px-2 py-1.5">
           <option value="">Alle Mitarbeiter</option>
-          {employees?.map(e => (
+          {employees?.filter(e => !e.isAdmin).map(e => (
             <option key={e.id} value={e.id}>{e.firstName} {e.lastName} (#{e.employeeNumber})</option>
           ))}
         </select>
