@@ -1240,12 +1240,30 @@ router.post('/complaint/standalone', authMiddleware, async (req: AuthRequest, re
       return res.status(400).json({ error: 'Reklamationen können nicht für zukünftige Tage erstellt werden' });
     }
 
+    // Duplikat-Prüfung: Existiert bereits eine Reklamation für diesen Tag?
+    const dayStart = new Date(dayDate);
+    const dayEnd = new Date(dayDate);
+    dayEnd.setHours(23, 59, 59, 999);
+
+    const existingComplaint = await prisma.timeEntry.findFirst({
+      where: {
+        employeeId: req.employee!.id,
+        complaintMessage: { not: null },
+        clockIn: { gte: dayStart, lte: dayEnd },
+      },
+    });
+
+    if (existingComplaint) {
+      return res.status(400).json({ error: 'Für diesen Tag existiert bereits eine Reklamation.' });
+    }
+
     // Placeholder-TimeEntry erstellen mit Reklamation
+    // clockOut = clockIn (0 Minuten), damit Auto-Ausstempeln den Eintrag ignoriert
     const entry = await prisma.timeEntry.create({
       data: {
         employeeId: req.employee!.id,
         clockIn: dayDate,
-        clockOut: null,
+        clockOut: dayDate,
         breakMinutes: 0,
         complaintMessage: message,
         complaintAt: new Date(),
