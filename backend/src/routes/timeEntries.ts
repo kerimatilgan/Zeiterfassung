@@ -114,6 +114,19 @@ router.post('/manual', authMiddleware, adminMiddleware, async (req: AuthRequest,
       return res.status(404).json({ error: 'Mitarbeiter nicht gefunden' });
     }
 
+    // Wenn neuer Eintrag offen ist (kein clockOut), darf MA nicht bereits eingestempelt sein
+    const isOpenEntry = !data.clockOut || data.clockOut.length === 0;
+    if (isOpenEntry) {
+      const activeEntry = await prisma.timeEntry.findFirst({
+        where: { employeeId: data.employeeId, clockOut: null },
+      });
+      if (activeEntry) {
+        return res.status(400).json({
+          error: 'Mitarbeiter ist bereits eingestempelt. Bitte zuerst den offenen Eintrag schließen.',
+        });
+      }
+    }
+
     const entry = await prisma.timeEntry.create({
       data: {
         employeeId: data.employeeId,
