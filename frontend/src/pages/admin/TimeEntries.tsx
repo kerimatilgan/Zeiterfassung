@@ -35,7 +35,12 @@ interface TimeEntry {
   clockInViaPwa?: boolean;
   clockOutViaPwa?: boolean;
   complaintMessage?: string | null;
+  complaintAt?: string | null;
   complaintResolvedAt?: string | null;
+  complaintResponse?: string | null;
+  complaintOriginalClockIn?: string | null;
+  complaintOriginalClockOut?: string | null;
+  complaintOriginalBreakMinutes?: number | null;
 }
 
 interface Absence {
@@ -391,6 +396,33 @@ export default function AdminTimeEntries() {
                             {entry.clockOut && <span className="text-sm text-gray-500">{fmtMin(Math.floor((new Date(entry.clockOut).getTime() - new Date(entry.clockIn).getTime()) / 60000))} h</span>}
                             <Edit2 size={14} className="text-gray-400 ml-auto" />
                           </div>
+                          {entry.complaintMessage && (
+                            <div className={'px-3 py-2.5 text-sm border-t ' + (entry.complaintResolvedAt ? 'bg-green-50' : 'bg-amber-50')}>
+                              <div className="flex items-start gap-2">
+                                {entry.complaintResolvedAt ? <CheckCircle size={14} className="text-green-600 mt-0.5 shrink-0" /> : <AlertTriangle size={14} className="text-amber-600 mt-0.5 shrink-0" />}
+                                <div className="flex-1">
+                                  <div className={'text-xs font-semibold uppercase tracking-wide mb-1 ' + (entry.complaintResolvedAt ? 'text-green-700' : 'text-amber-700')}>
+                                    Reklamation {entry.complaintResolvedAt ? '(gelöst)' : '(offen)'}
+                                    {entry.complaintAt && <span className="font-normal text-gray-500 ml-2">{format(new Date(entry.complaintAt), 'dd.MM.yyyy HH:mm')}</span>}
+                                  </div>
+                                  <div className="text-gray-800 whitespace-pre-wrap">{entry.complaintMessage}</div>
+                                  {entry.complaintResponse && (
+                                    <div className="mt-2 pt-2 border-t border-green-200">
+                                      <div className="text-xs font-semibold text-green-700 mb-0.5">Admin-Antwort:</div>
+                                      <div className="text-gray-700 whitespace-pre-wrap">{entry.complaintResponse}</div>
+                                    </div>
+                                  )}
+                                  {(entry.complaintOriginalClockIn || entry.complaintOriginalClockOut) && entry.complaintResolvedAt && (
+                                    <div className="mt-2 pt-2 border-t border-green-200 text-xs text-gray-600">
+                                      <span className="font-semibold">Vorher:</span>{' '}
+                                      {entry.complaintOriginalClockIn ? format(new Date(entry.complaintOriginalClockIn), 'HH:mm') : '—'} - {entry.complaintOriginalClockOut ? format(new Date(entry.complaintOriginalClockOut), 'HH:mm') : '—'}
+                                      {entry.complaintOriginalBreakMinutes != null && <span> · Pause: {entry.complaintOriginalBreakMinutes} min</span>}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
