@@ -41,7 +41,7 @@ const setupSchema = z.object({
 
 // Standard-Abwesenheitstypen
 const DEFAULT_ABSENCE_TYPES = [
-  { name: 'Urlaub', shortName: 'Urlaub', requiredHours: 0, color: '#3B82F6', sortOrder: 0 },
+  { name: 'Urlaub', shortName: 'Urlaub', requiredHours: 0, color: '#3B82F6', sortOrder: 0, countsAsVacation: true },
   { name: 'Krank', shortName: 'Krank', requiredHours: 0, color: '#ff3333', sortOrder: 1 },
   { name: 'Berufschule ganzer Tag', shortName: 'Schule 1', requiredHours: 0, color: '#5ffb37', sortOrder: 2 },
   { name: 'Schule halber Tag', shortName: 'Schule 1/2', requiredHours: 4, color: '#bbb100', sortOrder: 3 },
