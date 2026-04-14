@@ -48,8 +48,9 @@ export default function Layout({ isAdmin = false }: LayoutProps) {
 
   const adminLinks = [
     { to: '/admin', icon: LayoutDashboard, label: 'Dashboard', end: true },
-    { to: '/admin/employees', icon: Users, label: 'Mitarbeiter', badge: pendingCount > 0 ? pendingCount : undefined },
+    { to: '/admin/employees', icon: Users, label: 'Mitarbeiter' },
     { to: '/admin/time-entries', icon: Clock, label: 'Zeiteinträge' },
+    { to: '/admin/complaints', icon: MessageSquare, label: 'Reklamationen', badge: pendingCount > 0 ? pendingCount : undefined },
     { to: '/admin/reports', icon: FileText, label: 'Abrechnungen' },
     { to: '/admin/settings', icon: Settings, label: 'Einstellungen' },
     { to: '/admin/account', icon: UserCog, label: 'Mein Konto' },

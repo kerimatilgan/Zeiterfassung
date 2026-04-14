@@ -8,6 +8,7 @@ import SetupWizard from './pages/Setup';
 import AdminDashboard from './pages/admin/Dashboard';
 import AdminEmployees from './pages/admin/Employees';
 import AdminTimeEntries from './pages/admin/TimeEntries';
+import AdminComplaints from './pages/admin/Complaints';
 import AdminReports from './pages/admin/Reports';
 import AdminSettings from './pages/admin/Settings';
 import AdminAuditLogs from './pages/admin/AuditLogs';
@@ -76,6 +77,7 @@ function App() {
         <Route index element={<AdminDashboard />} />
         <Route path="employees" element={<AdminEmployees />} />
         <Route path="time-entries" element={<AdminTimeEntries />} />
+        <Route path="complaints" element={<AdminComplaints />} />
         <Route path="reports" element={<AdminReports />} />
         <Route path="settings" element={<AdminSettings />} />
         <Route path="account" element={<EmployeeSettings />} />
