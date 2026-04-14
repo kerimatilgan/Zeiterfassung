@@ -47,13 +47,8 @@ export default function AdminComplaints() {
   const [adminResponse, setAdminResponse] = useState('');
 
   const { data: complaints, refetch } = useQuery({
-    queryKey: ['adminComplaints', filterStatus],
-    queryFn: () => {
-      const params: any = {};
-      if (filterStatus === 'open') params.resolved = false;
-      if (filterStatus === 'resolved') params.resolved = true;
-      return timeEntriesApi.getFlagged(params).then((r: any) => r.data as FlaggedEntry[]);
-    },
+    queryKey: ['adminComplaints'],
+    queryFn: () => timeEntriesApi.getFlagged().then((r: any) => r.data as FlaggedEntry[]),
     refetchInterval: 30000,
   });
 
@@ -88,6 +83,8 @@ export default function AdminComplaints() {
 
   const filtered = useMemo(() => {
     return (complaints || []).filter((c) => {
+      if (filterStatus === 'open' && c.complaintResolvedAt) return false;
+      if (filterStatus === 'resolved' && !c.complaintResolvedAt) return false;
       if (filterEmployee && c.employee.id !== filterEmployee) return false;
       if (filterMonth) {
         const month = format(new Date(c.complaintAt), 'yyyy-MM');
@@ -101,7 +98,7 @@ export default function AdminComplaints() {
       }
       return true;
     });
-  }, [complaints, filterEmployee, filterMonth, search]);
+  }, [complaints, filterStatus, filterEmployee, filterMonth, search]);
 
   // Monate für Filter
   const months = useMemo(() => {
