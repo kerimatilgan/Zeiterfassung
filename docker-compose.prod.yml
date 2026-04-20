@@ -1,30 +1,45 @@
 services:
   backend:
     image: ghcr.io/kerimatilgan/zeiterfassung-backend:latest
-    ports:
-      - "3001:3001"
     environment:
       - PORT=3001
-      - JWT_SECRET=${JWT_SECRET:-handy-insel-zeiterfassung-secret-key-2024}
-      - TERMINAL_API_KEY=${TERMINAL_API_KEY:-handy-insel-terminal-key-2024}
+      - JWT_SECRET=${JWT_SECRET}
+      - TERMINAL_API_KEY=${TERMINAL_API_KEY}
+      - DATABASE_URL=file:/app/prisma/zeiterfassung.db
     volumes:
-      - ./data:/app/prisma
-      - ./reports:/app/reports
-      - ./uploads:/app/uploads
+      - zeit_data:/app/prisma
+      - zeit_reports:/app/reports
+      - zeit_uploads:/app/uploads
     restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.zeit-backend.rule=Host(`zeit-api.kerimatilgan.de`)"
+      - "traefik.http.routers.zeit-backend.entrypoints=web"
+      - "traefik.http.services.zeit-backend.loadbalancer.server.port=3001"
 
   frontend:
     image: ghcr.io/kerimatilgan/zeiterfassung-frontend:latest
-    ports:
-      - "80:80"
     depends_on:
       - backend
     restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.zeit-frontend.rule=Host(`zeit.kerimatilgan.de`)"
+      - "traefik.http.routers.zeit-frontend.entrypoints=web"
+      - "traefik.http.services.zeit-frontend.loadbalancer.server.port=80"
 
   terminal:
     image: ghcr.io/kerimatilgan/zeiterfassung-terminal:latest
-    ports:
-      - "8080:80"
     depends_on:
       - backend
     restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.zeit-terminal.rule=Host(`zeit-terminal.kerimatilgan.de`)"
+      - "traefik.http.routers.zeit-terminal.entrypoints=web"
+      - "traefik.http.services.zeit-terminal.loadbalancer.server.port=80"
+
+volumes:
+  zeit_data:
+  zeit_reports:
+  zeit_uploads:
