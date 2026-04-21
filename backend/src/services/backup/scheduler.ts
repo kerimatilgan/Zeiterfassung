@@ -1,9 +1,9 @@
-import cron from 'node-cron';
+import cron, { ScheduledTask } from 'node-cron';
 import { PrismaClient } from '@prisma/client';
 import { runBackup, cleanupOldBackups } from './index.js';
 
 const prisma = new PrismaClient();
-let currentTask: cron.ScheduledTask | null = null;
+let currentTask: ScheduledTask | null = null;
 
 function buildCronExpression(frequency: string, time: string, weekday: number): string {
   const [hour, minute] = time.split(':').map(Number);

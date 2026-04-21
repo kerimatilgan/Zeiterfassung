@@ -1132,7 +1132,7 @@ async function reverseGeocode(latitude: number, longitude: number): Promise<stri
       `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&accept-language=de`,
       { headers: { 'User-Agent': 'Zeiterfassung/1.0' } },
     );
-    const data = await res.json();
+    const data = await res.json() as any;
     if (data.address) {
       const a = data.address;
       const street = a.road || a.pedestrian || a.footway || '';

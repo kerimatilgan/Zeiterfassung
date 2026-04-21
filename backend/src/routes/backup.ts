@@ -112,7 +112,7 @@ router.get('/oauth/:provider/callback', async (req: Request, res: Response) => {
             scope: 'Files.ReadWrite.All offline_access User.Read',
           }),
         });
-        const data = await tokenRes.json();
+        const data = await tokenRes.json() as any;
         if (data.error) throw new Error(data.error_description || data.error);
         tokens = { refreshToken: data.refresh_token, accessToken: data.access_token };
         break;
@@ -129,7 +129,7 @@ router.get('/oauth/:provider/callback', async (req: Request, res: Response) => {
             grant_type: 'authorization_code',
           }),
         });
-        const data = await tokenRes.json();
+        const data = await tokenRes.json() as any;
         if (data.error) throw new Error(data.error_description || data.error);
         tokens = { refreshToken: data.refresh_token };
         break;
@@ -146,7 +146,7 @@ router.get('/oauth/:provider/callback', async (req: Request, res: Response) => {
             grant_type: 'authorization_code',
           }),
         });
-        const data = await tokenRes.json();
+        const data = await tokenRes.json() as any;
         if (data.error) throw new Error(data.error_description || data.error);
         tokens = { accessToken: data.access_token, refreshToken: data.refresh_token };
         break;
