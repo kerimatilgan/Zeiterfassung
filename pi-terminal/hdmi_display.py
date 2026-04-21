@@ -87,6 +87,8 @@ COLORS = {
     'overlay_green': (10, 60, 30),      # Dunkler Grün-Overlay
     'overlay_blue': (10, 30, 60),       # Dunkler Blau-Overlay
     'overlay_red': (60, 15, 15),        # Dunkler Rot-Overlay
+    'overlay_orange': (60, 40, 5),      # Dunkler Orange-Overlay (Offline)
+    'offline': (245, 158, 11),          # Warnendes Orange für Offline
 }
 
 # Konfiguration
@@ -142,12 +144,14 @@ class HDMIDisplay:
         self.last_scan_time = 0
         self.connection_status = "Verbinde..."
         self.eth0_ip = get_network_ip()
+        self.offline_queue_count = 0
 
         # Performance-Optimierung: Caching
         self._cached_background = None
         self._cached_overlay_green = None
         self._cached_overlay_blue = None
         self._cached_overlay_red = None
+        self._cached_overlay_orange = None
         self._cached_glow = {}
         self._cached_photos = {}
         self._photo_cache_dir = Path(__file__).parent / '.photo_cache'
@@ -513,7 +517,7 @@ class HDMIDisplay:
                 if e.get('employeeName') != entry['name']
             ]
 
-    def show_scan_result(self, success, name, action, hours=None, error=None, photo_url=None):
+    def show_scan_result(self, success, name, action, hours=None, error=None, photo_url=None, offline=False):
         """Zeigt das Ergebnis eines Scans an (von terminal.py aufgerufen)"""
         photo = None
         if photo_url:
@@ -528,6 +532,7 @@ class HDMIDisplay:
             'error': error,
             'photo_url': photo_url,
             'photo': photo,
+            'offline': offline,
         }
 
         self.last_scan = entry
@@ -578,7 +583,8 @@ class HDMIDisplay:
         """Rendert die farbigen Fullscreen-Overlays einmalig"""
         for name, color in [('green', COLORS['overlay_green']),
                             ('blue', COLORS['overlay_blue']),
-                            ('red', COLORS['overlay_red'])]:
+                            ('red', COLORS['overlay_red']),
+                            ('orange', COLORS['overlay_orange'])]:
             overlay = pygame.Surface((self.width, self.height))
             for y in range(self.height):
                 ratio = y / self.height
@@ -816,6 +822,7 @@ class HDMIDisplay:
         # Overlay-Hintergrund wählen
         is_error = scan.get('error') or not scan.get('success', True)
         is_clock_in = scan.get('action') == 'clock_in'
+        is_offline = scan.get('offline', False)
 
         if is_error:
             if self._cached_overlay_red:
@@ -823,6 +830,13 @@ class HDMIDisplay:
             else:
                 self.screen.fill(COLORS['overlay_red'])
             accent_color = COLORS['error']
+        elif is_offline:
+            # Offline: Orange-Overlay für alle Aktionen
+            if self._cached_overlay_orange:
+                self.screen.blit(self._cached_overlay_orange, (0, 0))
+            else:
+                self.screen.fill(COLORS['overlay_orange'])
+            accent_color = COLORS['offline']
         elif is_clock_in:
             if self._cached_overlay_green:
                 self.screen.blit(self._cached_overlay_green, (0, 0))
@@ -907,7 +921,9 @@ class HDMIDisplay:
 
             # Detail-Zeile: Uhrzeit oder Arbeitsstunden
             detail_y = action_rect.bottom + 15
-            if is_clock_in:
+            if is_offline:
+                detail_text = "Offline gespeichert"
+            elif is_clock_in:
                 detail_text = scan['time'].strftime("%H:%M") + " Uhr"
             else:
                 hours = scan.get('hours', '')
@@ -918,6 +934,13 @@ class HDMIDisplay:
             detail_surface = self.font_overlay_detail.render(detail_text, True, COLORS['text_gray'])
             detail_rect = detail_surface.get_rect(centerx=center_x, top=detail_y)
             self.screen.blit(detail_surface, detail_rect)
+
+            # Offline-Hinweis: zweite Zeile
+            if is_offline:
+                hint_text = "Wird automatisch synchronisiert"
+                hint_surface = self.font_small.render(hint_text, True, COLORS['text_dim'])
+                hint_rect = hint_surface.get_rect(centerx=center_x, top=detail_rect.bottom + 10)
+                self.screen.blit(hint_surface, hint_rect)
 
         # ── COUNTDOWN-BALKEN unten ──
         bar_height = 6
@@ -970,9 +993,17 @@ class HDMIDisplay:
         status_surface = self.font_small.render(status_text, True, status_color)
         self.screen.blit(status_surface, (28, bar_y + (bar_height - status_surface.get_height()) // 2))
 
-        # Mitte: Hinweis
-        hint = "RFID-Karte vorhalten"
-        hint_surface = self.font_small.render(hint, True, COLORS['text_dim'])
+        # Mitte: Hinweis (mit Offline-Queue-Info)
+        if self.offline_queue_count > 0:
+            hint = f"OFFLINE - {self.offline_queue_count} Stempelung{'en' if self.offline_queue_count != 1 else ''} ausstehend"
+            hint_color = COLORS['warning']
+        elif "Getrennt" in status_text or "Fehler" in status_text:
+            hint = "Server nicht erreichbar"
+            hint_color = COLORS['warning']
+        else:
+            hint = "RFID-Karte vorhalten"
+            hint_color = COLORS['text_dim']
+        hint_surface = self.font_small.render(hint, True, hint_color)
         hint_rect = hint_surface.get_rect(centerx=self.width // 2,
                                           centery=bar_y + bar_height // 2)
         self.screen.blit(hint_surface, hint_rect)
@@ -1031,12 +1062,30 @@ class HDMIDisplay:
             return True
         return False
 
+    def set_queue_count(self, count: int):
+        """Setzt die Anzahl ausstehender Offline-Einträge (von terminal.py aufgerufen)"""
+        self.offline_queue_count = count
+
+    def _update_queue_count(self):
+        """Liest die Queue-Größe aus offline_queue.json"""
+        try:
+            queue_file = Path(__file__).parent / 'offline_queue.json'
+            if queue_file.exists():
+                with open(queue_file, 'r') as f:
+                    queue = json.load(f)
+                    self.offline_queue_count = len(queue) if isinstance(queue, list) else 0
+            else:
+                self.offline_queue_count = 0
+        except Exception:
+            pass
+
     def _get_data_hash(self):
         """Erstellt einen Hash der aktuellen Daten für Change-Detection"""
         return (
             len(self.active_employees),
             self.connection_status,
             self.eth0_ip,
+            self.offline_queue_count,
             tuple(e.get('employeeName', '') for e in self.active_employees[:8])
         )
 
@@ -1079,10 +1128,17 @@ class HDMIDisplay:
                 now = time.time()
                 current_second = int(now)
 
-                # IP alle 60 Sekunden aktualisieren
+                # IP alle 60 Sekunden aktualisieren + Queue-Status prüfen
                 if now - self._last_ip_check > 60:
                     self._last_ip_check = now
                     self.eth0_ip = get_network_ip()
+
+                # Queue-Count aus Datei lesen (alle 5 Sekunden)
+                if not hasattr(self, '_last_queue_check'):
+                    self._last_queue_check = 0
+                if now - self._last_queue_check > 5:
+                    self._last_queue_check = now
+                    self._update_queue_count()
 
                 # Change-Detection
                 current_hash = self._get_data_hash()

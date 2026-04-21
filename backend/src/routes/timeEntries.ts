@@ -4,6 +4,8 @@ import { authMiddleware, adminMiddleware, AuthRequest } from '../middleware/auth
 import { z } from 'zod';
 import { createAuditLog } from '../utils/auditLog.js';
 import { sendComplaintNotification, sendComplaintResolvedNotification, sendEmail } from '../utils/emailService.js';
+import { calculateTargetHours } from '../utils/targetHours.js';
+import { hoursBetween } from '../utils/timeCalc.js';
 
 const router = Router();
 
@@ -428,8 +430,13 @@ router.get('/my/week-targets', authMiddleware, async (req: AuthRequest, res: Res
 
     const workDays = (employee?.workDays ?? '1,2,3,4,5').split(',').map(Number);
     const dailyHours = workDays.length > 0 ? (employee?.weeklyHours ?? 40) / workDays.length : 0;
-    const empStart = (employee as any)?.startDate ? new Date((employee as any).startDate) : null;
-    const empEnd = (employee as any)?.endDate ? new Date((employee as any).endDate) : null;
+    // Start/End-Datum auf Mitternacht Lokalzeit normalisieren
+    // (DB speichert Mitternacht UTC, was lokal z.B. 02:00 ergibt → Vergleich "date < empStart"
+    // würde sonst den Eintrittstag fälschlich als "vor Eintritt" werten)
+    const normalizeToLocalMidnight = (d: Date | null | undefined) =>
+      d ? new Date(d.getFullYear(), d.getMonth(), d.getDate()) : null;
+    const empStart = normalizeToLocalMidnight((employee as any)?.startDate ? new Date((employee as any).startDate) : null);
+    const empEnd = normalizeToLocalMidnight((employee as any)?.endDate ? new Date((employee as any).endDate) : null);
 
     // Feiertage laden (erweiterte Range für Timezone-Sicherheit)
     const holidays = await prisma.holiday.findMany({
@@ -517,21 +524,19 @@ router.get('/my/stats', authMiddleware, async (req: AuthRequest, res: Response) 
         initialVacationDaysUsed: true, initialSickDays: true, initialBalanceYear: true, initialBalanceMonth: true },
     });
 
-    // Alle Einträge diesen Monat
+    // Alle Einträge diesen Monat (inkl. noch offener = aktuell eingestempelt)
     const monthEntries = await prisma.timeEntry.findMany({
       where: {
         employeeId: req.employee!.id,
         clockIn: { gte: startOfMonth },
-        clockOut: { not: null },
       },
     });
 
-    // Alle Einträge diese Woche
+    // Alle Einträge diese Woche (inkl. noch offener)
     const weekEntries = await prisma.timeEntry.findMany({
       where: {
         employeeId: req.employee!.id,
         clockIn: { gte: startOfWeek },
-        clockOut: { not: null },
       },
     });
 
@@ -556,11 +561,12 @@ router.get('/my/stats', authMiddleware, async (req: AuthRequest, res: Response) 
     });
     const sickDaysMonth = sickAbsMonth.filter(a => isEmpWorkDay(a.date)).length;
 
-    // Stunden berechnen
+    // Stunden berechnen - offene Einträge (aktuell eingestempelt) zählen bis jetzt
+    // Sekunden werden bei der Berechnung abgeschnitten (08:49:22 → 08:49:00)
     const calculateHours = (entries: typeof monthEntries) => {
       return entries.reduce((total, entry) => {
-        if (!entry.clockOut) return total;
-        const hours = (entry.clockOut.getTime() - entry.clockIn.getTime()) / (1000 * 60 * 60);
+        const endDate = entry.clockOut ?? now;
+        const hours = hoursBetween(entry.clockIn, endDate);
         const breakHours = entry.breakMinutes / 60;
         return total + hours - breakHours;
       }, 0);
@@ -601,59 +607,19 @@ router.get('/my/stats', authMiddleware, async (req: AuthRequest, res: Response) 
     weeklyTarget = Math.round(weeklyTarget * 100) / 100;
     const weekOvertime = weekHours - weeklyTarget;
 
-    // Monatssoll berechnen: Arbeitstage im Monat BIS HEUTE × tägliche Stunden
-    // Berücksichtigt Eintrittsdatum, Austrittsdatum, Feiertage und Abwesenheiten
-    const workDaysArray = (employee?.workDays ?? '1,2,3,4,5').split(',').map(Number);
-    const dailyHours = workDaysArray.length > 0 ? nominalWeeklyTarget / workDaysArray.length : 0;
-    const todayDate = now.getDate(); // Nur bis heute rechnen, nicht ganzer Monat
-    const empStartDate = (employee as any)?.startDate ? new Date((employee as any).startDate) : null;
-    const empEndDate = (employee as any)?.endDate ? new Date((employee as any).endDate) : null;
-
-    // Hilfsfunktion: Datum als lokalen String (YYYY-MM-DD) ohne Zeitzonen-Probleme
-    const toDateKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    // DB-Daten (Holidays/Absences) werden als Mitternacht Lokalzeit gespeichert,
-    // was in UTC auf den Vortag fallen kann (z.B. 22:00 UTC = 00:00 CEST).
-    // Daher Lokalzeit verwenden, nicht UTC.
-    const toDateKeyFromDb = (d: Date) => {
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    };
-
-    // Feiertage und Abwesenheiten laden
-    const monthHolidays = await prisma.holiday.findMany({
-      where: { date: { gte: startOfMonth, lte: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59) } },
+    // Monatssoll über zentrale Helper-Funktion berechnen
+    const todayDate = now.getDate();
+    const targetInfo = await calculateTargetHours({
+      employeeId: req.employee!.id,
+      year: now.getFullYear(),
+      month: now.getMonth(),
+      untilDay: todayDate,
     });
-    const holidaySet = new Set(monthHolidays.map(h => toDateKeyFromDb(h.date)));
-
-    const monthAbsences = await prisma.employeeAbsence.findMany({
-      where: {
-        employeeId: req.employee!.id,
-        date: { gte: startOfMonth, lte: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59) },
-      },
-      include: { absenceType: true },
-    });
-    const absenceMap = new Map<string, number>();
-    monthAbsences.forEach(a => absenceMap.set(toDateKeyFromDb(a.date), a.absenceType.requiredHours));
-
-    let monthlyTarget = 0;
-    for (let d = 1; d <= todayDate; d++) {
-      const date = new Date(now.getFullYear(), now.getMonth(), d);
-      if (empStartDate && date < empStartDate) continue;
-      if (empEndDate && date > empEndDate) continue;
-      const dayOfWeek = date.getDay();
-      if (!workDaysArray.includes(dayOfWeek === 0 ? 7 : dayOfWeek)) continue;
-
-      const dateStr = toDateKey(date);
-      // Feiertag → 0 Soll
-      if (holidaySet.has(dateStr)) continue;
-      // Abwesenheit → requiredHours (0 bei Urlaub/Krank, >0 bei Schule)
-      if (absenceMap.has(dateStr)) {
-        monthlyTarget += absenceMap.get(dateStr)!;
-      } else {
-        monthlyTarget += dailyHours;
-      }
-    }
-    monthlyTarget = Math.round(monthlyTarget * 100) / 100;
+    const { monthlyTarget, monthlyTargetUntilToday, dailyHours, workDaysArray, holidaySet, absenceMap, empStartDate, empEndDate, toDateKey } = targetInfo;
+    // Saldo für "Dieser Monat"-Anzeige: gegen volles Monatssoll (zeigt wie viel noch zu arbeiten ist)
     const monthOvertime = monthHours - monthlyTarget;
+    // Saldo bis heute (intern für Überstunden-Saldo + Report)
+    const monthOvertimeUntilToday = monthHours - monthlyTargetUntilToday;
 
     // Kumulativer Überstunden-Saldo: letzter finalisierter Report + aktueller Monat
     const lastReport = await prisma.monthlyReport.findFirst({
@@ -682,7 +648,7 @@ router.get('/my/stats', authMiddleware, async (req: AuthRequest, res: Response) 
         });
         previousBalance = emp?.initialOvertimeBalance ?? 0;
       }
-      totalOvertimeBalance = Math.round((previousBalance + monthOvertime) * 100) / 100;
+      totalOvertimeBalance = Math.round((previousBalance + monthOvertimeUntilToday) * 100) / 100;
     }
 
     // Urlaubstage berechnen (inkl. importierte Anfangswerte)
@@ -707,12 +673,7 @@ router.get('/my/stats', authMiddleware, async (req: AuthRequest, res: Response) 
     });
     let todayWorked = 0;
     for (const entry of todayEntries) {
-      if (entry.clockOut) {
-        todayWorked += (entry.clockOut.getTime() - entry.clockIn.getTime()) / (1000 * 60 * 60);
-      } else {
-        // Noch eingestempelt – aktuelle Zeit verwenden
-        todayWorked += (now.getTime() - entry.clockIn.getTime()) / (1000 * 60 * 60);
-      }
+      todayWorked += hoursBetween(entry.clockIn, entry.clockOut ?? now);
     }
     todayWorked = Math.round(todayWorked * 100) / 100;
 
@@ -761,6 +722,44 @@ router.get('/my/stats', authMiddleware, async (req: AuthRequest, res: Response) 
   } catch (error) {
     console.error('Get stats error:', error);
     res.status(500).json({ error: 'Fehler beim Laden der Statistiken' });
+  }
+});
+
+// Monats-Soll-Stunden für einen MA (Admin oder eigener MA)
+router.get('/target-hours/:employeeId', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { employeeId } = req.params;
+    const year = parseInt(req.query.year as string) || new Date().getFullYear();
+    const month = parseInt(req.query.month as string); // 1-12 vom Client, intern 0-11
+
+    if (isNaN(month) || month < 1 || month > 12) {
+      return res.status(400).json({ error: 'Ungültiger Monat (1-12 erwartet)' });
+    }
+
+    // Berechtigung: Admin oder eigene Daten
+    if (!req.employee!.isAdmin && req.employee!.id !== employeeId) {
+      return res.status(403).json({ error: 'Keine Berechtigung' });
+    }
+
+    const now = new Date();
+    const isCurrentMonth = year === now.getFullYear() && month - 1 === now.getMonth();
+    const untilDay = isCurrentMonth ? now.getDate() : undefined;
+
+    const result = await calculateTargetHours({
+      employeeId,
+      year,
+      month: month - 1, // Client sendet 1-12, Helper braucht 0-11
+      untilDay,
+    });
+
+    res.json({
+      monthlyTarget: result.monthlyTarget,
+      monthlyTargetUntilToday: result.monthlyTargetUntilToday,
+      dailyHours: result.dailyHours,
+    });
+  } catch (error: any) {
+    console.error('Get target-hours error:', error);
+    res.status(500).json({ error: error.message || 'Fehler beim Berechnen' });
   }
 });
 

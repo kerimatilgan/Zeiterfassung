@@ -1,5 +1,6 @@
 import PDFDocument from 'pdfkit';
 import fs from 'fs';
+import { truncateToMinuteMs, minutesBetween } from './timeCalc.js';
 
 interface TimeEntry {
   id: string;
@@ -174,18 +175,19 @@ export async function generateMonthlyReportPDF(data: ReportData): Promise<void> 
 
         sortedEntries.forEach(entry => {
           if (entry.clockOut) {
-            const clockInTime = new Date(entry.clockIn).getTime();
-            const clockOutTime = new Date(entry.clockOut).getTime();
-            const worked = (clockOutTime - clockInTime) / (1000 * 60);
+            // Sekunden abschneiden für Berechnung (08:49:22 → 08:49:00)
+            const clockInMinute = truncateToMinuteMs(new Date(entry.clockIn));
+            const clockOutMinute = truncateToMinuteMs(new Date(entry.clockOut));
+            const worked = minutesBetween(new Date(entry.clockIn), new Date(entry.clockOut));
             const entryBreak = Number(entry.breakMinutes) || 0;
             netMinutes += worked - entryBreak;
 
             // Track first/last times
-            if (firstClockIn === null || clockInTime < firstClockIn) {
-              firstClockIn = clockInTime;
+            if (firstClockIn === null || clockInMinute < firstClockIn) {
+              firstClockIn = clockInMinute;
             }
-            if (lastClockOut === null || clockOutTime > lastClockOut) {
-              lastClockOut = clockOutTime;
+            if (lastClockOut === null || clockOutMinute > lastClockOut) {
+              lastClockOut = clockOutMinute;
             }
           }
         });

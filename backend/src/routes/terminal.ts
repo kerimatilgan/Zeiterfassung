@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { prisma, io } from '../index.js';
 import { terminalAuthMiddleware, authMiddleware, adminMiddleware, AuthRequest, TerminalAuthRequest } from '../middleware/auth.js';
 import { createAuditLog } from '../utils/auditLog.js';
+import { minutesBetween } from '../utils/timeCalc.js';
 
 const router = Router();
 
@@ -585,6 +586,51 @@ router.post('/scan', async (req, res) => {
       orderBy: { clockIn: 'desc' },
     });
 
+    // Bei Offline-Sync: Prüfe ob die Stempelung noch sinnvoll ist
+    if (isOfflineSync) {
+      if (activeEntry) {
+        // Aktiver Eintrag existiert → würde ausstempeln
+        // Aber: Wenn clockIn des aktiven Eintrags NACH dem Offline-Timestamp liegt,
+        // wäre das Ergebnis clockOut < clockIn → unsinnig, überspringen
+        if (activeEntry.clockIn > scanTime) {
+          console.log(`⚠️ Offline-Sync übersprungen: Aktiver Eintrag (${activeEntry.clockIn.toISOString()}) ist neuer als Offline-Timestamp (${scanTime.toISOString()}) für ${employee.firstName} ${employee.lastName}`);
+          return res.json({
+            success: true,
+            action: 'skipped',
+            offlineSync: true,
+            employee: {
+              name: `${employee.firstName} ${employee.lastName}`,
+              employeeNumber: employee.employeeNumber,
+            },
+            message: `Offline-Stempelung übersprungen (neuerer Eintrag existiert bereits)`,
+          });
+        }
+      } else {
+        // Kein aktiver Eintrag → würde einstempeln
+        // Aber: Wenn schon ein neuerer Eintrag (nach dem Offline-Timestamp) existiert,
+        // hat sich der MA in der Zwischenzeit bereits online eingestempelt → überspringen
+        const laterEntry = await prisma.timeEntry.findFirst({
+          where: {
+            employeeId: employee.id,
+            clockIn: { gte: scanTime },
+          },
+        });
+        if (laterEntry) {
+          console.log(`⚠️ Offline-Sync übersprungen: Neuerer Eintrag existiert (${laterEntry.clockIn.toISOString()}) für ${employee.firstName} ${employee.lastName}, Offline-Timestamp war ${scanTime.toISOString()}`);
+          return res.json({
+            success: true,
+            action: 'skipped',
+            offlineSync: true,
+            employee: {
+              name: `${employee.firstName} ${employee.lastName}`,
+              employeeNumber: employee.employeeNumber,
+            },
+            message: `Offline-Stempelung übersprungen (neuerer Eintrag existiert bereits)`,
+          });
+        }
+      }
+    }
+
     if (activeEntry) {
       // Ausstempeln
       const now = scanTime;  // Verwende scanTime für Offline-Sync
@@ -657,9 +703,8 @@ router.post('/scan', async (req, res) => {
       for (let i = 0; i < todayEntries.length; i++) {
         const entry = todayEntries[i];
         if (entry.clockOut) {
-          // Arbeitszeit dieses Eintrags (nur volle Minuten)
-          const workMs = entry.clockOut.getTime() - entry.clockIn.getTime();
-          totalWorkMinutes += Math.floor(workMs / (1000 * 60));
+          // Arbeitszeit dieses Eintrags (Sekunden werden abgeschnitten)
+          totalWorkMinutes += minutesBetween(entry.clockIn, entry.clockOut);
           totalBreakMinutes += entry.breakMinutes;
         }
       }

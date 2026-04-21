@@ -7,6 +7,7 @@ import path from 'path';
 import fs from 'fs';
 import { encryptBuffer, decryptFile } from '../utils/encryption.js';
 import { createAuditLog } from '../utils/auditLog.js';
+import { minutesBetween } from '../utils/timeCalc.js';
 
 const router = Router();
 
@@ -38,7 +39,7 @@ async function calculateHoursForPeriod(employeeId: string, startDate: Date, endD
     let dayMinutes = 0;
     dayEntries.forEach(entry => {
       if (entry.clockOut) {
-        const worked = (entry.clockOut.getTime() - entry.clockIn.getTime()) / (1000 * 60);
+        const worked = minutesBetween(entry.clockIn, entry.clockOut);
         dayMinutes += worked - entry.breakMinutes;
       }
     });

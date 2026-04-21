@@ -157,17 +157,29 @@ def process_card(card_id, api, display, hdmi_display=None):
     if result.get('success'):
         # Prüfe ob offline gespeichert
         if result.get('offline') or result.get('queued'):
+            employee = result.get('employee', {})
+            name = employee.get('name', f'Karte {card_id[-4:]}')
+            action = result.get('action', 'queued')
             queue_pos = result.get('queue_position', '?')
-            print(f"⏳ OFFLINE GESPEICHERT: Karte {card_id[-4:]}")
-            print(f"  Position in Queue: {queue_pos}")
-            print(f"  Wird synchronisiert sobald Server erreichbar")
-            display.show("Offline gesp.", f"Queue #{queue_pos}", duration=2)
+
+            if action == 'clock_in':
+                print(f"⏳ OFFLINE EINGESTEMPELT: {name}")
+                display.show("Eingestempelt*", name[:16], duration=2)
+            elif action == 'clock_out':
+                print(f"⏳ OFFLINE AUSGESTEMPELT: {name}")
+                display.show("Ausgestempelt*", name[:16], duration=2)
+            else:
+                print(f"⏳ OFFLINE GESPEICHERT: {name}")
+                display.show("Gespeichert*", name[:16], duration=2)
+            print(f"  Queue #{queue_pos} - wird synchronisiert sobald Server erreichbar")
+
             if hdmi_display:
                 hdmi_display.show_scan_result(
                     success=True,
-                    name=f"Karte {card_id[-4:]}",
-                    action='queued',
-                    error=None
+                    name=name,
+                    action=action,
+                    error=None,
+                    offline=True,
                 )
         else:
             # Normal online verarbeitet
@@ -241,29 +253,24 @@ def main():
     api = ZeiterfassungAPI(config['backend_url'], config['api_key'])
     api.set_offline_queue(offline_queue)
 
-    # Verbindung prüfen
+    # Verbindung prüfen + initialen Cache laden
     print("Prüfe Backend-Verbindung...")
     if api.health_check():
         print("✓ Backend erreichbar")
         offline_queue.set_online_status(True)
+        print("Lade Mitarbeiterdaten in Cache...")
+        api.preload_cache()
     else:
         print("✗ WARNUNG: Backend nicht erreichbar!")
         print("  Terminal läuft im OFFLINE-MODUS")
         print("  Stempelungen werden lokal gespeichert und später synchronisiert")
+        cached_count = len(api.employee_cache.cache)
+        if cached_count > 0:
+            print(f"  {cached_count} Mitarbeiter aus Cache verfügbar")
         offline_queue.set_online_status(False)
 
-    # Heartbeat-Thread starten
-    def heartbeat_loop():
-        while True:
-            try:
-                api.send_heartbeat()
-            except Exception as e:
-                print(f"[Heartbeat] Fehler: {e}")
-            time.sleep(60)
-
-    heartbeat_thread = threading.Thread(target=heartbeat_loop, daemon=True)
-    heartbeat_thread.start()
-    print("Heartbeat-Thread gestartet (alle 60s)")
+    # Health-Check + Cache-Refresh Thread starten (alle 15s prüfen, Cache alle 5min)
+    api.start_health_check_loop(interval=15, cache_interval=300)
 
     # Display initialisieren
     display = Display(enabled=config.get('display_enabled', False))

@@ -110,6 +110,9 @@ export const timeEntriesApi = {
   getMyWeekTargets: (from: string) => api.get('/time-entries/my/week-targets', { params: { from } }),
   getMyVacationDetails: (year?: number) => api.get('/time-entries/my/vacation-details', { params: { year } }),
   getVacationDetails: (employeeId: string, year?: number) => api.get(`/time-entries/vacation-details/${employeeId}`, { params: { year } }),
+  getTargetHours: (employeeId: string, year: number, month: number) =>
+    api.get<{ monthlyTarget: number; monthlyTargetUntilToday: number; dailyHours: number }>(
+      `/time-entries/target-hours/${employeeId}`, { params: { year, month } }),
   // Reklamationen
   getMyComplaints: () => api.get('/time-entries/my/complaints'),
   createComplaint: (id: string, message: string) =>

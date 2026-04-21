@@ -89,6 +89,7 @@ class ZeiterfassungAPI:
         self._on_status_change: Optional[Callable] = None
         self.employee_cache = EmployeeCache()
         self._health_check_running = False
+        self._last_cache_refresh = 0
 
         self._create_session()
 
@@ -126,6 +127,7 @@ class ZeiterfassungAPI:
             self.is_online = is_online
             if is_online:
                 print(f"[API] ✓ Wieder ONLINE")
+                self._last_cache_refresh = time.time()
                 threading.Thread(target=self.preload_cache, daemon=True).start()
             else:
                 print(f"[API] ✗ OFFLINE")
@@ -135,23 +137,31 @@ class ZeiterfassungAPI:
             if self._on_status_change:
                 self._on_status_change(is_online)
 
-    def start_health_check_loop(self, interval: int = 15):
+    def start_health_check_loop(self, interval: int = 15, cache_interval: int = 300):
         if self._health_check_running:
             return
         self._health_check_running = True
+        self._last_cache_refresh = 0
 
         def loop():
             while self._health_check_running:
                 try:
                     online = self.health_check()
                     self._update_online_status(online)
+
+                    # Regelmäßiger Cache-Refresh (alle cache_interval Sekunden wenn online)
+                    if online:
+                        now = time.time()
+                        if now - self._last_cache_refresh >= cache_interval:
+                            self._last_cache_refresh = now
+                            self.preload_cache()
                 except:
                     self._update_online_status(False)
                 time.sleep(interval)
 
         t = threading.Thread(target=loop, daemon=True, name="HealthCheck")
         t.start()
-        print(f"[API] Health-Check-Loop gestartet (alle {interval}s)")
+        print(f"[API] Health-Check-Loop gestartet (alle {interval}s, Cache-Refresh alle {cache_interval}s)")
 
     def clock_in_out(self, rfid_card=None, qr_code=None, timestamp=None, allow_offline=True):
         scan_time = datetime.now()

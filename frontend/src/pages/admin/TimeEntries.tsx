@@ -152,27 +152,16 @@ export default function AdminTimeEntries() {
   const workDays = selectedEmployee?.workDays?.split(',').map(d => parseInt(d.trim())).filter(d => !isNaN(d)) || [1,2,3,4,5];
   const totalMin = timeEntries.reduce((s, e) => e.clockOut ? s + Math.floor((new Date(e.clockOut).getTime() - new Date(e.clockIn).getTime()) / 60000) : s, 0);
 
-  // Soll-Stunden berechnen (Arbeitstage × tägliche Stunden, minus Feiertage/Abwesenheiten)
-  const targetMin = (() => {
-    if (!selectedEmployee) return 0;
-    const wh = selectedEmployee.weeklyHours || 40;
-    const dailyMin = workDays.length > 0 ? (wh * 60) / workDays.length : 0;
-    const mS = startOfMonth(selectedMonth), mE = endOfMonth(selectedMonth);
-    const days = eachDayOfInterval({ start: mS, end: mE });
-    const empStart = selectedEmployee.startDate ? new Date(selectedEmployee.startDate) : null;
-    const empEnd = selectedEmployee.endDate ? new Date(selectedEmployee.endDate) : null;
-    let target = 0;
-    for (const d of days) {
-      if (empStart && d < empStart) continue;
-      if (empEnd && d > empEnd) continue;
-      if (!workDays.includes(d.getDay())) continue;
-      if (holidays.some(h => isSameDay(new Date(h.date), d))) continue;
-      const abs = absences.find(a => isSameDay(new Date(a.date), d));
-      if (abs) { target += abs.absenceType.requiredHours * 60; }
-      else { target += dailyMin; }
-    }
-    return Math.round(target);
-  })();
+  // Soll-Stunden vom Backend holen (zentrale Berechnung)
+  const { data: targetData } = useQuery({
+    queryKey: ['targetHours', selectedEmployee?.id, selectedMonth.getFullYear(), selectedMonth.getMonth()],
+    queryFn: () =>
+      timeEntriesApi
+        .getTargetHours(selectedEmployee!.id, selectedMonth.getFullYear(), selectedMonth.getMonth() + 1)
+        .then((r) => r.data),
+    enabled: !!selectedEmployee,
+  });
+  const targetMin = Math.round((targetData?.monthlyTarget ?? 0) * 60);
   const MONTHS = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
 
   const openEdit = (d: Date, entry?: TimeEntry) => {

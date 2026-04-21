@@ -92,11 +92,12 @@ export default function EmployeeDashboard() {
 
   const getDayWorkedHours = (day: Date) => {
     const dayEntries = getWeekDayEntries(day);
+    // Sekunden werden bei der Berechnung abgeschnitten (08:49:22 → 08:49:00)
+    const truncMs = (d: Date) => Math.floor(d.getTime() / 60000) * 60000;
     return dayEntries.reduce((total: number, e: any) => {
-      if (!e.clockOut) {
-        return total + (currentTime.getTime() - new Date(e.clockIn).getTime()) / (1000 * 60 * 60);
-      }
-      return total + (new Date(e.clockOut).getTime() - new Date(e.clockIn).getTime()) / (1000 * 60 * 60) - e.breakMinutes / 60;
+      const end = e.clockOut ? new Date(e.clockOut) : currentTime;
+      const hours = (truncMs(end) - truncMs(new Date(e.clockIn))) / (1000 * 60 * 60);
+      return total + hours - (e.clockOut ? e.breakMinutes / 60 : 0);
     }, 0);
   };
 

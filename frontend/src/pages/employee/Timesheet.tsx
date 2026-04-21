@@ -98,10 +98,13 @@ export default function EmployeeTimesheet() {
     return dayEntries.sort((a, b) => new Date(a.clockIn).getTime() - new Date(b.clockIn).getTime());
   };
 
+  // Sekunden werden bei der Berechnung abgeschnitten (08:49:22 → 08:49:00)
+  const truncMs = (d: Date) => Math.floor(d.getTime() / 60000) * 60000;
+
   const calculateDayHours = (dayEntries: TimeEntry[]) => {
     return dayEntries.reduce((total, entry) => {
       if (!entry.clockOut) return total;
-      const ms = new Date(entry.clockOut).getTime() - new Date(entry.clockIn).getTime();
+      const ms = truncMs(new Date(entry.clockOut)) - truncMs(new Date(entry.clockIn));
       const hours = ms / (1000 * 60 * 60) - entry.breakMinutes / 60;
       return total + hours;
     }, 0);
@@ -109,7 +112,7 @@ export default function EmployeeTimesheet() {
 
   const totalMonthHours = entries?.reduce((total, entry) => {
     if (!entry.clockOut) return total;
-    const ms = new Date(entry.clockOut).getTime() - new Date(entry.clockIn).getTime();
+    const ms = truncMs(new Date(entry.clockOut)) - truncMs(new Date(entry.clockIn));
     const hours = ms / (1000 * 60 * 60) - entry.breakMinutes / 60;
     return total + hours;
   }, 0) || 0;
