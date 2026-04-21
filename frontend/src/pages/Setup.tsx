@@ -29,8 +29,6 @@ export default function SetupWizard({ onComplete }: { onComplete: () => void }) 
     password: '',
     passwordConfirm: '',
   });
-  const [setupResult, setSetupResult] = useState<any>(null);
-  const [terminalKey, setTerminalKey] = useState('');
   const [terminalId, setTerminalId] = useState('');
 
   const update = (field: string, value: any) => {
@@ -69,7 +67,7 @@ export default function SetupWizard({ onComplete }: { onComplete: () => void }) 
 
       setLoading(true);
       try {
-        const res = await api.post('/setup/complete', {
+        await api.post('/setup/complete', {
           companyName: formData.companyName,
           companyAddress: formData.companyAddress || undefined,
           companyPhone: formData.companyPhone || undefined,
@@ -87,7 +85,6 @@ export default function SetupWizard({ onComplete }: { onComplete: () => void }) 
           email: formData.email || undefined,
           password: formData.password,
         });
-        setSetupResult(res.data);
 
         // Terminal-Key laden
         try {
@@ -100,7 +97,6 @@ export default function SetupWizard({ onComplete }: { onComplete: () => void }) 
             headers: { Authorization: `Bearer ${token}` },
           });
           if (terminalsRes.data.length > 0) {
-            setTerminalKey(terminalsRes.data[0].apiKey);
             setTerminalId(terminalsRes.data[0].id);
           }
         } catch {}

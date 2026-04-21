@@ -193,25 +193,6 @@ export default function AdminTimeEntries() {
     catch (err: any) { toast.error(err.response?.data?.error || 'Fehler'); }
   };
 
-  const handleAbsence = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedEmployee) return;
-    try {
-      const dates = selectedDates.length > 0 ? selectedDates : [selectedDate];
-      if (editingAbsence) {
-        await settingsApi.updateAbsence(editingAbsence.id, absenceFormData);
-      } else {
-        await settingsApi.createAbsencesBulk({
-          employeeId: selectedEmployee.id,
-          absenceTypeId: absenceFormData.absenceTypeId,
-          dates: dates.map(d => format(d, 'yyyy-MM-dd')),
-          note: absenceFormData.note || undefined,
-        });
-      }
-      toast.success('Gespeichert'); setShowAbsencePopup(false); await loadData(selectedEmployee.id, selectedMonth);
-    } catch (err: any) { toast.error(err.response?.data?.error || 'Fehler'); }
-  };
-
   const handleAbsenceDelete = async () => {
     if (!editingAbsence || !selectedEmployee) return;
     try { await settingsApi.deleteAbsence(editingAbsence.id); toast.success('Gelöscht'); setShowAbsencePopup(false); await loadData(selectedEmployee.id, selectedMonth); }

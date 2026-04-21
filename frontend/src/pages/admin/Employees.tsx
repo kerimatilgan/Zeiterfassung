@@ -951,14 +951,6 @@ export default function AdminEmployees() {
     }
   };
 
-  const openTimeEntriesModal = (employee: Employee) => {
-    setSelectedEmployeeForTime(employee);
-    setSelectedMonth(new Date());
-    setEditingDate(new Date());
-    setShowTimeEntriesModal(true);
-    loadTimeEntries(employee.id, new Date());
-  };
-
   const closeTimeEntriesModal = () => {
     setShowTimeEntriesModal(false);
     setSelectedEmployeeForTime(null);

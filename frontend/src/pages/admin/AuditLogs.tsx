@@ -7,7 +7,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
-  User,
   Shield,
   LogIn,
   LogOut,
@@ -150,17 +149,6 @@ export default function AuditLogs() {
     },
   });
 
-  const formatDateTime = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleString('de-DE', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    });
-  };
 
   const renderChanges = (oldValues: any, newValues: any) => {
     if (!oldValues && !newValues) return null;
