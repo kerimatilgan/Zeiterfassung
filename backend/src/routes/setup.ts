@@ -210,21 +210,13 @@ CRITICAL="terminal.py api_client.py offline_queue.py"
 MISSING=""
 for f in terminal.py api_client.py offline_queue.py display.py hdmi_display.py notify_display.py wifi_setup.py wifi_web.py; do
   TMP="\$INSTALL_DIR/\$f.tmp"
-  if curl -sfL "\$BASE/\$f" -o "\$TMP" 2>/dev/null; then
-    # Validieren: erste Zeichen einer gültigen Python-Datei
-    FIRST=\$(head -c 3 "\$TMP")
-    if [ "\$FIRST" = "#!/" ] || [ "\$FIRST" = "#!" ] || [ "\$FIRST" = "\"\"\"" ] || head -n 20 "\$TMP" | grep -qE '^(import |from |#)'; then
-      mv "\$TMP" "\$INSTALL_DIR/\$f"
-      echo "  \$f ✓"
-    else
-      rm -f "\$TMP"
-      echo "  \$f ✗ (ungültiger Inhalt - evtl. Captive-Portal/Proxy)"
-      echo "\$CRITICAL" | grep -qw "\$f" && MISSING="\$MISSING \$f"
-    fi
+  if curl -sfL "\$BASE/\$f" -o "\$TMP" 2>/dev/null && head -n 20 "\$TMP" | grep -qE '^(#|import |from )'; then
+    mv "\$TMP" "\$INSTALL_DIR/\$f"
+    echo "  \$f ✓"
   else
     rm -f "\$TMP"
-    echo "  \$f ✗ (Download fehlgeschlagen)"
-    echo "\$CRITICAL" | grep -qw "\$f" && MISSING="\$MISSING \$f"
+    echo "  \$f ✗ (nicht verfügbar oder ungültiger Inhalt)"
+    case " \$CRITICAL " in *" \$f "*) MISSING="\$MISSING \$f";; esac
   fi
 done
 
