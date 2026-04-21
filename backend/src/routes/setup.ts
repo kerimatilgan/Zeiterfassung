@@ -206,9 +206,34 @@ mkdir -p "\$INSTALL_DIR"
 cd "\$INSTALL_DIR"
 
 BASE="${backendUrl}/api/setup/terminal-files"
+CRITICAL="terminal.py api_client.py offline_queue.py"
+MISSING=""
 for f in terminal.py api_client.py offline_queue.py display.py hdmi_display.py notify_display.py wifi_setup.py wifi_web.py; do
-  curl -sf "\$BASE/\$f" -o "\$INSTALL_DIR/\$f" 2>/dev/null && echo "  \$f ✓" || echo "  \$f ✗ (nicht verfügbar)"
+  TMP="\$INSTALL_DIR/\$f.tmp"
+  if curl -sfL "\$BASE/\$f" -o "\$TMP" 2>/dev/null; then
+    # Validieren: erste Zeichen einer gültigen Python-Datei
+    FIRST=\$(head -c 3 "\$TMP")
+    if [ "\$FIRST" = "#!/" ] || [ "\$FIRST" = "#!" ] || [ "\$FIRST" = "\"\"\"" ] || head -n 20 "\$TMP" | grep -qE '^(import |from |#)'; then
+      mv "\$TMP" "\$INSTALL_DIR/\$f"
+      echo "  \$f ✓"
+    else
+      rm -f "\$TMP"
+      echo "  \$f ✗ (ungültiger Inhalt - evtl. Captive-Portal/Proxy)"
+      echo "\$CRITICAL" | grep -qw "\$f" && MISSING="\$MISSING \$f"
+    fi
+  else
+    rm -f "\$TMP"
+    echo "  \$f ✗ (Download fehlgeschlagen)"
+    echo "\$CRITICAL" | grep -qw "\$f" && MISSING="\$MISSING \$f"
+  fi
 done
+
+if [ -n "\$MISSING" ]; then
+  echo ""
+  echo "FEHLER: Kritische Dateien fehlen:\$MISSING"
+  echo "Bitte prüfe die Netzwerkverbindung zum Backend (\$BACKEND_URL)."
+  exit 1
+fi
 
 # 4. Config erstellen
 echo "[5/8] Konfiguration erstellen..."
