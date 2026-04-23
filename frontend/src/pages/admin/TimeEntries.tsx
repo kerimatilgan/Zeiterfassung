@@ -474,7 +474,18 @@ export default function AdminTimeEntries() {
                         <p className="text-gray-700 truncate" title={a.reason}>{a.reason}</p>
                         <p className="text-[10px] text-gray-400">{MONTHS[a.month - 1]} · {a.createdBy}</p>
                       </div>
-                      <button onClick={async () => { if (!confirm('Anpassung löschen?')) return; try { await timeEntriesApi.deleteVacationAdjustment(a.id); toast.success('Gelöscht'); await loadData(selectedEmployee!.id, selectedMonth); } catch { toast.error('Fehler'); } }} className="p-0.5 text-gray-400 hover:text-red-500 flex-shrink-0"><Trash2 size={12} /></button>
+                      <button onClick={async () => {
+                        const current = vacationDetails?.totalRemaining ?? 0;
+                        const after = current - a.days;
+                        let msg = 'Anpassung löschen?';
+                        if (a.days > 0 && after < 0) {
+                          msg = `Diese Anpassung von +${a.days} Tag(en) löschen?\n\n` +
+                                `Resturlaub: ${current} → ${after} Tag(e)\n` +
+                                `⚠ Urlaubssaldo wird negativ und ins nächste Jahr übernommen.`;
+                        }
+                        if (!confirm(msg)) return;
+                        try { await timeEntriesApi.deleteVacationAdjustment(a.id); toast.success('Gelöscht'); await loadData(selectedEmployee!.id, selectedMonth); } catch { toast.error('Fehler'); }
+                      }} className="p-0.5 text-gray-400 hover:text-red-500 flex-shrink-0"><Trash2 size={12} /></button>
                     </div>
                   ))}
                   {vacationAdjustments.length > 1 && (() => {

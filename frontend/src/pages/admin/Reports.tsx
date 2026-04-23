@@ -758,7 +758,7 @@ export default function AdminReports() {
                       const willDeduct = applyDeduction && customDeductionDays > 0;
                       if (willDeduct && customDeductionDays > remaining) {
                         const overdraw = customDeductionDays - remaining;
-                        const name = `${previewData.employee.firstName} ${previewData.employee.lastName}`;
+                        const name = previewData.employee.name;
                         if (!window.confirm(
                           `${name} hat nur noch ${remaining} Resturlaubstag(e), du ziehst ${customDeductionDays} ab.\n\n` +
                           `Das ergibt einen Urlaubssaldo von -${overdraw} Tag(en), der ins nächste Jahr übernommen wird.\n\n` +
