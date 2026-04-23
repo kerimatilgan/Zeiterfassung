@@ -685,6 +685,8 @@ export default function AdminReports() {
               {previewData.summary.suggestedDeductionDays > 0 && (() => {
                 const days = customDeductionDays || previewData.summary.suggestedDeductionDays;
                 const hours = days * 8;
+                const remaining = previewData.summary.vacationDaysRemaining ?? 0;
+                const overdraw = applyDeduction && days > remaining ? days - remaining : 0;
                 // customDeductionDays beim ersten Anzeigen setzen
                 if (customDeductionDays === 0) setCustomDeductionDays(previewData.summary.suggestedDeductionDays);
                 return (
@@ -698,6 +700,7 @@ export default function AdminReports() {
                       <p className="text-sm text-amber-700 mt-1">
                         Der Überstunden-Saldo beträgt <strong>{formatHoursToTime(previewData.summary.cumulativeOvertimeBalance)} h</strong>.
                         Vorschlag: {previewData.summary.suggestedDeductionDays} Tag(e) abziehen.
+                        {' '}Resturlaub: <strong>{remaining}</strong> Tag(e).
                       </p>
                       <div className="flex items-center gap-3 mt-3">
                         <label className="flex items-center gap-2">
@@ -713,6 +716,16 @@ export default function AdminReports() {
                           </div>
                         )}
                       </div>
+                      {overdraw > 0 && (
+                        <div className="mt-3 p-3 bg-red-50 border border-red-300 rounded-lg flex items-start gap-2">
+                          <AlertTriangle size={16} className="text-red-600 shrink-0 mt-0.5" />
+                          <p className="text-sm text-red-800">
+                            <strong>Achtung:</strong> Der Mitarbeiter hat nur noch <strong>{remaining}</strong> Resturlaubstag(e),
+                            du ziehst aber <strong>{days}</strong> ab. Das ergibt einen Urlaubssaldo von <strong>-{overdraw}</strong> Tag(en),
+                            der ins nächste Jahr übernommen wird.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -740,15 +753,26 @@ export default function AdminReports() {
                     </button>
                   )}
                   <button
-                    onClick={() =>
+                    onClick={() => {
+                      const remaining = previewData.summary.vacationDaysRemaining ?? 0;
+                      const willDeduct = applyDeduction && customDeductionDays > 0;
+                      if (willDeduct && customDeductionDays > remaining) {
+                        const overdraw = customDeductionDays - remaining;
+                        const name = `${previewData.employee.firstName} ${previewData.employee.lastName}`;
+                        if (!window.confirm(
+                          `${name} hat nur noch ${remaining} Resturlaubstag(e), du ziehst ${customDeductionDays} ab.\n\n` +
+                          `Das ergibt einen Urlaubssaldo von -${overdraw} Tag(en), der ins nächste Jahr übernommen wird.\n\n` +
+                          `Trotzdem fortfahren?`
+                        )) return;
+                      }
                       createMutation.mutate({
                         employeeId: selectedEmployee,
                         year: selectedYear,
                         month: selectedMonth,
-                        applyVacationDeduction: applyDeduction && customDeductionDays > 0,
+                        applyVacationDeduction: willDeduct,
                         deductionDays: customDeductionDays,
-                      } as any)
-                    }
+                      } as any);
+                    }}
                     disabled={createMutation.isPending}
                     className="btn btn-primary flex items-center gap-2"
                   >

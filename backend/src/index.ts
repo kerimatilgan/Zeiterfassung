@@ -21,7 +21,6 @@ import complaintRoutes from './routes/complaints.js';
 import { startBackupScheduler } from './services/backup/scheduler.js';
 import { startAutoClockOutScheduler } from './services/autoClockOut.js';
 import { startVacationCarryOverScheduler } from './services/vacationCarryOver.js';
-import { startMinusHoursScheduler } from './services/minusHoursDeduction.js';
 
 export const prisma = new PrismaClient();
 
@@ -138,7 +137,6 @@ async function main() {
   startBackupScheduler();
   startAutoClockOutScheduler();
   startVacationCarryOverScheduler();
-  startMinusHoursScheduler();
 
   httpServer.listen(Number(PORT), '0.0.0.0', () => {
     console.log(`🚀 Zeiterfassung Backend läuft auf http://0.0.0.0:${PORT}`);
