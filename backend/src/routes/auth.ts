@@ -182,7 +182,7 @@ router.post('/change-password', authMiddleware, async (req: AuthRequest, res: Re
       return res.status(401).json({ error: 'Aktuelles Passwort ist falsch' });
     }
 
-    const newHash = await bcrypt.hash(newPassword, 10);
+    const newHash = await bcrypt.hash(newPassword, 12);
     await prisma.employee.update({
       where: { id: employee.id },
       data: { passwordHash: newHash },
@@ -314,7 +314,7 @@ router.post('/reset-password', resetPasswordLimiter, async (req, res) => {
       return res.status(400).json({ error: 'Ungültiger oder abgelaufener Reset-Link' });
     }
 
-    const newHash = await bcrypt.hash(newPassword, 10);
+    const newHash = await bcrypt.hash(newPassword, 12);
     await prisma.employee.update({
       where: { id: employee.id },
       data: {

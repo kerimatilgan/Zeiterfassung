@@ -36,6 +36,7 @@ interface Terminal {
   id: string;
   name: string;
   isActive: boolean;
+  displayMode?: string;
   isOnline: boolean;
   lastSeen: string | null;
   ipAddress: string | null;
@@ -554,7 +555,7 @@ export default function AdminSettings() {
   // Terminal State
   const [showTerminalModal, setShowTerminalModal] = useState(false);
   const [editingTerminal, setEditingTerminal] = useState<Terminal | null>(null);
-  const [terminalForm, setTerminalForm] = useState({ name: '', isActive: true });
+  const [terminalForm, setTerminalForm] = useState({ name: '', isActive: true, displayMode: 'fullName' });
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [displayedApiKey, setDisplayedApiKey] = useState('');
   const [displayedTerminalId, setDisplayedTerminalId] = useState('');
@@ -919,13 +920,13 @@ export default function AdminSettings() {
   // Terminal Helpers
   const openCreateTerminalModal = () => {
     setEditingTerminal(null);
-    setTerminalForm({ name: '', isActive: true });
+    setTerminalForm({ name: '', isActive: true, displayMode: 'fullName' });
     setShowTerminalModal(true);
   };
 
   const openEditTerminalModal = (terminal: Terminal) => {
     setEditingTerminal(terminal);
-    setTerminalForm({ name: terminal.name, isActive: terminal.isActive });
+    setTerminalForm({ name: terminal.name, isActive: terminal.isActive, displayMode: terminal.displayMode || 'fullName' });
     setShowTerminalModal(true);
   };
 
@@ -2084,6 +2085,21 @@ export default function AdminSettings() {
                   </select>
                 </div>
               )}
+              <div>
+                <label className="label">Namensanzeige am Display</label>
+                <select
+                  value={terminalForm.displayMode}
+                  onChange={(e) => setTerminalForm({ ...terminalForm, displayMode: e.target.value })}
+                  className="input"
+                >
+                  <option value="fullName">Vollständiger Name (Max Mustermann)</option>
+                  <option value="firstNameLastInitial">Vorname + Initial (Max M.)</option>
+                  <option value="initialsOnly">Nur Initialen (M. M.)</option>
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Steuert, wie Mitarbeiter-Namen auf dem HDMI-Display angezeigt werden. Datenschutz-Option für offene Bereiche.
+                </p>
+              </div>
               <div className="flex gap-3 pt-2">
                 <button type="submit" className="btn btn-primary flex-1">
                   {editingTerminal ? 'Speichern' : 'Terminal erstellen'}

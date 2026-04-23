@@ -1,6 +1,8 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import path from 'path';
 import { createServer } from 'http';
@@ -32,18 +34,39 @@ const httpServer = createServer(app);
 // die korrekte Client-IP aus X-Forwarded-For — wichtig für Rate-Limits.
 app.set('trust proxy', 2);
 
-// Socket.io Setup
+const FRONTEND_URL = process.env.FRONTEND_URL || '';
+const JWT_SECRET = process.env.JWT_SECRET || '';
+
+// Socket.io Setup (CORS eingeschränkt auf FRONTEND_URL)
 export const io = new Server(httpServer, {
   cors: {
-    origin: '*',
+    origin: FRONTEND_URL || false,
     methods: ['GET', 'POST'],
   },
 });
 
-// Socket.io Connection Handler
+// Socket.io Authentifizierung: JWT (Frontend) ODER Terminal-API-Key (Pi).
+// Ohne gültige Credentials werden keine Events empfangen.
+io.use(async (socket, next) => {
+  const auth = socket.handshake.auth || {};
+  const token = auth.token || (socket.handshake.headers.authorization || '').replace(/^Bearer /, '');
+  const apiKey = auth.api_key || socket.handshake.headers['x-terminal-api-key'];
+
+  if (token) {
+    try {
+      jwt.verify(token, JWT_SECRET);
+      return next();
+    } catch {}
+  }
+  if (apiKey) {
+    const terminal = await prisma.terminal.findFirst({ where: { apiKey: String(apiKey), isActive: true } });
+    if (terminal) return next();
+  }
+  next(new Error('unauthorized'));
+});
+
 io.on('connection', (socket) => {
   console.log(`🔌 Client connected: ${socket.id}`);
-
   socket.on('disconnect', () => {
     console.log(`🔌 Client disconnected: ${socket.id}`);
   });
@@ -52,7 +75,14 @@ io.on('connection', (socket) => {
 const PORT = process.env.PORT || 3001;
 
 // Middleware
-app.use(cors());
+// Helmet als Defense-in-Depth (nginx setzt die Security-Header schon, hier
+// für den Fall dass das Backend mal direkt exposed wird)
+app.use(helmet({
+  contentSecurityPolicy: false,  // CSP wird im nginx gesetzt (flexibler)
+  crossOriginEmbedderPolicy: false,
+}));
+// CORS: nur die eigene Frontend-URL
+app.use(cors({ origin: FRONTEND_URL || false, credentials: false }));
 app.use(express.json());
 
 // Request Logging
@@ -113,11 +143,9 @@ app.use('/api/backup', backupRoutes);
 app.use('/api/setup', setupRoutes);
 app.use('/api/complaints', complaintRoutes);
 
-// Health Check
-app.get('/api/health', (req, res) => {
-  const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
-  const host = req.headers['x-forwarded-host'] || req.headers.host;
-  res.json({ status: 'ok', timestamp: new Date().toISOString(), baseUrl: `${protocol}://${host}` });
+// Health Check — bewusst minimal, keine interne Info exposen
+app.get('/api/health', (_req, res) => {
+  res.json({ status: 'ok' });
 });
 
 // Error Handler

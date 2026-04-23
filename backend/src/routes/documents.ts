@@ -26,9 +26,33 @@ const documentStorage = multer.diskStorage({
   },
 });
 
+// MIME-Whitelist — nur sichere Dokument-Typen zulassen
+const ALLOWED_DOC_MIMES = new Set([
+  'application/pdf',
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.oasis.opendocument.text',
+  'application/vnd.oasis.opendocument.spreadsheet',
+  'text/plain',
+  'text/csv',
+]);
+
 const documentUpload = multer({
   storage: documentStorage,
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
+  limits: { fileSize: 50 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (ALLOWED_DOC_MIMES.has(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error(`Dateityp "${file.mimetype}" nicht erlaubt. Zulässig: PDF, Bilder, Office-Dokumente, Text.`));
+    }
+  },
 });
 
 // ============================================

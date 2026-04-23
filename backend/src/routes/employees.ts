@@ -182,7 +182,7 @@ router.post('/', authMiddleware, adminMiddleware, async (req: AuthRequest, res: 
     // Passwort hashen falls angegeben
     let passwordHash: string | undefined;
     if (data.password) {
-      passwordHash = await bcrypt.hash(data.password, 10);
+      passwordHash = await bcrypt.hash(data.password, 12);
     }
 
     const employee = await prisma.employee.create({
@@ -307,7 +307,7 @@ router.put('/:id', authMiddleware, adminMiddleware, async (req: AuthRequest, res
     // Passwort hashen falls angegeben
     let passwordHash: string | undefined;
     if (data.password) {
-      passwordHash = await bcrypt.hash(data.password, 10);
+      passwordHash = await bcrypt.hash(data.password, 12);
     }
 
     // Alte Werte für Audit Log speichern

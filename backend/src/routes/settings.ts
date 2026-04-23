@@ -1640,6 +1640,7 @@ router.get('/terminals', authMiddleware, adminMiddleware, async (_req: AuthReque
       id: t.id,
       name: t.name,
       isActive: t.isActive,
+      displayMode: t.displayMode,
       lastSeen: t.lastSeen,
       ipAddress: t.ipAddress,
       version: t.version,
@@ -1703,6 +1704,7 @@ router.put('/terminals/:id', authMiddleware, adminMiddleware, async (req: AuthRe
     const schema = z.object({
       name: z.string().min(1, 'Name erforderlich').optional(),
       isActive: z.boolean().optional(),
+      displayMode: z.enum(['fullName', 'firstNameLastInitial', 'initialsOnly']).optional(),
     });
 
     const data = schema.parse(req.body);
@@ -1722,14 +1724,15 @@ router.put('/terminals/:id', authMiddleware, adminMiddleware, async (req: AuthRe
       action: 'UPDATE',
       entityType: 'Terminal',
       entityId: id,
-      oldValues: { name: existing.name, isActive: existing.isActive },
-      newValues: { name: terminal.name, isActive: terminal.isActive },
+      oldValues: { name: existing.name, isActive: existing.isActive, displayMode: existing.displayMode },
+      newValues: { name: terminal.name, isActive: terminal.isActive, displayMode: terminal.displayMode },
     });
 
     res.json({
       id: terminal.id,
       name: terminal.name,
       isActive: terminal.isActive,
+      displayMode: terminal.displayMode,
       lastSeen: terminal.lastSeen,
       ipAddress: terminal.ipAddress,
       version: terminal.version,

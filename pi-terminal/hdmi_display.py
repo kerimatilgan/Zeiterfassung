@@ -342,11 +342,15 @@ class HDMIDisplay:
             )
 
     def _connect_socket(self):
-        """Verbindet mit dem Backend Socket.IO"""
+        """Verbindet mit dem Backend Socket.IO (mit Terminal-API-Key Auth)"""
         while self.running:
             try:
                 if not self.sio.connected:
-                    self.sio.connect(self.backend_url, transports=['websocket', 'polling'])
+                    self.sio.connect(
+                        self.backend_url,
+                        transports=['websocket', 'polling'],
+                        auth={'api_key': self._get_api_key()},
+                    )
                 time.sleep(1)
             except Exception as e:
                 self.connection_status = f"Fehler: {str(e)[:20]}"

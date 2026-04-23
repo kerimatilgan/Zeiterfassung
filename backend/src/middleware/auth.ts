@@ -64,6 +64,7 @@ export async function adminMiddleware(req: AuthRequest, res: Response, next: Nex
 // Terminal Auth - DB-backed (keine Legacy-Fallbacks!)
 export interface TerminalAuthRequest extends Request {
   terminalId?: string;
+  terminal?: { id: string; name: string; displayMode: string };
 }
 
 export async function terminalAuthMiddleware(req: TerminalAuthRequest, res: Response, next: NextFunction) {
@@ -75,6 +76,7 @@ export async function terminalAuthMiddleware(req: TerminalAuthRequest, res: Resp
   try {
     const terminal = await prisma.terminal.findFirst({
       where: { apiKey, isActive: true },
+      select: { id: true, name: true, displayMode: true },
     });
 
     if (!terminal) {
@@ -82,6 +84,7 @@ export async function terminalAuthMiddleware(req: TerminalAuthRequest, res: Resp
     }
 
     req.terminalId = terminal.id;
+    req.terminal = terminal;
     // lastSeen + IP aktualisieren (impliziter Heartbeat)
     const clientIp = req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || undefined;
     prisma.terminal.update({

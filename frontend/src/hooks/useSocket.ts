@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useQueryClient } from '@tanstack/react-query';
+import { useAuthStore } from '../store/authStore';
 
 interface TimeEntryEvent {
   type: 'clock_in' | 'clock_out' | 'manual_create' | 'update' | 'delete';
@@ -19,11 +20,12 @@ export function useSocket() {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    // Socket.io Verbindung zum Backend aufbauen
-    // Über nginx Proxy (gleiche Origin) oder direkt im DEV-Modus ohne nginx
+    // Socket.io Verbindung zum Backend aufbauen — mit JWT-Auth
+    const token = useAuthStore.getState().token || '';
     const socket = io(window.location.origin, {
       path: '/socket.io/',
       transports: ['websocket', 'polling'],
+      auth: { token },
     });
 
     socketRef.current = socket;

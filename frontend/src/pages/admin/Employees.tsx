@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { io, Socket } from 'socket.io-client';
+import { useAuthStore } from '../../store/authStore';
 import {
   Plus,
   Edit2,
@@ -753,11 +754,13 @@ export default function AdminEmployees() {
       return;
     }
 
-    // Verbinde über nginx Proxy (gleiche Origin)
+    // Verbinde über nginx Proxy (gleiche Origin) — mit JWT-Auth
+    const token = useAuthStore.getState().token || '';
     const socket = io(window.location.origin, {
       path: '/socket.io/',
       transports: ['websocket', 'polling'],
       timeout: 5000,
+      auth: { token },
     });
     socketRef.current = socket;
 
@@ -856,6 +859,7 @@ export default function AdminEmployees() {
       path: '/socket.io/',
       transports: ['websocket', 'polling'],
       timeout: 5000,
+      auth: { token: useAuthStore.getState().token || '' },
     });
     lookupSocketRef.current = socket;
 

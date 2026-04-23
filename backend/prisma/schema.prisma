@@ -425,6 +425,8 @@ model Terminal {
   lastSeen    DateTime?                   // Letzter authentifizierter Request
   ipAddress   String?                     // IP-Adresse des Terminals
   version     String?                     // Software-Version
+  displayMode String    @default("fullName") // Namens-Anzeige am Terminal:
+                                             // "fullName" | "firstNameLastInitial" | "initialsOnly"
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 }

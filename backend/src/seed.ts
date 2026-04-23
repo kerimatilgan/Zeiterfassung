@@ -23,7 +23,7 @@ async function main() {
   });
 
   // Admin-Benutzer erstellen
-  const adminPassword = await bcrypt.hash('admin123', 10);
+  const adminPassword = await bcrypt.hash('admin123', 12);
 
   const admin = await prisma.employee.upsert({
     where: { employeeNumber: 'ADMIN' },
@@ -45,7 +45,7 @@ async function main() {
   console.log('Admin erstellt:', admin.employeeNumber);
 
   // Demo-Mitarbeiter erstellen
-  const demoPassword = await bcrypt.hash('demo123', 10);
+  const demoPassword = await bcrypt.hash('demo123', 12);
 
   const employees = [
     { number: '001', firstName: 'Max', lastName: 'Mustermann' },

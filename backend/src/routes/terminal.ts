@@ -3,6 +3,7 @@ import { prisma, io } from '../index.js';
 import { terminalAuthMiddleware, authMiddleware, adminMiddleware, AuthRequest, TerminalAuthRequest } from '../middleware/auth.js';
 import { createAuditLog } from '../utils/auditLog.js';
 import { minutesBetween } from '../utils/timeCalc.js';
+import { formatDisplayName } from '../utils/displayName.js';
 
 const router = Router();
 
@@ -390,7 +391,7 @@ router.get('/active-status', async (_req, res) => {
 });
 
 // Mitarbeiter-Liste für Terminal-Cache (RFID → Name)
-router.get('/employees', async (_req, res) => {
+router.get('/employees', async (req: TerminalAuthRequest, res) => {
   try {
     const employees = await prisma.employee.findMany({
       where: { isActive: true },
@@ -401,13 +402,12 @@ router.get('/employees', async (_req, res) => {
         employeeNumber: true,
       },
     });
+    const mode = req.terminal?.displayMode || 'fullName';
     const result = employees
       .filter(e => e.rfidCard)
       .map(e => ({
         rfidCard: e.rfidCard,
-        name: `${e.firstName} ${e.lastName}`,
-        firstName: e.firstName,
-        lastName: e.lastName,
+        name: formatDisplayName(e.firstName, e.lastName, mode),
         employeeNumber: e.employeeNumber,
       }));
     res.json(result);
@@ -435,9 +435,10 @@ router.post('/heartbeat', async (req: TerminalAuthRequest, res) => {
 
 // QR-Code oder RFID-Karte scannen / Ein- oder Ausstempeln
 // Unterstützt optionalen timestamp-Parameter für Offline-Synchronisation
-router.post('/scan', async (req, res) => {
+router.post('/scan', async (req: TerminalAuthRequest, res) => {
   try {
     const { qrCode, rfidCard, timestamp, silent } = req.body;
+    const displayMode = req.terminal?.displayMode || 'fullName';
 
     if (!qrCode && !rfidCard) {
       return res.status(400).json({
@@ -760,7 +761,7 @@ router.post('/scan', async (req, res) => {
         offlineSync: isOfflineSync,
         multiDaySplit: isMultiDay ? dayEntries.length : undefined,
         employee: {
-          name: `${employee.firstName} ${employee.lastName}`,
+          name: formatDisplayName(employee.firstName, employee.lastName, displayMode),
           employeeNumber: employee.employeeNumber,
           photoUrl: employee.photoUrl,
         },
@@ -833,7 +834,7 @@ router.post('/scan', async (req, res) => {
         action: 'clock_in',
         offlineSync: isOfflineSync,
         employee: {
-          name: `${employee.firstName} ${employee.lastName}`,
+          name: formatDisplayName(employee.firstName, employee.lastName, displayMode),
           employeeNumber: employee.employeeNumber,
           photoUrl: employee.photoUrl,
         },
@@ -855,7 +856,7 @@ router.post('/scan', async (req, res) => {
 });
 
 // Aktueller Status eines Mitarbeiters (für Terminal-Display)
-router.get('/status/:qrCode', async (req, res) => {
+router.get('/status/:qrCode', async (req: TerminalAuthRequest, res) => {
   try {
     const { qrCode } = req.params;
 
@@ -882,9 +883,10 @@ router.get('/status/:qrCode', async (req, res) => {
       orderBy: { clockIn: 'desc' },
     });
 
+    const mode = req.terminal?.displayMode || 'fullName';
     res.json({
       employee: {
-        name: `${employee.firstName} ${employee.lastName}`,
+        name: formatDisplayName(employee.firstName, employee.lastName, mode),
         employeeNumber: employee.employeeNumber,
       },
       isClockedIn: !!activeEntry,
@@ -897,7 +899,7 @@ router.get('/status/:qrCode', async (req, res) => {
 });
 
 // Liste aller aktuell eingestempelten Mitarbeiter
-router.get('/active', async (_req, res) => {
+router.get('/active', async (req: TerminalAuthRequest, res) => {
   try {
     const activeEntries = await prisma.timeEntry.findMany({
       where: { clockOut: null },
@@ -913,8 +915,9 @@ router.get('/active', async (_req, res) => {
       orderBy: { clockIn: 'asc' },
     });
 
+    const mode = req.terminal?.displayMode || 'fullName';
     res.json(activeEntries.map(entry => ({
-      employeeName: `${entry.employee.firstName} ${entry.employee.lastName}`,
+      employeeName: formatDisplayName(entry.employee.firstName, entry.employee.lastName, mode),
       employeeNumber: entry.employee.employeeNumber,
       clockIn: entry.clockIn,
     })));

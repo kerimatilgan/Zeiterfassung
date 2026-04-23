@@ -83,7 +83,7 @@ router.post('/complete', async (req: Request, res: Response) => {
     });
 
     // 2. Admin-Account erstellen
-    const passwordHash = await bcrypt.hash(data.password, 10);
+    const passwordHash = await bcrypt.hash(data.password, 12);
     const admin = await prisma.employee.create({
       data: {
         employeeNumber: 'ADMIN',
