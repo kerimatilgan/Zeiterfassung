@@ -1,154 +1,156 @@
-# Zeiterfassung - Handy-Insel
+# Zeiterfassung
 
-Ein vollständiges Zeiterfassungssystem für kleine bis mittlere Unternehmen mit QR-Code-basierter Stempeluhr.
+Webbasiertes Zeiterfassungssystem mit RFID-/QR-Stempeluhr für kleine und mittlere Unternehmen. Läuft on-premise oder self-hosted, Daten bleiben in der eigenen SQLite-Datenbank.
 
-## Features
+## Funktionen
 
-### Admin-Dashboard
-- Mitarbeiterverwaltung (anlegen, bearbeiten, deaktivieren)
-- QR-Code-Generierung für jeden Mitarbeiter
-- Zeiteinträge einsehen und bearbeiten
-- Monatsabrechnungen erstellen und als PDF exportieren
-- Überstunden-Tracking
-- Feiertage verwalten
+### Admin
+- Mitarbeiter anlegen/bearbeiten inkl. Foto, RFID-Karte, QR-Code, PIN
+- Monatliche Zeit-Übersicht pro Mitarbeiter (Kalenderansicht, Einträge editierbar)
+- Monats-Abrechnungen als PDF (mit optionalem Minusstunden-Urlaubsausgleich, Warnung bei negativem Saldo)
+- Urlaubs- und Abwesenheitsverwaltung (mit automatischem Jahresübertrag)
+- Manuelle Urlaubsanpassungen mit Warnung bei Minus-Saldo
+- Feiertage pflegen (pro Bundesland vorbefüllbar)
+- Reklamationen / Klärfälle mit Historie
+- Dokumente pro Mitarbeiter (AES-256-GCM verschlüsselt at rest)
+- Audit-Log aller sicherheitsrelevanten Aktionen
+- Mehrere Terminals verwalten, API-Keys rotieren
+- Geplante Backups (lokal / SMB / SFTP / WebDAV / S3 / OneDrive / GoogleDrive / Dropbox)
 
-### Mitarbeiter-Dashboard
-- Eigene Arbeitsstunden einsehen
-- Monatsübersicht mit Kalenderansicht
-- Abrechnungen als PDF herunterladen
-- Aktueller Status (ein-/ausgestempelt)
+### Mitarbeiter
+- Eigene Stunden, Überstunden und Urlaubssaldo live einsehen
+- Monats-/Wochen-Übersicht mit offenen, krank und Urlaubstagen
+- Eigene Abrechnungen als PDF herunterladen
+- Passwort-Reset per E-Mail
+- Optionales 2FA: TOTP (Authenticator-App) oder Passkey (WebAuthn)
+- PWA-Stempelung per Smartphone mit optionaler Geolokalisierung
 
-### Terminal-App (Stempeluhr)
-- QR-Code Scanner für Ein-/Ausstempeln
-- PWA - läuft auf jedem Tablet/Smartphone
-- Zeigt aktuell eingestempelte Mitarbeiter
-- Automatische Pausenberechnung
+### Stempeluhr am Raspberry Pi
+- RFID-Reader (HID-Keyboard-Mode) oder NFC (PC/SC) oder Barcode-Scanner
+- Pygame-HDMI-Display mit Live-Liste der eingestempelten Mitarbeiter + Uhrzeit
+- Offline-Queue: bei ausgefallener Server-Verbindung werden Stempelungen lokal zwischengespeichert und automatisch synchronisiert, sobald das Backend wieder erreichbar ist
+- Automatische Tagesaufteilung bei Schichten über Mitternacht (deutsche Zeitzone, DST-aware)
 
-## Technologie-Stack
+## Tech-Stack
 
-- **Backend**: Node.js, Express, TypeScript, Prisma ORM
-- **Datenbank**: SQLite (einfach zu deployen, keine extra Services nötig)
-- **Frontend**: React, TypeScript, Vite, TailwindCSS
-- **Terminal-App**: React PWA mit ZXing für QR-Code Scanning
+| Teil | Technologie |
+|---|---|
+| Backend | Node.js 20+, Express, TypeScript (läuft via `tsx`), Prisma ORM |
+| Datenbank | SQLite |
+| Frontend | React 18, Vite, TailwindCSS, React-Query, Zustand |
+| Admin-Terminal | React-PWA mit ZXing (QR-Scanner) |
+| Pi-Stempeluhr | Python 3, Pygame, evdev, pyscard |
+| Prozesse | PM2 (als non-root `zeiterfassung`-User) |
 
-## Installation
+## Projektstruktur
 
-### Voraussetzungen
-- Node.js 18+
-- npm oder yarn
+```
+Zeiterfassung/
+├── backend/           Express + Prisma (SQLite)
+├── frontend/          React-Admin-UI
+├── terminal-app/      Web-PWA als alternatives Admin-Terminal
+├── pi-terminal/       Python-Scripts für Raspberry Pi
+└── ecosystem.config.js  PM2-Konfiguration
+```
 
-### Setup
+## Lokale Entwicklung
 
 ```bash
-# Repository klonen
-git clone <repository-url>
+git clone <repo-url> Zeiterfassung
 cd Zeiterfassung
+npm install                   # installiert alle Workspaces
 
-# Dependencies installieren
-npm install
+# Backend-.env anlegen — siehe unten "Environment Variables"
+cp backend/.env.example backend/.env    # falls vorhanden, sonst manuell
 
-# Backend initialisieren
-cd backend
-npm install
-npx prisma generate
-npx prisma db push
+# Datenbank initialisieren
+cd backend && npx prisma generate && npx prisma db push && cd ..
 
-# Demo-Daten einspielen (optional)
-npx tsx src/seed.ts
-
-# Zurück zum Root
-cd ..
-
-# Frontend installieren
-cd frontend
-npm install
-cd ..
-
-# Terminal-App installieren
-cd terminal-app
-npm install
-cd ..
+# Dev-Server starten
+npm run dev                   # Backend + Frontend parallel
+npm run terminal              # optional: Admin-Terminal auf Port 5174
 ```
 
-### Starten
+Beim ersten Aufruf des Frontends startet der **Setup-Wizard** — dort werden Firma, Admin-Account, optional SMTP und das erste Stempel-Terminal angelegt. Der Setup-Endpoint verriegelt sich danach automatisch.
+
+## Environment Variables
+
+Alle Variablen in `backend/.env`. Das Backend **weigert sich zu starten**, wenn Pflicht-Variablen fehlen oder zu kurz sind.
+
+| Variable | Pflicht | Zweck |
+|---|---|---|
+| `JWT_SECRET` | ja | Mindestens 32 Zeichen, z. B. `openssl rand -hex 32` |
+| `FRONTEND_URL` | ja | Öffentliche URL (wird in Password-Reset-Mails verwendet) |
+| `DOCUMENT_ENCRYPTION_KEY` | ja | 64-Hex-Zeichen (`openssl rand -hex 32`) für Dokumente & Backup-Target-Configs |
+| `PORT` | nein | Standard: `3001` |
+| `DATABASE_URL` | nein | Standard: `file:./zeiterfassung.db` |
+
+`.env` sollte `chmod 600` und dem Service-User gehören. **Keine Default-Fallbacks** mehr im Code — alte Secrets (aus früheren Versionen) bitte rotieren.
+
+## Raspberry Pi Terminal einrichten
+
+Ein Stempel-Terminal wird über den Admin-Bereich (**Einstellungen → Terminals → Neues Terminal**) angelegt. Die Web-UI generiert einen einmaligen Installationsbefehl, der auf dem Pi per SSH ausgeführt wird:
 
 ```bash
-# Alle Services starten (Backend + Frontend)
-npm run dev
-
-# Oder einzeln:
-npm run backend    # Backend auf Port 3001
-npm run frontend   # Frontend auf Port 5173
-npm run terminal   # Terminal-App auf Port 5174
+curl -sL https://<dein-host>/api/setup/terminal-install/<terminal-id> | bash
 ```
 
-## Zugangsdaten (Demo)
+Das Script installiert Abhängigkeiten, lädt die Python-Scripts, erkennt USB-Kartenleser und registriert die systemd-Services `zeiterfassung-terminal.service` (RFID-Reader) und `zeiterfassung-display.service` (HDMI-Display).
 
-Nach dem Ausführen des Seed-Skripts:
+## Production-Deployment
 
-| Rolle | Mitarbeiternummer | Passwort |
-|-------|-------------------|----------|
-| Admin | ADMIN | admin123 |
-| Mitarbeiter | 001 | demo123 |
-| Mitarbeiter | 002 | demo123 |
-| Mitarbeiter | 003 | demo123 |
+Die empfohlene Topologie mit dem Setup, unter dem dieses Repo aktiv läuft:
 
-## Terminal-App einrichten
+```
+  Internet
+     │
+     ▼
+  [Pangolin Reverse Proxy]   externes TLS-Termination + Tunnel
+     │
+     ▼
+  [nginx @ 5175]             Frontend-Static + /api-Proxy
+     │
+     ▼
+  [Backend @ 3001]           PM2 → tsx → Express (als "zeiterfassung"-User)
+     │
+     └──▶ SQLite, Uploads, Backups
+```
 
-1. Terminal-App im Browser öffnen: `http://<server-ip>:5174`
-2. Auf Android-Tablet: "Zum Startbildschirm hinzufügen" für Vollbild-Modus
-3. Kamera-Berechtigung erteilen
-4. QR-Code-Badges für Mitarbeiter ausdrucken (Im Admin → Mitarbeiter → QR-Code Icon)
-
-## API-Dokumentation
-
-### Terminal API
-
-Für die Stempeluhr-Integration:
+PM2-Prozesse werden über die mitgelieferte `ecosystem.config.js` gestartet, die Backend und Terminal-App als dedizierten System-User `zeiterfassung` laufen lässt:
 
 ```bash
-# Ein-/Ausstempeln per QR-Code
-POST /api/terminal/scan
-Header: x-terminal-api-key: handy-insel-terminal-key-2024
-Body: { "qrCode": "HI-001-abc12345" }
+# einmalig: User anlegen und Ownership setzen
+useradd --system --no-create-home --shell /usr/sbin/nologin zeiterfassung
+chown -R zeiterfassung:zeiterfassung /opt/Zeiterfassung/{backend,terminal-app}
+chmod 600 /opt/Zeiterfassung/backend/.env
+chmod 600 /opt/Zeiterfassung/backend/prisma/*.db
 
-# Aktuell eingestempelte Mitarbeiter
-GET /api/terminal/active
-Header: x-terminal-api-key: handy-insel-terminal-key-2024
+# Prozesse starten + bei Reboot wiederherstellen
+pm2 start ecosystem.config.js
+pm2 save
+pm2 startup
 ```
 
-## Umgebungsvariablen
+Für die Static-Auslieferung des Frontends (`frontend/dist/`) gibt es ein nginx-Example im Repo (`nginx/` bzw. `/etc/nginx/sites-available/zeiterfassung`). Docker-Alternative: `docker-compose.yml` liegt ebenfalls bei, wird aktuell aber nicht im Prod-Setup genutzt.
 
-```env
-# Backend
-PORT=3001
-JWT_SECRET=your-secret-key
-TERMINAL_API_KEY=your-terminal-api-key
+## Sicherheit
 
-# Datenbank (Standard: SQLite in backend/prisma/)
-DATABASE_URL="file:./zeiterfassung.db"
-```
+- Alle Auth-Endpoints (Login, Password-Reset, 2FA, Terminal-PIN) sind per-IP rate-limitiert
+- JWT-Secrets müssen ≥ 32 Zeichen sein, sonst fail-fast beim Start
+- Terminal-API-Keys ausschließlich DB-basiert — keine Legacy-Defaults mehr
+- Password-Reset-Links nutzen `FRONTEND_URL` aus der Config, nicht den Request-Host (verhindert Host-Header-Injection)
+- Prozesse laufen unter nicht-privilegiertem User, nicht als `root`
+- `SMTP`-Passwort wird nur an Admin-Accounts ausgeliefert; `GET /api/settings/` liefert keine Mail-Credentials
 
-## Deployment
+Für größere Deployments: **HTTPS ist Pflicht** (Pangolin/Cloudflare Tunnel/Reverse-Proxy mit Let's-Encrypt oder ähnlich vorschalten).
 
-### Docker (empfohlen)
+## Backup / Restore
 
-```bash
-docker-compose up -d
-```
-
-### Manuell
-
-1. Backend bauen: `cd backend && npm run build`
-2. Frontend bauen: `cd frontend && npm run build`
-3. Terminal-App bauen: `cd terminal-app && npm run build`
-4. Backend starten: `cd backend && npm start`
-5. Frontend/Terminal mit nginx oder ähnlichem servieren
+- Scheduled Backups laufen automatisch (konfigurierbar unter Einstellungen → Backup)
+- Unterstützte Targets: Lokales Verzeichnis, SMB (via `smbclient`), SFTP, WebDAV, S3-kompatibel, OneDrive, Google Drive, Dropbox
+- Restore-Funktion in der Admin-UI; überschreibt DB und Uploads
+- Aufbewahrungsdauer konfigurierbar, alte Backups werden automatisch gelöscht
 
 ## Lizenz
 
-MIT
-
-## Support
-
-Bei Fragen oder Problemen bitte ein Issue erstellen.
+Privates Projekt — alle Rechte vorbehalten.
