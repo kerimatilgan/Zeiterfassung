@@ -1,17 +1,15 @@
 # Pangolin – Empfohlene Security-Response-Header für die Zeiterfassung
 
-In Pangolin unter deiner Resource für die Zeiterfassung (`zeit.handy-insel.de` bzw. `zeit.kerimatilgan.de`) im Bereich **Headers** (oder je nach Pangolin-Version „Custom Response Headers" / „Response Headers") die folgenden Einträge ergänzen. Alle Werte werden als Response-Header zum Client ausgeliefert, nicht zum Backend.
+In Pangolin → Ressource → **Zusätzliche Proxy-Einstellungen** → **Eigene Kopfzeilen** die folgenden Zeilen einfügen. **Format: `Header-Name: Wert`** (Doppelpunkt, ein Header pro Zeile — genau wie der Hinweis unter dem Feld sagt). Anschließend mit **„Proxy-Einstellungen speichern"** bestätigen.
 
-Pro Zeile: **Header-Name** (linke Spalte) **→ Wert** (rechte Spalte).
-
-| Header | Wert |
-|---|---|
-| `Strict-Transport-Security` | `max-age=31536000; includeSubDomains` |
-| `X-Frame-Options` | `DENY` |
-| `X-Content-Type-Options` | `nosniff` |
-| `Referrer-Policy` | `strict-origin-when-cross-origin` |
-| `Permissions-Policy` | `geolocation=(self), camera=(), microphone=(), payment=(), usb=()` |
-| `Content-Security-Policy` | `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' wss: https://nominatim.openstreetmap.org; frame-ancestors 'none'; base-uri 'self'; form-action 'self'` |
+```
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+X-Frame-Options: DENY
+X-Content-Type-Options: nosniff
+Referrer-Policy: strict-origin-when-cross-origin
+Permissions-Policy: geolocation=(self), camera=(), microphone=(), payment=(), usb=()
+Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' wss: https://nominatim.openstreetmap.org; frame-ancestors 'none'; base-uri 'self'; form-action 'self'
+```
 
 ## Was diese Header bewirken
 
