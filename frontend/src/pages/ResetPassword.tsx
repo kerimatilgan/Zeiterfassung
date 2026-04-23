@@ -30,8 +30,8 @@ export default function ResetPassword() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (password.length < 6) {
-      toast.error('Passwort muss mindestens 6 Zeichen haben');
+    if (password.length < 10) {
+      toast.error('Passwort muss mindestens 10 Zeichen haben');
       return;
     }
 
@@ -116,7 +116,7 @@ export default function ResetPassword() {
                   className="input"
                   placeholder="Mindestens 6 Zeichen"
                   required
-                  minLength={6}
+                  minLength={10}
                   autoComplete="new-password"
                 />
               </div>
@@ -133,7 +133,7 @@ export default function ResetPassword() {
                   className="input"
                   placeholder="Passwort wiederholen"
                   required
-                  minLength={6}
+                  minLength={10}
                   autoComplete="new-password"
                 />
               </div>

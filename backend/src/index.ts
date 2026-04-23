@@ -61,8 +61,43 @@ app.use((req, _res, next) => {
   next();
 });
 
-// Static Files für Foto-Uploads
-app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+// Logos öffentlich (Branding in E-Mail-Footern, Login-Seite)
+app.use('/uploads/logos', express.static(path.join(process.cwd(), 'uploads/logos')));
+
+// Fotos: JWT-Auth ODER Terminal-API-Key (damit Pi-Terminals sie laden können)
+app.get('/uploads/photos/:filename', async (req, res) => {
+  try {
+    const jwt = await import('jsonwebtoken');
+    const fs = await import('fs');
+    const authHeader = req.headers.authorization;
+    const terminalKey = req.headers['x-terminal-api-key'] as string | undefined;
+    let authenticated = false;
+
+    if (authHeader?.startsWith('Bearer ')) {
+      try {
+        jwt.default.verify(authHeader.split(' ')[1], process.env.JWT_SECRET!);
+        authenticated = true;
+      } catch {}
+    }
+    if (!authenticated && terminalKey) {
+      const term = await prisma.terminal.findFirst({ where: { apiKey: terminalKey, isActive: true } });
+      if (term) authenticated = true;
+    }
+    if (!authenticated) return res.status(401).send('Unauthorized');
+
+    // Path-Traversal verhindern — nur basename verwenden
+    const safeName = path.basename(req.params.filename);
+    const filePath = path.join(process.cwd(), 'uploads/photos', safeName);
+    if (!fs.existsSync(filePath)) return res.status(404).send('Not found');
+    res.sendFile(filePath);
+  } catch (err) {
+    console.error('Photo serve error:', err);
+    res.status(500).send('Server error');
+  }
+});
+
+// Dokumente: werden über /api/documents/* mit strikter Auth + Ownership-Check
+// ausgeliefert (und AES-verschlüsselt), /uploads/documents/ daher bewusst nicht freigegeben.
 
 // API Routes
 app.use('/api/auth', authRoutes);

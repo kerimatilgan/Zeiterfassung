@@ -1,7 +1,6 @@
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
-import os from 'os';
 import { BackupProvider, BackupProviderConfig, TestResult, RemoteFile } from './BaseProvider.js';
 
 export class NfsProvider implements BackupProvider {
@@ -11,6 +10,14 @@ export class NfsProvider implements BackupProvider {
     return config.localMountPoint || '/tmp/zeiterfassung-nfs-backup';
   }
 
+  // Whitelist-Regex für NFS-Mount-Options (verhindert Injection via options-Feld)
+  private validateOptions(opts: string): string {
+    if (!/^[a-zA-Z0-9=,_\-]+$/.test(opts)) {
+      throw new Error('Ungültige NFS-Mount-Options: nur [a-zA-Z0-9=,_-] erlaubt');
+    }
+    return opts;
+  }
+
   private mount(config: BackupProviderConfig): void {
     const mountPoint = this.getMountPoint(config);
     if (!fs.existsSync(mountPoint)) {
@@ -18,18 +25,24 @@ export class NfsProvider implements BackupProvider {
     }
     // Check if already mounted
     try {
-      const mounts = execSync('mount', { stdio: 'pipe' }).toString();
+      const mounts = execFileSync('mount', [], { stdio: 'pipe' }).toString();
       if (mounts.includes(mountPoint)) return;
     } catch {}
-    const opts = config.options || 'nolock,soft,timeo=30';
-    const cmd = `mount -t nfs -o ${opts} ${config.host}:${config.exportPath} ${mountPoint}`;
-    execSync(cmd, { timeout: 15000, stdio: 'pipe' });
+    const opts = this.validateOptions(config.options || 'nolock,soft,timeo=30');
+    const host = String(config.host || '');
+    const exportPath = String(config.exportPath || '');
+    // execFile mit argv-Array — keine Shell-Interpretation von host/exportPath
+    execFileSync(
+      'mount',
+      ['-t', 'nfs', '-o', opts, `${host}:${exportPath}`, mountPoint],
+      { timeout: 15000, stdio: 'pipe' },
+    );
   }
 
   private unmount(config: BackupProviderConfig): void {
     const mountPoint = this.getMountPoint(config);
     try {
-      execSync(`umount ${mountPoint}`, { timeout: 10000, stdio: 'pipe' });
+      execFileSync('umount', [mountPoint], { timeout: 10000, stdio: 'pipe' });
     } catch {}
   }
 

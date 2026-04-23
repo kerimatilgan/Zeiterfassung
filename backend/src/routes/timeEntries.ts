@@ -1152,6 +1152,13 @@ async function reverseGeocode(latitude: number, longitude: number): Promise<stri
 }
 
 // Admin E-Mail bei Auswärtsstempelung
+function escapeHtml(s: string | null | undefined): string {
+  if (s == null) return '';
+  return String(s).replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]!));
+}
+
 async function sendPwaNotificationEmail(
   employee: { firstName: string; lastName: string; employeeNumber: string },
   action: 'clock-in' | 'clock-out',
@@ -1175,15 +1182,16 @@ async function sendPwaNotificationEmail(
     const headerColor = action === 'clock-in' ? '#16a34a' : '#dc2626';
     const time = timestamp.toLocaleString('de-DE', { timeZone: 'Europe/Berlin', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
     const mapUrl = `https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}#map=17/${latitude}/${longitude}`;
+    const fullName = `${employee.firstName} ${employee.lastName}`;
 
     await sendEmail({
       to: adminEmails,
-      subject: `Auswärtsstempelung: ${employee.firstName} ${employee.lastName} – ${actionLabel}`,
+      subject: `Auswärtsstempelung: ${fullName} – ${actionLabel}`,
       html: `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 560px; margin: 0 auto; border-radius: 12px; overflow: hidden; border: 1px solid #e5e7eb;">
           <div style="background: ${headerColor}; color: white; padding: 24px;">
             <h2 style="margin: 0; font-size: 18px;">Auswärtsstempelung</h2>
-            <p style="margin: 6px 0 0 0; opacity: 0.9; font-size: 14px;">${employee.firstName} ${employee.lastName} hat sich auswärts ${actionText}</p>
+            <p style="margin: 6px 0 0 0; opacity: 0.9; font-size: 14px;">${escapeHtml(fullName)} hat sich auswärts ${actionText}</p>
           </div>
           <div style="background: white; padding: 24px;">
             <table style="width: 100%; border-collapse: collapse;">
@@ -1193,20 +1201,20 @@ async function sendPwaNotificationEmail(
               </tr>
               <tr>
                 <td style="padding: 10px 0; color: #6b7280; vertical-align: top; font-size: 14px;">Mitarbeiter</td>
-                <td style="padding: 10px 0; font-size: 14px;">${employee.firstName} ${employee.lastName} (${employee.employeeNumber})</td>
+                <td style="padding: 10px 0; font-size: 14px;">${escapeHtml(fullName)} (${escapeHtml(employee.employeeNumber)})</td>
               </tr>
               <tr>
                 <td style="padding: 10px 0; color: #6b7280; vertical-align: top; font-size: 14px;">Zeitpunkt</td>
-                <td style="padding: 10px 0; font-size: 14px;">${time} Uhr</td>
+                <td style="padding: 10px 0; font-size: 14px;">${escapeHtml(time)} Uhr</td>
               </tr>
               <tr>
                 <td style="padding: 10px 0; color: #6b7280; vertical-align: top; font-size: 14px;">Grund</td>
-                <td style="padding: 10px 0; font-size: 14px;">${reason}</td>
+                <td style="padding: 10px 0; font-size: 14px;">${escapeHtml(reason)}</td>
               </tr>
               <tr>
                 <td style="padding: 10px 0; color: #6b7280; vertical-align: top; font-size: 14px;">Standort</td>
                 <td style="padding: 10px 0; font-size: 14px;">
-                  📍 ${address}
+                  📍 ${escapeHtml(address)}
                 </td>
               </tr>
             </table>

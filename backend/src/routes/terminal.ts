@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import bcrypt from 'bcryptjs';
 import { prisma, io } from '../index.js';
 import { terminalAuthMiddleware, authMiddleware, adminMiddleware, AuthRequest, TerminalAuthRequest } from '../middleware/auth.js';
 import { pinLimiter } from '../middleware/rateLimits.js';
@@ -880,11 +881,26 @@ router.post('/pin', pinLimiter, async (req, res) => {
       },
     });
 
-    if (!employee || employee.pin !== pin) {
-      return res.status(401).json({
-        success: false,
-        error: 'Ungültige Anmeldedaten'
-      });
+    if (!employee || !employee.pin) {
+      return res.status(401).json({ success: false, error: 'Ungültige Anmeldedaten' });
+    }
+
+    // PIN-Vergleich: bcrypt-Hash oder Legacy-Plaintext (mit Auto-Upgrade)
+    const isHashed = employee.pin.startsWith('$2');
+    let pinValid = false;
+    if (isHashed) {
+      pinValid = await bcrypt.compare(pin, employee.pin);
+    } else {
+      pinValid = employee.pin === pin;
+      if (pinValid) {
+        // Legacy-PIN erfolgreich verifiziert → jetzt gehashed speichern
+        const hashed = await bcrypt.hash(pin, 10);
+        await prisma.employee.update({ where: { id: employee.id }, data: { pin: hashed } });
+      }
+    }
+
+    if (!pinValid) {
+      return res.status(401).json({ success: false, error: 'Ungültige Anmeldedaten' });
     }
 
     // Verwende den gleichen Scan-Prozess (API-Key aus aktuellem Request forwarden)

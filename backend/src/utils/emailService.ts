@@ -3,6 +3,15 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+// HTML-Escape für User-Input in Mail-Templates. Verhindert Injection
+// (Phishing-Links in Reklamations-Text an Admin, etc.)
+function h(s: string | null | undefined): string {
+  if (s == null) return '';
+  return String(s).replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]!));
+}
+
 interface MailSettings {
   smtpHost: string | null;
   smtpPort: number | null;
@@ -145,11 +154,11 @@ export async function sendPasswordResetEmail(
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #3B82F6;">Passwort zurücksetzen</h2>
 
-        <p>Hallo ${firstName},</p>
+        <p>Hallo ${h(firstName)},</p>
         <p>es wurde eine Anfrage zum Zurücksetzen Ihres Passworts gestellt.</p>
 
         <div style="text-align: center; margin: 30px 0;">
-          <a href="${resetUrl}"
+          <a href="${h(resetUrl)}"
              style="display: inline-block; background: #3B82F6; color: white; padding: 12px 30px;
                     text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px;">
             Neues Passwort setzen
@@ -163,7 +172,7 @@ export async function sendPasswordResetEmail(
 
         <p style="color: #9CA3AF; font-size: 12px; margin-top: 20px;">
           Falls der Button nicht funktioniert, kopieren Sie diesen Link in Ihren Browser:<br>
-          <a href="${resetUrl}" style="color: #3B82F6; word-break: break-all;">${resetUrl}</a>
+          <a href="${h(resetUrl)}" style="color: #3B82F6; word-break: break-all;">${h(resetUrl)}</a>
         </p>
 
         <hr style="border: none; border-top: 1px solid #E5E7EB; margin: 20px 0;">
@@ -226,27 +235,27 @@ export async function sendComplaintNotification(
         <h2 style="color: #F59E0B;">⚠️ Neue Reklamation</h2>
 
         <div style="background: #FEF3C7; border-left: 4px solid #F59E0B; padding: 15px; margin: 20px 0;">
-          <p style="margin: 0; font-weight: bold;">${employeeName} hat einen Zeiteintrag reklamiert:</p>
+          <p style="margin: 0; font-weight: bold;">${h(employeeName)} hat einen Zeiteintrag reklamiert:</p>
         </div>
 
         <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
           <tr>
             <td style="padding: 10px; border-bottom: 1px solid #E5E7EB; color: #6B7280;">Mitarbeiter:</td>
-            <td style="padding: 10px; border-bottom: 1px solid #E5E7EB; font-weight: bold;">${employeeName}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #E5E7EB; font-weight: bold;">${h(employeeName)}</td>
           </tr>
           <tr>
             <td style="padding: 10px; border-bottom: 1px solid #E5E7EB; color: #6B7280;">Datum:</td>
-            <td style="padding: 10px; border-bottom: 1px solid #E5E7EB; font-weight: bold;">${dateStr}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #E5E7EB; font-weight: bold;">${h(dateStr)}</td>
           </tr>
           <tr>
             <td style="padding: 10px; border-bottom: 1px solid #E5E7EB; color: #6B7280;">Uhrzeit:</td>
-            <td style="padding: 10px; border-bottom: 1px solid #E5E7EB; font-weight: bold;">${timeRange}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #E5E7EB; font-weight: bold;">${h(timeRange)}</td>
           </tr>
           <tr>
             <td style="padding: 10px; color: #6B7280; vertical-align: top;">Nachricht:</td>
             <td style="padding: 10px;">
               <div style="background: #F3F4F6; padding: 10px; border-radius: 5px;">
-                ${complaintMessage.replace(/\n/g, '<br>')}
+                ${h(complaintMessage).replace(/\n/g, '<br>')}
               </div>
             </td>
           </tr>
@@ -337,8 +346,8 @@ export async function sendComplaintResolvedNotification(
   const responseHtml = adminResponse
     ? `
       <div style="background: #EFF6FF; border-left: 4px solid #3B82F6; padding: 15px; margin: 20px 0;">
-        <p style="margin: 0 0 10px 0; font-weight: bold; color: #1D4ED8;">Antwort von ${adminName}:</p>
-        <p style="margin: 0; color: #374151;">${adminResponse.replace(/\n/g, '<br>')}</p>
+        <p style="margin: 0 0 10px 0; font-weight: bold; color: #1D4ED8;">Antwort von ${h(adminName)}:</p>
+        <p style="margin: 0; color: #374151;">${h(adminResponse).replace(/\n/g, '<br>')}</p>
       </div>
     `
     : '';
@@ -351,12 +360,12 @@ export async function sendComplaintResolvedNotification(
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #10B981;">✓ Reklamation bearbeitet</h2>
 
-        <p>Hallo ${employeeName},</p>
-        <p>Ihre Reklamation zum Zeiteintrag vom <strong>${dateStr}</strong> wurde von ${adminName} bearbeitet.</p>
+        <p>Hallo ${h(employeeName)},</p>
+        <p>Ihre Reklamation zum Zeiteintrag vom <strong>${h(dateStr)}</strong> wurde von ${h(adminName)} bearbeitet.</p>
 
         <div style="background: #FEF3C7; border-left: 4px solid #F59E0B; padding: 15px; margin: 20px 0;">
           <p style="margin: 0 0 10px 0; font-weight: bold; color: #92400E;">Ihre ursprüngliche Nachricht:</p>
-          <p style="margin: 0; color: #374151;">${originalComplaint.replace(/\n/g, '<br>')}</p>
+          <p style="margin: 0; color: #374151;">${h(originalComplaint).replace(/\n/g, '<br>')}</p>
         </div>
 
         ${responseHtml}

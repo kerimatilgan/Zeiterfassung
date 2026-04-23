@@ -36,7 +36,7 @@ const setupSchema = z.object({
   lastName: z.string().min(1, 'Nachname erforderlich'),
   username: z.string().min(3, 'Benutzername muss mindestens 3 Zeichen haben'),
   email: z.string().email('Ungültige E-Mail').optional().or(z.literal('')),
-  password: z.string().min(6, 'Passwort muss mindestens 6 Zeichen haben'),
+  password: z.string().min(10, 'Passwort muss mindestens 10 Zeichen haben'),
 });
 
 // Standard-Abwesenheitstypen
@@ -157,9 +157,13 @@ router.get('/terminal-install/:id', async (req: Request, res: Response) => {
     const terminal = await prisma.terminal.findUnique({ where: { id: req.params.id } });
     if (!terminal) return res.status(404).send('# Fehler: Terminal nicht gefunden\nexit 1\n');
 
-    const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
-    const host = req.headers['x-forwarded-host'] || req.headers.host;
-    const backendUrl = `${protocol}://${host}`;
+    // Feste Backend-URL aus Env — kein Host/X-Forwarded-Header,
+    // damit ein Angreifer nicht durch gefälschte Header das Install-Script
+    // auf einen fremden Server umlenken kann.
+    const backendUrl = (process.env.FRONTEND_URL || '').replace(/\/+$/, '');
+    if (!backendUrl) {
+      return res.status(500).send('# Fehler: FRONTEND_URL nicht konfiguriert\nexit 1\n');
+    }
     const apiKey = terminal.apiKey;
     const name = terminal.name;
 

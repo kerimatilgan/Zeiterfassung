@@ -54,7 +54,7 @@ const employeeSchema = z.object({
   vacationDaysPerYear: z.number().int().min(0).max(365).optional(),
   workDays: z.string().optional(), // Komma-getrennte Wochentage: "1,2,3,4,5"
   isAdmin: z.boolean().optional(),
-  password: z.string().min(6).optional(),
+  password: z.string().min(10, 'Passwort muss mindestens 10 Zeichen haben').optional(),
   workCategoryId: z.string().uuid().optional().nullable(),
   canClockInPwa: z.boolean().optional(),
   canClockOutPwa: z.boolean().optional(),

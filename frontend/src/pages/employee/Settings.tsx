@@ -54,8 +54,8 @@ export default function EmployeeSettings() {
       toast.error('Die neuen Passwörter stimmen nicht überein');
       return;
     }
-    if (formData.newPassword.length < 6) {
-      toast.error('Das neue Passwort muss mindestens 6 Zeichen haben');
+    if (formData.newPassword.length < 10) {
+      toast.error('Das neue Passwort muss mindestens 10 Zeichen haben');
       return;
     }
     changePasswordMutation.mutate();

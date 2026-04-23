@@ -1,41 +1,48 @@
-import { execSync } from 'child_process';
-import fs from 'fs';
-import path from 'path';
-import os from 'os';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
 import { BackupProvider, BackupProviderConfig, TestResult, RemoteFile } from './BaseProvider.js';
+
+const execFileAsync = promisify(execFile);
 
 export class SmbProvider implements BackupProvider {
   readonly type = 'smb';
 
-  private buildAuthArgs(config: BackupProviderConfig): string {
+  // Baut argv-Array für smbclient. Keine Shell-Interpretation, daher kein
+  // Command-Injection-Vektor mehr durch Host/Share/Domain/Port.
+  private baseArgs(config: BackupProviderConfig, cCommand: string): string[] {
+    const share = `//${config.host}/${config.share}`;
     const user = config.username || 'guest';
     const pass = config.password || '';
-    const domain = config.domain ? `-W ${this.shellEscape(config.domain)}` : '';
-    return `-U ${this.shellEscape(user + '%' + pass)} ${domain}`;
+    const args = [share, '-U', `${user}%${pass}`];
+    if (config.domain) args.push('-W', String(config.domain));
+    if (config.port) args.push('-p', String(config.port));
+    args.push('-c', cCommand);
+    return args;
   }
 
-  private buildSharePath(config: BackupProviderConfig): string {
-    const port = config.port ? `-p ${config.port}` : '';
-    return `//${config.host}/${config.share} ${port}`;
-  }
-
-  private shellEscape(s: string): string {
-    return `'${s.replace(/'/g, "'\\''")}'`;
+  // Escaping *innerhalb* des -c Commands (smbclient-interne Parser-Ebene,
+  // nicht OS-Ebene). Wrapt dynamische Werte in einfache Quotes.
+  private smbEscape(s: string): string {
+    return `"${String(s).replace(/["\\]/g, '\\$&')}"`;
   }
 
   private getRemoteDir(config: BackupProviderConfig): string {
     return config.path ? config.path.replace(/^\//, '').replace(/\/$/, '') : '';
   }
 
+  private async run(args: string[], timeoutMs: number): Promise<string> {
+    const { stdout } = await execFileAsync('smbclient', args, {
+      timeout: timeoutMs,
+      maxBuffer: 10 * 1024 * 1024,
+    });
+    return stdout;
+  }
+
   async testConnection(config: BackupProviderConfig): Promise<TestResult> {
     try {
-      const auth = this.buildAuthArgs(config);
-      const share = this.buildSharePath(config);
       const remoteDir = this.getRemoteDir(config);
-      const cmd = remoteDir
-        ? `smbclient ${share} ${auth} -c ${this.shellEscape(`cd ${remoteDir}; ls`)}`
-        : `smbclient ${share} ${auth} -c 'ls'`;
-      execSync(cmd, { timeout: 15000, stdio: 'pipe' });
+      const cCmd = remoteDir ? `cd ${this.smbEscape(remoteDir)}; ls` : 'ls';
+      await this.run(this.baseArgs(config, cCmd), 15000);
       return { success: true, message: `SMB-Freigabe //${config.host}/${config.share} erreichbar` };
     } catch (error: any) {
       return { success: false, message: `SMB-Fehler: ${error.stderr?.toString() || error.message}` };
@@ -43,22 +50,18 @@ export class SmbProvider implements BackupProvider {
   }
 
   async upload(config: BackupProviderConfig, filePath: string, remoteFilename: string): Promise<void> {
-    const auth = this.buildAuthArgs(config);
-    const share = this.buildSharePath(config);
     const remoteDir = this.getRemoteDir(config);
-    const cdCmd = remoteDir ? `cd ${remoteDir}; ` : '';
-    const cmd = `smbclient ${share} ${auth} -c ${this.shellEscape(`${cdCmd}put ${filePath} ${remoteFilename}`)}`;
-    execSync(cmd, { timeout: 120000, stdio: 'pipe' });
+    const cdCmd = remoteDir ? `cd ${this.smbEscape(remoteDir)}; ` : '';
+    const cCmd = `${cdCmd}put ${this.smbEscape(filePath)} ${this.smbEscape(remoteFilename)}`;
+    await this.run(this.baseArgs(config, cCmd), 120000);
   }
 
   async list(config: BackupProviderConfig): Promise<RemoteFile[]> {
     try {
-      const auth = this.buildAuthArgs(config);
-      const share = this.buildSharePath(config);
       const remoteDir = this.getRemoteDir(config);
-      const cdCmd = remoteDir ? `cd ${remoteDir}; ` : '';
-      const cmd = `smbclient ${share} ${auth} -c ${this.shellEscape(`${cdCmd}ls *.tar.gz`)}`;
-      const output = execSync(cmd, { timeout: 15000, stdio: 'pipe' }).toString();
+      const cdCmd = remoteDir ? `cd ${this.smbEscape(remoteDir)}; ` : '';
+      const cCmd = `${cdCmd}ls *.tar.gz`;
+      const output = await this.run(this.baseArgs(config, cCmd), 15000);
       const files: RemoteFile[] = [];
       for (const line of output.split('\n')) {
         const match = line.match(/^\s+(\S+\.tar\.gz)\s+\w+\s+(\d+)\s+(.+)$/);
@@ -77,11 +80,9 @@ export class SmbProvider implements BackupProvider {
   }
 
   async delete(config: BackupProviderConfig, remoteFilename: string): Promise<void> {
-    const auth = this.buildAuthArgs(config);
-    const share = this.buildSharePath(config);
     const remoteDir = this.getRemoteDir(config);
-    const cdCmd = remoteDir ? `cd ${remoteDir}; ` : '';
-    const cmd = `smbclient ${share} ${auth} -c ${this.shellEscape(`${cdCmd}del ${remoteFilename}`)}`;
-    execSync(cmd, { timeout: 15000, stdio: 'pipe' });
+    const cdCmd = remoteDir ? `cd ${this.smbEscape(remoteDir)}; ` : '';
+    const cCmd = `${cdCmd}del ${this.smbEscape(remoteFilename)}`;
+    await this.run(this.baseArgs(config, cCmd), 15000);
   }
 }

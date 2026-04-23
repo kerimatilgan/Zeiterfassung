@@ -113,14 +113,16 @@ router.put('/', authMiddleware, adminMiddleware, async (req: AuthRequest, res: R
       },
     });
 
-    // Audit Log
+    // Audit Log — SMTP-Passwort nie in den Log schreiben
+    const redact = <T extends { smtpPassword?: string | null } | null>(o: T): T =>
+      o ? ({ ...o, smtpPassword: o.smtpPassword ? '[REDACTED]' : null } as T) : o;
     await createAuditLog({
       req,
       action: 'UPDATE',
       entityType: 'Settings',
       entityId: 'default',
-      oldValues: oldSettings,
-      newValues: settings,
+      oldValues: redact(oldSettings),
+      newValues: redact(settings),
     });
 
     res.json(settings);

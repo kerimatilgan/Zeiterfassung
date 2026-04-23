@@ -165,8 +165,8 @@ router.post('/change-password', authMiddleware, async (req: AuthRequest, res: Re
   try {
     const { currentPassword, newPassword } = req.body;
 
-    if (!newPassword || newPassword.length < 6) {
-      return res.status(400).json({ error: 'Neues Passwort muss mindestens 6 Zeichen haben' });
+    if (!newPassword || newPassword.length < 10) {
+      return res.status(400).json({ error: 'Neues Passwort muss mindestens 10 Zeichen haben' });
     }
 
     const employee = await prisma.employee.findUnique({
@@ -298,8 +298,8 @@ router.post('/reset-password', resetPasswordLimiter, async (req, res) => {
       return res.status(400).json({ error: 'Token und neues Passwort erforderlich' });
     }
 
-    if (newPassword.length < 6) {
-      return res.status(400).json({ error: 'Passwort muss mindestens 6 Zeichen haben' });
+    if (newPassword.length < 10) {
+      return res.status(400).json({ error: 'Passwort muss mindestens 10 Zeichen haben' });
     }
 
     const employee = await prisma.employee.findFirst({

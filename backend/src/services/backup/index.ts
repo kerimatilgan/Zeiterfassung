@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import * as tar from 'tar';
 import { PrismaClient } from '@prisma/client';
 import { BackupProvider } from './providers/BaseProvider.js';
@@ -64,8 +64,8 @@ async function createArchive(): Promise<{ filePath: string; filename: string; fi
   const tmpDbPath = path.join(BACKUP_DIR, `_tmp_backup_${timestamp}.db`);
 
   try {
-    // Create consistent SQLite copy using VACUUM INTO
-    execSync(`sqlite3 "${DB_PATH}" "VACUUM INTO '${tmpDbPath}'"`, { timeout: 30000 });
+    // Create consistent SQLite copy using VACUUM INTO (execFile: keine Shell)
+    execFileSync('sqlite3', [DB_PATH, `VACUUM INTO '${tmpDbPath.replace(/'/g, "''")}'`], { timeout: 30000 });
   } catch {
     // Fallback: direct copy
     fs.copyFileSync(DB_PATH, tmpDbPath);
@@ -110,7 +110,7 @@ async function createArchive(): Promise<{ filePath: string; filename: string; fi
   // Symlink uploads if exists
   if (fs.existsSync(UPLOADS_DIR)) {
     // Copy uploads directory listing
-    execSync(`cp -rL "${UPLOADS_DIR}" "${stageDir}/uploads"`, { timeout: 60000 });
+    fs.cpSync(UPLOADS_DIR, path.join(stageDir, 'uploads'), { recursive: true, dereference: true });
   }
 
   // Remove old incomplete archive
