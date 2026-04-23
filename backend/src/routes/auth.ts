@@ -8,7 +8,16 @@ import { z } from 'zod';
 import { createAuditLog } from '../utils/auditLog.js';
 import { sendPasswordResetEmail } from '../utils/emailService.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'handy-insel-zeiterfassung-secret-key-2024';
+const JWT_SECRET: string = (() => {
+  const s = process.env.JWT_SECRET;
+  if (!s || s.length < 32) throw new Error('JWT_SECRET env var missing or too short');
+  return s;
+})();
+const FRONTEND_URL: string = (() => {
+  const s = process.env.FRONTEND_URL;
+  if (!s) throw new Error('FRONTEND_URL env var required (e.g. https://zeit.example.com)');
+  return s.replace(/\/+$/, '');
+})();
 
 const router = Router();
 
@@ -226,10 +235,7 @@ router.post('/forgot-password', async (req, res) => {
       },
     });
 
-    // E-Mail senden - Frontend-URL aus Origin-Header ableiten
-    const origin = req.get('origin') || req.get('referer')?.replace(/\/[^/]*$/, '') || '';
-    const frontendUrl = process.env.FRONTEND_URL || origin || `${req.protocol}://${req.get('host')}`;
-    const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}`;
+    const resetUrl = `${FRONTEND_URL}/reset-password?token=${resetToken}`;
 
     try {
       await sendPasswordResetEmail(employee.email!, employee.firstName, resetUrl);
@@ -369,10 +375,7 @@ router.post('/admin-reset-password', authMiddleware, async (req: AuthRequest, re
       },
     });
 
-    // Frontend-URL aus Origin-Header ableiten
-    const origin = req.get('origin') || req.get('referer')?.replace(/\/[^/]*$/, '') || '';
-    const frontendUrl = process.env.FRONTEND_URL || origin || `${req.protocol}://${req.get('host')}`;
-    const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}`;
+    const resetUrl = `${FRONTEND_URL}/reset-password?token=${resetToken}`;
 
     try {
       await sendPasswordResetEmail(employee.email, employee.firstName, resetUrl);

@@ -56,11 +56,27 @@ const logoUpload = multer({
 
 const router = Router();
 
-// Einstellungen abrufen
+// Einstellungen abrufen - SMTP-Felder bewusst weggelassen (sensitive, nur Admin via /mail)
 router.get('/', authMiddleware, async (_req: AuthRequest, res: Response) => {
   try {
     const settings = await prisma.settings.findUnique({
       where: { id: 'default' },
+      select: {
+        id: true,
+        companyName: true,
+        companyAddress: true,
+        companyPhone: true,
+        companyEmail: true,
+        defaultBreakMinutes: true,
+        overtimeThreshold: true,
+        pdfShowWorkCategory: true,
+        backupFrequency: true,
+        backupTime: true,
+        backupWeekday: true,
+        backupRetentionDays: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     });
 
     res.json(settings);

@@ -13,7 +13,11 @@ import { authMiddleware, AuthRequest, generateToken } from '../middleware/auth.j
 import { createAuditLog } from '../utils/auditLog.js';
 
 const router = Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'handy-insel-zeiterfassung-secret-key-2024';
+const JWT_SECRET: string = (() => {
+  const s = process.env.JWT_SECRET;
+  if (!s || s.length < 32) throw new Error('JWT_SECRET env var missing or too short');
+  return s;
+})();
 
 // In-memory challenge store (adequate for single-server PM2)
 const challengeStore = new Map<string, { challenge: string; timestamp: number }>();
