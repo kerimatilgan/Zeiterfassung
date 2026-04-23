@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { prisma, io } from '../index.js';
 import { terminalAuthMiddleware, authMiddleware, adminMiddleware, AuthRequest, TerminalAuthRequest } from '../middleware/auth.js';
+import { pinLimiter } from '../middleware/rateLimits.js';
 import { createAuditLog } from '../utils/auditLog.js';
 import { minutesBetween } from '../utils/timeCalc.js';
 
@@ -855,7 +856,7 @@ router.post('/scan', async (req, res) => {
 });
 
 // PIN-basiertes Stempeln (Alternative zum QR-Code)
-router.post('/pin', async (req, res) => {
+router.post('/pin', pinLimiter, async (req, res) => {
   try {
     const { employeeNumber, pin } = req.body;
 

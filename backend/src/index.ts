@@ -28,6 +28,10 @@ export const prisma = new PrismaClient();
 const app = express();
 const httpServer = createServer(app);
 
+// Hinter 2 Reverse-Proxies (Pangolin + lokaler nginx). Damit liest Express
+// die korrekte Client-IP aus X-Forwarded-For — wichtig für Rate-Limits.
+app.set('trust proxy', 2);
+
 // Socket.io Setup
 export const io = new Server(httpServer, {
   cors: {

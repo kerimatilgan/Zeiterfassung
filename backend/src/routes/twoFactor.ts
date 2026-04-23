@@ -10,6 +10,7 @@ import {
 } from '@simplewebauthn/server';
 import { prisma } from '../index.js';
 import { authMiddleware, AuthRequest, generateToken } from '../middleware/auth.js';
+import { twoFactorLimiter } from '../middleware/rateLimits.js';
 import { createAuditLog } from '../utils/auditLog.js';
 
 const router = Router();
@@ -181,7 +182,7 @@ router.post('/totp/disable', authMiddleware, async (req: AuthRequest, res: Respo
 });
 
 // Validate TOTP during login (no JWT - uses tempToken)
-router.post('/totp/validate', async (req, res) => {
+router.post('/totp/validate', twoFactorLimiter, async (req, res) => {
   try {
     const { tempToken, code } = req.body;
     if (!tempToken || !code) {
@@ -428,7 +429,7 @@ router.post('/passkey/auth-options', async (req, res) => {
 });
 
 // Verify authentication response (no JWT - pre-auth)
-router.post('/passkey/auth-verify', async (req, res) => {
+router.post('/passkey/auth-verify', twoFactorLimiter, async (req, res) => {
   try {
     const { credential } = req.body;
     if (!credential) {

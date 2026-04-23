@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../index.js';
 import { generateToken, authMiddleware, AuthRequest } from '../middleware/auth.js';
+import { loginLimiter, forgotPasswordLimiter, resetPasswordLimiter } from '../middleware/rateLimits.js';
 import { z } from 'zod';
 import { createAuditLog } from '../utils/auditLog.js';
 import { sendPasswordResetEmail } from '../utils/emailService.js';
@@ -27,7 +28,7 @@ const loginSchema = z.object({
 });
 
 // Login
-router.post('/login', async (req, res) => {
+router.post('/login', loginLimiter, async (req, res) => {
   try {
     const { username, password } = loginSchema.parse(req.body);
 
@@ -204,7 +205,7 @@ router.post('/change-password', authMiddleware, async (req: AuthRequest, res: Re
 });
 
 // Passwort vergessen - Reset-Link per E-Mail senden
-router.post('/forgot-password', async (req, res) => {
+router.post('/forgot-password', forgotPasswordLimiter, async (req, res) => {
   try {
     const { email } = req.body;
 
@@ -289,7 +290,7 @@ router.get('/reset-password/validate', async (req, res) => {
   }
 });
 
-router.post('/reset-password', async (req, res) => {
+router.post('/reset-password', resetPasswordLimiter, async (req, res) => {
   try {
     const { token, newPassword } = req.body;
 
