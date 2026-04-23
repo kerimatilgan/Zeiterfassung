@@ -1,11 +1,11 @@
 # Zeiterfassung
 
-Webbasiertes Zeiterfassungssystem mit RFID-/QR-Stempeluhr für kleine und mittlere Unternehmen. Läuft on-premise oder self-hosted, Daten bleiben in der eigenen SQLite-Datenbank.
+Webbasiertes Zeiterfassungssystem mit RFID-Stempeluhr für kleine und mittlere Unternehmen. Läuft on-premise oder self-hosted, Daten bleiben in der eigenen SQLite-Datenbank.
 
 ## Funktionen
 
 ### Admin
-- Mitarbeiter anlegen/bearbeiten inkl. Foto, RFID-Karte, QR-Code, PIN
+- Mitarbeiter anlegen/bearbeiten inkl. Foto, RFID-Karte, PIN
 - Monatliche Zeit-Übersicht pro Mitarbeiter (Kalenderansicht, Einträge editierbar)
 - Monats-Abrechnungen als PDF (mit optionalem Minusstunden-Urlaubsausgleich, Warnung bei negativem Saldo)
 - Urlaubs- und Abwesenheitsverwaltung (mit automatischem Jahresübertrag)
@@ -38,7 +38,6 @@ Webbasiertes Zeiterfassungssystem mit RFID-/QR-Stempeluhr für kleine und mittle
 | Backend | Node.js 20+, Express, TypeScript (läuft via `tsx`), Prisma ORM |
 | Datenbank | SQLite |
 | Frontend | React 18, Vite, TailwindCSS, React-Query, Zustand |
-| Admin-Terminal | React-PWA mit ZXing (QR-Scanner) |
 | Pi-Stempeluhr | Python 3, Pygame, evdev, pyscard |
 | Prozesse | PM2 (als non-root `zeiterfassung`-User) |
 
