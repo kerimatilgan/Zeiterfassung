@@ -44,8 +44,9 @@ services:
       - "3001:3001"
     environment:
       - PORT=3001
-      - JWT_SECRET=${JWT_SECRET:-handy-insel-zeiterfassung-secret-key-2024}
-      - TERMINAL_API_KEY=${TERMINAL_API_KEY:-handy-insel-terminal-key-2024}
+      - JWT_SECRET=${JWT_SECRET}
+      - FRONTEND_URL=${FRONTEND_URL}
+      - DOCUMENT_ENCRYPTION_KEY=${DOCUMENT_ENCRYPTION_KEY}
     volumes:
       - ./data:/app/prisma
       - ./reports:/app/reports
@@ -59,26 +60,21 @@ services:
     depends_on:
       - backend
     restart: unless-stopped
-
-  terminal:
-    image: ghcr.io/kerimatilgan/zeiterfassung-terminal:latest
-    ports:
-      - "8080:80"
-    depends_on:
-      - backend
-    restart: unless-stopped
 COMPOSE
 
 # 4. .env Datei (falls nicht vorhanden)
 if [ ! -f "$INSTALL_DIR/.env" ]; then
     echo "[3.5/5] Erstelle .env Datei..."
     JWT_SECRET=$(openssl rand -hex 32)
+    DOCUMENT_ENCRYPTION_KEY=$(openssl rand -hex 32)
     cat > "$INSTALL_DIR/.env" << EOF
 JWT_SECRET=$JWT_SECRET
-TERMINAL_API_KEY=handy-insel-terminal-key-2024
+FRONTEND_URL=https://zeit.example.com
+DOCUMENT_ENCRYPTION_KEY=$DOCUMENT_ENCRYPTION_KEY
 EOF
-    echo "  -> .env erstellt mit generiertem JWT_SECRET"
-    echo "  -> Bitte TERMINAL_API_KEY in $INSTALL_DIR/.env anpassen!"
+    chmod 600 "$INSTALL_DIR/.env"
+    echo "  -> .env erstellt mit generierten Secrets"
+    echo "  -> Bitte FRONTEND_URL in $INSTALL_DIR/.env anpassen!"
 else
     echo "[3.5/5] .env existiert bereits - wird beibehalten"
 fi

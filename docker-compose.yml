@@ -27,13 +27,3 @@ services:
       - backend
     restart: unless-stopped
 
-  terminal:
-    image: ghcr.io/kerimatilgan/zeiterfassung-terminal:latest
-    build:
-      context: ./terminal-app
-      dockerfile: Dockerfile
-    ports:
-      - "8080:80"
-    depends_on:
-      - backend
-    restart: unless-stopped

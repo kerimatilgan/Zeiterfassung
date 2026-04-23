@@ -26,9 +26,6 @@ jobs:
           - service: frontend
             context: ./frontend
             image: zeiterfassung-frontend
-          - service: terminal
-            context: ./terminal-app
-            image: zeiterfassung-terminal
 
     steps:
       - name: Checkout
