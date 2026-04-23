@@ -506,41 +506,63 @@ export default function AdminTimeEntries() {
       </div>}
 
       {/* Urlaubsanpassung Popup */}
-      {showAdjPopup && <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-xl shadow-2xl border p-4 w-80 z-50">
-        <div className="flex items-center justify-between mb-4"><h4 className="font-semibold">Urlaubsanpassung</h4><button onClick={() => setShowAdjPopup(false)} className="p-1 hover:bg-gray-100 rounded"><X size={16} /></button></div>
-        <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Monat</label>
-              <select value={selectedMonth.getMonth() + 1} disabled className="input text-sm py-1.5 w-full bg-gray-50">
-                {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
-              </select>
+      {showAdjPopup && (() => {
+        const parsedDays = parseFloat(adjForm.days);
+        const days = isNaN(parsedDays) ? 0 : parsedDays;
+        const current = vacationDetails?.totalRemaining ?? 0;
+        const after = current + days;
+        const willGoNegative = days < 0 && after < 0;
+        return (
+        <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-xl shadow-2xl border p-4 w-80 z-50">
+          <div className="flex items-center justify-between mb-4"><h4 className="font-semibold">Urlaubsanpassung</h4><button onClick={() => setShowAdjPopup(false)} className="p-1 hover:bg-gray-100 rounded"><X size={16} /></button></div>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Monat</label>
+                <select value={selectedMonth.getMonth() + 1} disabled className="input text-sm py-1.5 w-full bg-gray-50">
+                  {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Tage (+/-)</label>
+                <input type="number" step="0.5" value={adjForm.days} onChange={e => setAdjForm({ ...adjForm, days: e.target.value })} className="input text-sm py-1.5 w-full" placeholder="z.B. 4 oder -2" />
+              </div>
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Tage (+/-)</label>
-              <input type="number" step="0.5" value={adjForm.days} onChange={e => setAdjForm({ ...adjForm, days: e.target.value })} className="input text-sm py-1.5 w-full" placeholder="z.B. 4 oder -2" />
+              <label className="block text-xs text-gray-500 mb-1">Begründung <span className="text-red-500">*</span></label>
+              <input type="text" value={adjForm.reason} onChange={e => setAdjForm({ ...adjForm, reason: e.target.value })} className="input text-sm py-1.5 w-full" placeholder="z.B. Sondervereinbarung..." />
             </div>
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Begründung <span className="text-red-500">*</span></label>
-            <input type="text" value={adjForm.reason} onChange={e => setAdjForm({ ...adjForm, reason: e.target.value })} className="input text-sm py-1.5 w-full" placeholder="z.B. Sondervereinbarung..." />
-          </div>
-          <div className="flex gap-2 pt-1">
-            <button onClick={() => setShowAdjPopup(false)} className="btn btn-secondary flex-1 text-sm py-1.5">Abbrechen</button>
-            <button onClick={async () => {
-              const days = parseFloat(adjForm.days);
-              if (!days || days === 0) { toast.error('Tage dürfen nicht 0 sein'); return; }
-              if (!adjForm.reason.trim()) { toast.error('Begründung erforderlich'); return; }
-              try {
-                await timeEntriesApi.createVacationAdjustment({ employeeId: selectedEmployee!.id, year: selectedMonth.getFullYear(), month: selectedMonth.getMonth() + 1, days, reason: adjForm.reason.trim() });
-                toast.success('Urlaubsanpassung gespeichert');
-                setShowAdjPopup(false);
-                await loadData(selectedEmployee!.id, selectedMonth);
-              } catch (err: any) { toast.error(err.response?.data?.error || 'Fehler'); }
-            }} className="btn btn-primary flex-1 text-sm py-1.5">Speichern</button>
+            {days !== 0 && (
+              <div className={`text-xs px-2 py-1.5 rounded ${willGoNegative ? 'bg-red-50 border border-red-200 text-red-700' : 'bg-gray-50 text-gray-600'}`}>
+                Resturlaub: {current} → <strong>{after}</strong> Tag(e)
+                {willGoNegative && <span className="block mt-0.5">⚠ Urlaubssaldo wird negativ — Übertrag ins nächste Jahr</span>}
+              </div>
+            )}
+            <div className="flex gap-2 pt-1">
+              <button onClick={() => setShowAdjPopup(false)} className="btn btn-secondary flex-1 text-sm py-1.5">Abbrechen</button>
+              <button onClick={async () => {
+                if (!days || days === 0) { toast.error('Tage dürfen nicht 0 sein'); return; }
+                if (!adjForm.reason.trim()) { toast.error('Begründung erforderlich'); return; }
+                if (willGoNegative) {
+                  const name = `${selectedEmployee!.firstName} ${selectedEmployee!.lastName}`;
+                  if (!window.confirm(
+                    `${name} hat aktuell ${current} Resturlaubstag(e).\n\n` +
+                    `Nach dieser Anpassung von ${days} Tag(en) ergibt sich ein Urlaubssaldo von ${after} Tag(en), der ins nächste Jahr übernommen wird.\n\n` +
+                    `Trotzdem fortfahren?`
+                  )) return;
+                }
+                try {
+                  await timeEntriesApi.createVacationAdjustment({ employeeId: selectedEmployee!.id, year: selectedMonth.getFullYear(), month: selectedMonth.getMonth() + 1, days, reason: adjForm.reason.trim() });
+                  toast.success('Urlaubsanpassung gespeichert');
+                  setShowAdjPopup(false);
+                  await loadData(selectedEmployee!.id, selectedMonth);
+                } catch (err: any) { toast.error(err.response?.data?.error || 'Fehler'); }
+              }} className="btn btn-primary flex-1 text-sm py-1.5">Speichern</button>
+            </div>
           </div>
         </div>
-      </div>}
+        );
+      })()}
 
       {/* Pause */}
       {showPausePopup && <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-xl shadow-2xl border p-4 w-80 z-50">
