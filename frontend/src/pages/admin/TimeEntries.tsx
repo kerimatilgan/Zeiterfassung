@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { employeesApi, timeEntriesApi, settingsApi } from '../../lib/api';
+import { useConfirm } from '../../components/ConfirmDialog';
 import toast from 'react-hot-toast';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -54,6 +55,7 @@ interface Absence {
 interface Holiday { id: string; date: string; name: string; }
 
 export default function AdminTimeEntries() {
+  const confirm = useConfirm();
   const [searchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
@@ -182,7 +184,14 @@ export default function AdminTimeEntries() {
   };
 
   const handleDelete = async () => {
-    if (!editingEntry || !selectedEmployee || !confirm('Löschen?')) return;
+    if (!editingEntry || !selectedEmployee) return;
+    const ok = await confirm({
+      title: 'Zeiteintrag löschen?',
+      variant: 'danger',
+      confirmText: 'Löschen',
+      message: 'Dieser Zeiteintrag wird unwiderruflich gelöscht.',
+    });
+    if (!ok) return;
     try { await timeEntriesApi.delete(editingEntry.id); toast.success('Gelöscht'); setEditingEntry(null); await loadData(selectedEmployee.id, selectedMonth); }
     catch (err: any) { toast.error(err.response?.data?.error || 'Fehler'); }
   };
@@ -477,13 +486,22 @@ export default function AdminTimeEntries() {
                       <button onClick={async () => {
                         const current = vacationDetails?.totalRemaining ?? 0;
                         const after = current - a.days;
-                        let msg = 'Anpassung löschen?';
-                        if (a.days > 0 && after < 0) {
-                          msg = `Diese Anpassung von +${a.days} Tag(en) löschen?\n\n` +
-                                `Resturlaub: ${current} → ${after} Tag(e)\n` +
-                                `⚠ Urlaubssaldo wird negativ und ins nächste Jahr übernommen.`;
-                        }
-                        if (!confirm(msg)) return;
+                        const willGoNegative = a.days > 0 && after < 0;
+                        const ok = await confirm({
+                          title: willGoNegative ? 'Anpassung löschen – Saldo wird negativ' : 'Anpassung löschen?',
+                          variant: willGoNegative ? 'warning' : 'danger',
+                          confirmText: 'Löschen',
+                          message: willGoNegative ? (
+                            <div className="space-y-2">
+                              <p>Die Anpassung von <strong className="text-green-600">+{a.days}</strong> Tag(en) wird entfernt.</p>
+                              <p>Resturlaub: <strong>{current}</strong> → <strong className="text-red-600">{after}</strong> Tag(e)</p>
+                              <p className="text-xs text-gray-500">Der negative Urlaubssaldo wird ins nächste Jahr übernommen.</p>
+                            </div>
+                          ) : (
+                            <p>Diese Urlaubsanpassung ({a.days > 0 ? '+' : ''}{a.days} Tage) wirklich löschen?</p>
+                          ),
+                        });
+                        if (!ok) return;
                         try { await timeEntriesApi.deleteVacationAdjustment(a.id); toast.success('Gelöscht'); await loadData(selectedEmployee!.id, selectedMonth); } catch { toast.error('Fehler'); }
                       }} className="p-0.5 text-gray-400 hover:text-red-500 flex-shrink-0"><Trash2 size={12} /></button>
                     </div>
@@ -556,11 +574,18 @@ export default function AdminTimeEntries() {
                 if (!adjForm.reason.trim()) { toast.error('Begründung erforderlich'); return; }
                 if (willGoNegative) {
                   const name = `${selectedEmployee!.firstName} ${selectedEmployee!.lastName}`;
-                  if (!window.confirm(
-                    `${name} hat aktuell ${current} Resturlaubstag(e).\n\n` +
-                    `Nach dieser Anpassung von ${days} Tag(en) ergibt sich ein Urlaubssaldo von ${after} Tag(en), der ins nächste Jahr übernommen wird.\n\n` +
-                    `Trotzdem fortfahren?`
-                  )) return;
+                  const ok = await confirm({
+                    title: 'Urlaubssaldo wird negativ',
+                    variant: 'warning',
+                    confirmText: 'Trotzdem speichern',
+                    message: (
+                      <div className="space-y-2">
+                        <p><strong>{name}</strong> hat aktuell <strong>{current}</strong> Resturlaubstag(e).</p>
+                        <p>Nach dieser Anpassung von <strong>{days}</strong> Tag(en) ergibt sich ein Saldo von <strong className="text-red-600">{after} Tag(en)</strong>, der ins nächste Jahr übernommen wird.</p>
+                      </div>
+                    ),
+                  });
+                  if (!ok) return;
                 }
                 try {
                   await timeEntriesApi.createVacationAdjustment({ employeeId: selectedEmployee!.id, year: selectedMonth.getFullYear(), month: selectedMonth.getMonth() + 1, days, reason: adjForm.reason.trim() });
@@ -586,7 +611,14 @@ export default function AdminTimeEntries() {
       {showAbsencePopup && (() => {
         const existingCount = selectedDates.filter(d => getAbsence(d)).length;
         const handleDeleteAll = async () => {
-          if (!selectedEmployee || !confirm(`${existingCount} Abwesenheit(en) wirklich löschen?`)) return;
+          if (!selectedEmployee) return;
+          const ok = await confirm({
+            title: `${existingCount} Abwesenheit(en) löschen?`,
+            variant: 'danger',
+            confirmText: 'Löschen',
+            message: `Die ausgewählten Abwesenheiten werden unwiderruflich entfernt.`,
+          });
+          if (!ok) return;
           try {
             const ids = selectedDates.map(d => getAbsence(d)?.id).filter(Boolean) as string[];
             if (ids.length > 0) await settingsApi.deleteAbsencesBulk(ids);

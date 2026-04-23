@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { reportsApi, employeesApi } from '../../lib/api';
+import { useConfirm } from '../../components/ConfirmDialog';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import toast from 'react-hot-toast';
@@ -49,6 +50,7 @@ export default function AdminReports() {
 
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const confirm = useConfirm();
 
   const { data: employees } = useQuery({
     queryKey: ['employees'],
@@ -435,11 +437,15 @@ export default function AdminReports() {
                         )}
                         {/* Löschen - immer verfügbar mit Bestätigung */}
                         <button
-                          onClick={() => {
+                          onClick={async () => {
                             if (report.status === 'finalized') {
-                              if (confirm('Diese Abrechnung ist bereits finalisiert. Wirklich löschen?')) {
-                                deleteMutation.mutate(report.id);
-                              }
+                              const ok = await confirm({
+                                title: 'Finalisierte Abrechnung löschen?',
+                                variant: 'danger',
+                                confirmText: 'Löschen',
+                                message: 'Diese Abrechnung ist bereits finalisiert. Das Löschen kann nicht rückgängig gemacht werden.',
+                              });
+                              if (ok) deleteMutation.mutate(report.id);
                             } else {
                               deleteMutation.mutate(report.id);
                             }
@@ -753,17 +759,24 @@ export default function AdminReports() {
                     </button>
                   )}
                   <button
-                    onClick={() => {
+                    onClick={async () => {
                       const remaining = previewData.summary.vacationDaysRemaining ?? 0;
                       const willDeduct = applyDeduction && customDeductionDays > 0;
                       if (willDeduct && customDeductionDays > remaining) {
                         const overdraw = customDeductionDays - remaining;
                         const name = previewData.employee.name;
-                        if (!window.confirm(
-                          `${name} hat nur noch ${remaining} Resturlaubstag(e), du ziehst ${customDeductionDays} ab.\n\n` +
-                          `Das ergibt einen Urlaubssaldo von -${overdraw} Tag(en), der ins nächste Jahr übernommen wird.\n\n` +
-                          `Trotzdem fortfahren?`
-                        )) return;
+                        const ok = await confirm({
+                          title: 'Urlaubssaldo wird negativ',
+                          variant: 'warning',
+                          confirmText: 'Trotzdem abziehen',
+                          message: (
+                            <div className="space-y-2">
+                              <p><strong>{name}</strong> hat nur noch <strong>{remaining}</strong> Resturlaubstag(e), du ziehst aber <strong>{customDeductionDays}</strong> ab.</p>
+                              <p>Das ergibt einen Urlaubssaldo von <strong className="text-red-600">−{overdraw} Tag(en)</strong>, der ins nächste Jahr übernommen wird.</p>
+                            </div>
+                          ),
+                        });
+                        if (!ok) return;
                       }
                       createMutation.mutate({
                         employeeId: selectedEmployee,
