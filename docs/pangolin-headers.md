@@ -1,6 +1,8 @@
 # Pangolin – Empfohlene Security-Response-Header für die Zeiterfassung
 
-In Pangolin → Ressource → **Zusätzliche Proxy-Einstellungen** → **Eigene Kopfzeilen** die folgenden Zeilen einfügen. **Format: `Header-Name: Wert`** (Doppelpunkt, ein Header pro Zeile — genau wie der Hinweis unter dem Feld sagt). Anschließend mit **„Proxy-Einstellungen speichern"** bestätigen.
+> **Hinweis:** Das „Eigene Kopfzeilen"-Feature in Pangolin 1.16.2 wurde getestet und setzt die Response-Header **nicht zuverlässig** (trotz korrekt eingetragenem `Header-Name: Wert`-Format und gespeicherter Config). Die empfohlene Lösung ist daher, die Header direkt im lokalen nginx hinter Pangolin zu setzen — Pangolin reicht sie transparent durch. Siehe `nginx/security-headers.conf` und `nginx/zeiterfassung.conf` im Repo.
+
+Falls dein Pangolin die Custom-Headers zuverlässig ausliefert, kannst du sie alternativ dort eintragen — Format ist `Header-Name: Wert`, ein Eintrag pro Zeile:
 
 ```
 Strict-Transport-Security: max-age=31536000; includeSubDomains
