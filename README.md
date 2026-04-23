@@ -5,7 +5,7 @@ Webbasiertes Zeiterfassungssystem mit RFID-Stempeluhr für kleine und mittlere U
 ## Funktionen
 
 ### Admin
-- Mitarbeiter anlegen/bearbeiten inkl. Foto, RFID-Karte, PIN
+- Mitarbeiter anlegen/bearbeiten inkl. Foto und RFID-Karte
 - Monatliche Zeit-Übersicht pro Mitarbeiter (Kalenderansicht, Einträge editierbar)
 - Monats-Abrechnungen als PDF (mit optionalem Minusstunden-Urlaubsausgleich, Warnung bei negativem Saldo)
 - Urlaubs- und Abwesenheitsverwaltung (mit automatischem Jahresübertrag)
@@ -47,7 +47,6 @@ Webbasiertes Zeiterfassungssystem mit RFID-Stempeluhr für kleine und mittlere U
 Zeiterfassung/
 ├── backend/           Express + Prisma (SQLite)
 ├── frontend/          React-Admin-UI
-├── terminal-app/      Web-PWA als alternatives Admin-Terminal
 ├── pi-terminal/       Python-Scripts für Raspberry Pi
 └── ecosystem.config.js  PM2-Konfiguration
 ```
@@ -67,7 +66,6 @@ cd backend && npx prisma generate && npx prisma db push && cd ..
 
 # Dev-Server starten
 npm run dev                   # Backend + Frontend parallel
-npm run terminal              # optional: Admin-Terminal auf Port 5174
 ```
 
 Beim ersten Aufruf des Frontends startet der **Setup-Wizard** — dort werden Firma, Admin-Account, optional SMTP und das erste Stempel-Terminal angelegt. Der Setup-Endpoint verriegelt sich danach automatisch.
@@ -120,7 +118,7 @@ PM2-Prozesse werden über die mitgelieferte `ecosystem.config.js` gestartet, die
 ```bash
 # einmalig: User anlegen und Ownership setzen
 useradd --system --no-create-home --shell /usr/sbin/nologin zeiterfassung
-chown -R zeiterfassung:zeiterfassung /opt/Zeiterfassung/{backend,terminal-app}
+chown -R zeiterfassung:zeiterfassung /opt/Zeiterfassung/backend
 chmod 600 /opt/Zeiterfassung/backend/.env
 chmod 600 /opt/Zeiterfassung/backend/prisma/*.db
 
@@ -134,7 +132,7 @@ Für die Static-Auslieferung des Frontends (`frontend/dist/`) gibt es ein nginx-
 
 ## Sicherheit
 
-- Alle Auth-Endpoints (Login, Password-Reset, 2FA, Terminal-PIN) sind per-IP rate-limitiert
+- Alle Auth-Endpoints (Login, Password-Reset, 2FA) sind per-IP rate-limitiert
 - JWT-Secrets müssen ≥ 32 Zeichen sein, sonst fail-fast beim Start
 - Terminal-API-Keys ausschließlich DB-basiert — keine Legacy-Defaults mehr
 - Password-Reset-Links nutzen `FRONTEND_URL` aus der Config, nicht den Request-Host (verhindert Host-Header-Injection)

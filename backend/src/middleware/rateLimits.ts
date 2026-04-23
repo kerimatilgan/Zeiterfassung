@@ -38,11 +38,3 @@ export const twoFactorLimiter = rateLimit({
   max: 5,
   message: { error: 'Zu viele 2FA-Versuche. Bitte in 15 Minuten erneut versuchen.' },
 });
-
-// Terminal-PIN: 20 / 15 min pro IP (4-stelliger PIN sonst schnell bruteforcebar)
-export const pinLimiter = rateLimit({
-  ...baseOpts,
-  windowMs: 15 * 60 * 1000,
-  max: 20,
-  message: { error: 'Zu viele PIN-Versuche. Bitte warten.' },
-});

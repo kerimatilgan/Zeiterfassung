@@ -5,13 +5,11 @@
   "private": true,
   "workspaces": [
     "backend",
-    "frontend",
-    "terminal-app"
+    "frontend"
   ],
   "scripts": {
     "backend": "npm run dev --workspace=backend",
     "frontend": "npm run dev --workspace=frontend",
-    "terminal": "npm run dev --workspace=terminal-app",
     "build": "npm run build --workspaces",
     "dev": "concurrently \"npm run backend\" \"npm run frontend\""
   },
