@@ -74,6 +74,8 @@ export const employeesApi = {
     });
   },
   deletePhoto: (id: string) => api.delete(`/employees/${id}/photo`),
+  // Info-Schreiben generieren (erstellt PDF in MA-Dokumenten)
+  generateInfoPdf: (id: string) => api.post(`/employees/${id}/generate-info-pdf`),
 };
 
 // Terminal (RFID Registration)
@@ -311,6 +313,7 @@ export const documentsApi = {
   download: (id: string) => api.get(`/documents/${id}/download`, { responseType: 'blob' }),
   update: (id: string, data: any) => api.put(`/documents/${id}`, data),
   delete: (id: string) => api.delete(`/documents/${id}`),
+  sign: (id: string, password: string) => api.post(`/documents/${id}/sign`, { password }),
 };
 
 export const backupApi = {

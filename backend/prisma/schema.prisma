@@ -233,6 +233,9 @@ model Settings {
   // PDF-Optionen
   pdfShowWorkCategory   Boolean  @default(false) // Arbeitskategorie auf Abrechnung anzeigen
 
+  // Info-Schreiben-Vorlage (Rich-Text-HTML aus react-quill)
+  employeeInfoTemplate  String?
+
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 }
@@ -343,6 +346,9 @@ model Document {
   note             String?
   uploadedBy       String
   uploadedByName   String
+  // Digitale Signatur (aktuell nur für Info-Schreiben genutzt)
+  signedAt         DateTime?
+  signedIp         String?
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 }

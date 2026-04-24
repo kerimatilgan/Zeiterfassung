@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { employeesApi, timeEntriesApi, settingsApi } from '../../lib/api';
+import { photoSrc } from '../../lib/photoUrl';
 import { useConfirm } from '../../components/ConfirmDialog';
 import toast from 'react-hot-toast';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths } from 'date-fns';
@@ -261,7 +262,7 @@ export default function AdminTimeEntries() {
               <button key={emp.id} onClick={() => selectEmployee(emp)}
                 className={`w-full text-left px-3 py-2 flex items-center gap-2 text-sm hover:bg-gray-50 transition ${selectedEmployee?.id === emp.id ? 'bg-primary-50 border-l-[3px] border-l-primary-500' : 'border-l-[3px] border-l-transparent'}`}>
                 <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center shrink-0 overflow-hidden">
-                  {emp.photoUrl ? <img src={emp.photoUrl} className="w-full h-full object-cover" /> : <User size={14} className="text-gray-500" />}
+                  {emp.photoUrl ? <img src={photoSrc(emp.photoUrl)} className="w-full h-full object-cover" /> : <User size={14} className="text-gray-500" />}
                 </div>
                 <div className="min-w-0">
                   <p className="font-medium text-gray-900 truncate">{emp.firstName} {emp.lastName}</p>

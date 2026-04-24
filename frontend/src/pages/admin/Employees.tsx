@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { employeesApi, timeEntriesApi, settingsApi, terminalApi, authApi, twoFactorApi, documentsApi, reportsApi } from '../../lib/api';
+import { photoSrc } from '../../lib/photoUrl';
 import toast from 'react-hot-toast';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -28,6 +29,7 @@ import {
   MessageSquare,
   KeyRound,
   FolderOpen,
+  FileText,
   Download,
   Upload,
   Clock,
@@ -51,6 +53,12 @@ interface Employee {
   rfidCard: string | null;
   workCategoryId: string | null;
   workCategory?: { id: string; name: string; earliestClockIn: string } | null;
+  latestInfoLetter?: {
+    id: string;
+    signedAt: string | null;
+    createdAt: string;
+    originalFilename: string;
+  } | null;
 }
 
 interface EmployeeFormData {
@@ -635,6 +643,32 @@ export default function AdminEmployees() {
       toast.error(error.response?.data?.error || 'Fehler beim Löschen');
     },
   });
+
+  const generateInfoPdfMutation = useMutation({
+    mutationFn: (id: string) => employeesApi.generateInfoPdf(id),
+    onSuccess: (_, employeeId) => {
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      queryClient.invalidateQueries({ queryKey: ['employee-documents', employeeId] });
+      toast.success('Info-Schreiben erstellt — im Dokumente-Bereich verfügbar');
+      setInfoLetterModalEmployee(null);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error || 'Fehler beim Generieren des Info-Schreibens');
+    },
+  });
+
+  const [infoLetterModalEmployee, setInfoLetterModalEmployee] = useState<Employee | null>(null);
+
+  const handleInfoPdfButtonClick = (employee: Employee) => {
+    // Wenn bereits ein signiertes Info-Schreiben existiert → Info-Modal
+    if (employee.latestInfoLetter?.signedAt) {
+      setInfoLetterModalEmployee(employee);
+      return;
+    }
+    // Sonst: direkt Generieren nach Bestätigung
+    if (!confirm(`Info-Schreiben für ${employee.firstName} ${employee.lastName} jetzt generieren und in den Dokumenten ablegen?`)) return;
+    generateInfoPdfMutation.mutate(employee.id);
+  };
 
   const handlePhotoUpload = (employee: Employee, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1564,7 +1598,7 @@ export default function AdminEmployees() {
                         <div className="relative group">
                           {employee.photoUrl ? (
                             <img
-                              src={employee.photoUrl}
+                              src={photoSrc(employee.photoUrl)}
                               alt={`${employee.firstName} ${employee.lastName}`}
                               className="w-10 h-10 rounded-full object-cover border-2 border-gray-200"
                             />
@@ -1667,6 +1701,22 @@ export default function AdminEmployees() {
                           title="Zeiteinträge"
                         >
                           <Calendar size={18} />
+                        </button>
+                        <button
+                          onClick={() => handleInfoPdfButtonClick(employee)}
+                          disabled={generateInfoPdfMutation.isPending}
+                          className={`p-2 rounded-lg disabled:opacity-50 ${
+                            employee.latestInfoLetter?.signedAt
+                              ? 'text-green-600 hover:text-green-700 hover:bg-green-50'
+                              : 'text-gray-500 hover:text-amber-600 hover:bg-amber-50'
+                          }`}
+                          title={
+                            employee.latestInfoLetter?.signedAt
+                              ? `Info-Schreiben signiert am ${new Date(employee.latestInfoLetter.signedAt).toLocaleDateString('de-DE')}`
+                              : 'Info-Schreiben generieren'
+                          }
+                        >
+                          <FileText size={18} />
                         </button>
                         </>
                         )}
@@ -3269,7 +3319,7 @@ export default function AdminEmployees() {
                   {lookupResult.found ? (
                     <div className="flex items-center gap-3">
                       {lookupResult.employee.photoUrl ? (
-                        <img src={lookupResult.employee.photoUrl} alt="" className="w-12 h-12 rounded-full object-cover" />
+                        <img src={photoSrc(lookupResult.employee.photoUrl)} alt="" className="w-12 h-12 rounded-full object-cover" />
                       ) : (
                         <div className="w-12 h-12 rounded-full bg-green-200 flex items-center justify-center text-green-700 font-medium text-lg">
                           {lookupResult.employee.firstName[0]}{lookupResult.employee.lastName[0]}
@@ -3295,6 +3345,64 @@ export default function AdminEmployees() {
                   )}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Info-Schreiben Status-Modal (wenn Button grün ist = bereits signiert) */}
+      {infoLetterModalEmployee && infoLetterModalEmployee.latestInfoLetter?.signedAt && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="flex items-center justify-between p-5 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <FileText size={20} className="text-green-600" />
+                <h3 className="text-lg font-semibold">Info-Schreiben bestätigt</h3>
+              </div>
+              <button
+                onClick={() => setInfoLetterModalEmployee(null)}
+                className="p-1 hover:bg-gray-100 rounded"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-5 space-y-3">
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                <p className="text-sm text-green-700 font-medium">
+                  {infoLetterModalEmployee.firstName} {infoLetterModalEmployee.lastName} hat das Info-Schreiben digital bestätigt.
+                </p>
+                <p className="text-xs text-green-600 mt-2">
+                  Bestätigt am {new Date(infoLetterModalEmployee.latestInfoLetter.signedAt).toLocaleDateString('de-DE')}
+                  {' '}um {new Date(infoLetterModalEmployee.latestInfoLetter.signedAt).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr
+                </p>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-3 text-sm">
+                <p className="text-gray-500 text-xs">Dokument</p>
+                <p className="font-medium truncate">{infoLetterModalEmployee.latestInfoLetter.originalFilename}</p>
+              </div>
+              <p className="text-xs text-gray-500">
+                Falls ein neues Info-Schreiben nötig ist (z.B. nach Änderung der Stammdaten), kannst du es hier neu
+                erstellen. Das bisherige Dokument bleibt mit der Signatur im Archiv erhalten.
+              </p>
+            </div>
+            <div className="p-5 border-t border-gray-100 flex justify-between gap-2">
+              <button
+                onClick={() => setInfoLetterModalEmployee(null)}
+                className="btn btn-secondary"
+              >
+                Schließen
+              </button>
+              <button
+                onClick={() => {
+                  if (!confirm(`Ein neues Info-Schreiben für ${infoLetterModalEmployee.firstName} ${infoLetterModalEmployee.lastName} erstellen? Das bisherige bleibt archiviert.`)) return;
+                  generateInfoPdfMutation.mutate(infoLetterModalEmployee.id);
+                }}
+                disabled={generateInfoPdfMutation.isPending}
+                className="btn btn-primary flex items-center gap-2"
+              >
+                <FileText size={18} />
+                Neues Info-Schreiben erstellen
+              </button>
             </div>
           </div>
         </div>

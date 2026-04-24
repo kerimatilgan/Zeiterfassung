@@ -85,8 +85,8 @@ export async function terminalAuthMiddleware(req: TerminalAuthRequest, res: Resp
 
     req.terminalId = terminal.id;
     req.terminal = terminal;
-    // lastSeen + IP aktualisieren (impliziter Heartbeat)
-    const clientIp = req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || undefined;
+    // lastSeen + IP aktualisieren (impliziter Heartbeat) — req.ip nutzt trust-proxy-Config
+    const clientIp = req.ip || req.socket.remoteAddress || undefined;
     prisma.terminal.update({
       where: { id: terminal.id },
       data: { lastSeen: new Date(), ipAddress: clientIp },

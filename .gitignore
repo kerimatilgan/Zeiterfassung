@@ -39,3 +39,4 @@ coverage/
 
 # Prisma
 backend/prisma/migrations/
+worker/

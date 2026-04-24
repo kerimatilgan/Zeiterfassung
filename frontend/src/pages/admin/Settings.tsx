@@ -4,6 +4,7 @@ import { settingsApi } from '../../lib/api';
 import toast from 'react-hot-toast';
 import { Save, Building2, Clock, Calendar, Trash2, Plus, X, Briefcase, Edit2, Wand2, MapPin, AlertCircle, Database, Download, Upload, HardDrive, Mail, Send, CheckCircle, Monitor, Copy, Key, Shield, Smartphone } from 'lucide-react';
 import BackupSettings from '../../components/admin/BackupSettings';
+import EmployeeInfoTemplateEditor from '../../components/admin/EmployeeInfoTemplateEditor';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 
@@ -600,6 +601,17 @@ export default function AdminSettings() {
     },
   });
 
+  const updateInfoTemplateMutation = useMutation({
+    mutationFn: (html: string) => settingsApi.update({ employeeInfoTemplate: html } as any),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['settings'] });
+      toast.success('Info-Schreiben-Vorlage gespeichert');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error || 'Fehler beim Speichern');
+    },
+  });
+
   const updateMailMutation = useMutation({
     mutationFn: (data: typeof mailFormData) => settingsApi.updateMailSettings(data),
     onSuccess: () => {
@@ -1094,6 +1106,13 @@ export default function AdminSettings() {
             </button>
           </div>
         </form>
+
+        {/* Info-Schreiben-Vorlage */}
+        <EmployeeInfoTemplateEditor
+          value={(settings as any)?.employeeInfoTemplate || ''}
+          onSave={(html) => updateInfoTemplateMutation.mutate(html)}
+          saving={updateInfoTemplateMutation.isPending}
+        />
 
         {/* Holidays */}
         <div className="card">

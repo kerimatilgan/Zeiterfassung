@@ -56,6 +56,16 @@ export function useSocket() {
       }
     });
 
+    // Dokumenten-Events (Upload, Update, Delete, Sign, Generate)
+    socket.on('document-updated', (event: { type: string; employeeId?: string; documentId?: string }) => {
+      console.log('📥 Dokument Event:', event);
+      queryClient.invalidateQueries({ queryKey: ['my-documents'] });
+      queryClient.invalidateQueries({ queryKey: ['employees'] }); // Admin: latestInfoLetter-Status
+      if (event.employeeId) {
+        queryClient.invalidateQueries({ queryKey: ['employee-documents', event.employeeId] });
+      }
+    });
+
     return () => {
       socket.disconnect();
     };

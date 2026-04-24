@@ -19,6 +19,7 @@ import auditLogRoutes from './routes/auditLogs.js';
 import twoFactorRoutes from './routes/twoFactor.js';
 import documentRoutes from './routes/documents.js';
 import backupRoutes from './routes/backup.js';
+import { authMiddleware, adminMiddleware } from './middleware/auth.js';
 import setupRoutes from './routes/setup.js';
 import complaintRoutes from './routes/complaints.js';
 import { startBackupScheduler } from './services/backup/scheduler.js';
@@ -101,11 +102,19 @@ app.get('/uploads/photos/:filename', async (req, res) => {
     const fs = await import('fs');
     const authHeader = req.headers.authorization;
     const terminalKey = req.headers['x-terminal-api-key'] as string | undefined;
+    const queryToken = typeof req.query.token === 'string' ? req.query.token : undefined;
     let authenticated = false;
 
     if (authHeader?.startsWith('Bearer ')) {
       try {
         jwt.default.verify(authHeader.split(' ')[1], process.env.JWT_SECRET!);
+        authenticated = true;
+      } catch {}
+    }
+    // Browser-<img> kann keinen Header senden — daher auch ?token=... akzeptieren
+    if (!authenticated && queryToken) {
+      try {
+        jwt.default.verify(queryToken, process.env.JWT_SECRET!);
         authenticated = true;
       } catch {}
     }
@@ -147,6 +156,20 @@ app.use('/api/complaints', complaintRoutes);
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
+
+// Debug: zeigt wie der Request durch die Proxy-Chain ankommt — hilft
+// bei der Diagnose von X-Forwarded-For-Problemen (Pangolin/nginx). Admin-only.
+app.get('/api/_debug-ip', authMiddleware, adminMiddleware, (req, res) => {
+  res.json({
+    reqIp: req.ip,
+    reqIps: req.ips,
+    socketRemote: req.socket.remoteAddress,
+    xForwardedFor: req.headers['x-forwarded-for'] || null,
+    xRealIp: req.headers['x-real-ip'] || null,
+    trustProxySetting: req.app.get('trust proxy'),
+  });
+});
+
 
 // Error Handler
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
@@ -199,6 +222,15 @@ async function main() {
       await prisma.documentType.create({ data: dt });
     }
     console.log('Standard-Dokumenttypen erstellt');
+  }
+
+  // Info-Schreiben als eigenen Dokumenttyp sicherstellen (auch in bestehenden DBs)
+  const infoType = await prisma.documentType.findFirst({ where: { name: 'Info-Schreiben' } });
+  if (!infoType) {
+    await prisma.documentType.create({
+      data: { name: 'Info-Schreiben', shortName: 'IS', color: '#0EA5E9', sortOrder: 10 },
+    });
+    console.log('Dokumenttyp "Info-Schreiben" erstellt');
   }
 
   // Scheduler starten

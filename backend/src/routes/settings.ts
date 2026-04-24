@@ -70,6 +70,7 @@ router.get('/', authMiddleware, async (_req: AuthRequest, res: Response) => {
         defaultBreakMinutes: true,
         overtimeThreshold: true,
         pdfShowWorkCategory: true,
+        employeeInfoTemplate: true,
         backupFrequency: true,
         backupTime: true,
         backupWeekday: true,
@@ -97,6 +98,7 @@ router.put('/', authMiddleware, adminMiddleware, async (req: AuthRequest, res: R
       defaultBreakMinutes: z.number().min(0).max(120).optional(),
       overtimeThreshold: z.number().min(0).max(168).optional(),
       pdfShowWorkCategory: z.boolean().optional(),
+      employeeInfoTemplate: z.string().max(100_000).optional().nullable(),
     });
 
     const data = schema.parse(req.body);
@@ -113,9 +115,13 @@ router.put('/', authMiddleware, adminMiddleware, async (req: AuthRequest, res: R
       },
     });
 
-    // Audit Log — SMTP-Passwort nie in den Log schreiben
-    const redact = <T extends { smtpPassword?: string | null } | null>(o: T): T =>
-      o ? ({ ...o, smtpPassword: o.smtpPassword ? '[REDACTED]' : null } as T) : o;
+    // Audit Log — SMTP-Passwort nie in den Log schreiben, Info-Template als Hash statt Volltext
+    const redact = <T extends { smtpPassword?: string | null; employeeInfoTemplate?: string | null } | null>(o: T): T =>
+      o ? ({
+        ...o,
+        smtpPassword: o.smtpPassword ? '[REDACTED]' : null,
+        employeeInfoTemplate: o.employeeInfoTemplate ? `[${o.employeeInfoTemplate.length} Zeichen]` : null,
+      } as T) : o;
     await createAuditLog({
       req,
       action: 'UPDATE',

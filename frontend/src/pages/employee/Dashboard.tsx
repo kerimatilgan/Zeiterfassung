@@ -1,7 +1,8 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { timeEntriesApi } from '../../lib/api';
+import { timeEntriesApi, documentsApi } from '../../lib/api';
 import { useAuthStore } from '../../store/authStore';
-import { Clock, Calendar, Timer, Umbrella, Thermometer, MapPin, LogIn, LogOut, X, Loader2, ChevronLeft, ChevronRight, MessageSquare, AlertTriangle, CheckCircle, Coffee } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Clock, Calendar, Timer, Umbrella, Thermometer, MapPin, LogIn, LogOut, X, Loader2, ChevronLeft, ChevronRight, MessageSquare, AlertTriangle, CheckCircle, Coffee, PenLine, ChevronRight as ChevronRightIcon } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, getISOWeek, addWeeks, subWeeks, isAfter } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { useState, useEffect, useCallback } from 'react';
@@ -19,7 +20,17 @@ const formatHoursToTime = (hours: number): string => {
 export default function EmployeeDashboard() {
   const { employee } = useAuthStore();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Ausstehende Info-Schreiben (zur Erinnerung als Banner)
+  const { data: myDocuments } = useQuery({
+    queryKey: ['my-documents'],
+    queryFn: () => documentsApi.getMy().then((r) => r.data),
+  });
+  const pendingInfoLetters = (myDocuments || []).filter(
+    (d: any) => d.documentType?.name === 'Info-Schreiben' && !d.signedAt,
+  );
 
   // PWA Stempel State
   const [showPwaModal, setShowPwaModal] = useState(false);
@@ -208,6 +219,28 @@ export default function EmployeeDashboard() {
         </h1>
         <p className="text-gray-500">Deine Zeiterfassung auf einen Blick</p>
       </div>
+
+      {/* Banner: Ausstehende Info-Schreiben zur Bestätigung */}
+      {pendingInfoLetters.length > 0 && (
+        <button
+          type="button"
+          onClick={() => navigate('/dashboard/documents')}
+          className="w-full text-left bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg p-4 flex items-center gap-3 transition-colors"
+        >
+          <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+            <PenLine size={18} className="text-amber-700" />
+          </div>
+          <div className="flex-1">
+            <p className="font-medium text-amber-900">
+              {pendingInfoLetters.length === 1
+                ? 'Ein Info-Schreiben wartet auf deine Bestätigung'
+                : `${pendingInfoLetters.length} Info-Schreiben warten auf deine Bestätigung`}
+            </p>
+            <p className="text-sm text-amber-700">Zu den Dokumenten wechseln und digital bestätigen</p>
+          </div>
+          <ChevronRightIcon size={20} className="text-amber-700 flex-shrink-0" />
+        </button>
+      )}
 
       {/* Current Status */}
       <div

@@ -1,11 +1,13 @@
 import { Router, Response } from 'express';
-import { prisma } from '../index.js';
+import { prisma, io } from '../index.js';
 import { authMiddleware, adminMiddleware, AuthRequest } from '../middleware/auth.js';
 import { createAuditLog } from '../utils/auditLog.js';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { encryptFile, decryptFile } from '../utils/encryption.js';
+import bcrypt from 'bcryptjs';
+import { renderEmployeeInfoPDF } from '../utils/employeeInfoPdf.js';
 
 const router = Router();
 
@@ -183,6 +185,8 @@ router.post('/employee/:employeeId', authMiddleware, adminMiddleware, documentUp
       note: `Dokument "${req.file.originalname}" (${docType.name}) für ${employee.firstName} ${employee.lastName} hochgeladen (verschlüsselt)`,
     });
 
+    io.emit('document-updated', { type: 'upload', employeeId, documentId: document.id });
+
     res.status(201).json(document);
   } catch (error) {
     console.error('Upload document error:', error);
@@ -271,6 +275,8 @@ router.put('/:id', authMiddleware, adminMiddleware, async (req: AuthRequest, res
       include: { documentType: { select: { id: true, name: true, shortName: true, color: true } } },
     });
 
+    io.emit('document-updated', { type: 'update', employeeId: document.employeeId, documentId: document.id });
+
     res.json(document);
   } catch (error) {
     console.error('Update document error:', error);
@@ -316,10 +322,150 @@ router.delete('/:id', authMiddleware, adminMiddleware, async (req: AuthRequest, 
       note: `Dokument "${document.originalFilename}" (${document.documentType.name}) gelöscht`,
     });
 
+    io.emit('document-updated', { type: 'delete', employeeId: document.employeeId, documentId: id });
+
     res.json({ message: 'Dokument gelöscht' });
   } catch (error) {
     console.error('Delete document error:', error);
     res.status(500).json({ error: 'Fehler beim Löschen' });
+  }
+});
+
+// Dokument digital signieren (MA bestätigt mit Passwort)
+// Aktuell nur für Info-Schreiben genutzt; Signatur wird ins PDF eingebettet.
+router.post('/:id/sign', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { password } = req.body as { password?: string };
+
+    if (!password || typeof password !== 'string') {
+      return res.status(400).json({ error: 'Passwort erforderlich' });
+    }
+
+    const document = await prisma.document.findUnique({
+      where: { id },
+      include: {
+        employee: true,
+        documentType: { select: { id: true, name: true } },
+      },
+    });
+    if (!document) {
+      return res.status(404).json({ error: 'Dokument nicht gefunden' });
+    }
+
+    // Nur der Eigentümer darf signieren — Admins können NICHT im Namen des MA bestätigen
+    if (document.employeeId !== req.employee!.id) {
+      return res.status(403).json({ error: 'Nur der Mitarbeiter selbst kann das Dokument bestätigen' });
+    }
+
+    // Aktuell nur Info-Schreiben als signier-bar
+    if (document.documentType.name !== 'Info-Schreiben') {
+      return res.status(400).json({ error: 'Dieser Dokumenttyp kann nicht digital bestätigt werden' });
+    }
+
+    if (document.signedAt) {
+      return res.status(409).json({ error: 'Dokument wurde bereits bestätigt' });
+    }
+
+    // Passwort prüfen
+    if (!document.employee.passwordHash) {
+      return res.status(400).json({ error: 'Kein Passwort gesetzt — Signatur nicht möglich' });
+    }
+    const ok = await bcrypt.compare(password, document.employee.passwordHash);
+    if (!ok) {
+      return res.status(401).json({ error: 'Passwort nicht korrekt' });
+    }
+
+    const signedAt = new Date();
+    // req.ip gibt die echte Client-IP, wenn trust proxy gesetzt ist
+    const ip = req.ip || req.socket.remoteAddress || null;
+
+    // PDF mit Signatur-Block neu rendern und bestehende verschlüsselte Datei ersetzen
+    const settings = await prisma.settings.findUnique({ where: { id: 'default' } });
+    if (!settings || !settings.employeeInfoTemplate) {
+      return res.status(500).json({ error: 'Vorlage nicht mehr verfügbar' });
+    }
+
+    // WorkCategory vorab laden (falls vorhanden)
+    const workCategory = document.employee.workCategoryId
+      ? await prisma.workCategory.findUnique({
+          where: { id: document.employee.workCategoryId },
+          select: { name: true, earliestClockIn: true },
+        })
+      : null;
+
+    const absEncryptedPath = path.join(process.cwd(), document.filePath);
+    const dir = path.dirname(absEncryptedPath);
+    const tempPdfPath = path.join(dir, `sign-${Date.now()}.pdf`);
+
+    try {
+      await renderEmployeeInfoPDF(
+        {
+          firstName: document.employee.firstName,
+          lastName: document.employee.lastName,
+          employeeNumber: document.employee.employeeNumber,
+          email: document.employee.email,
+          phone: document.employee.phone,
+          rfidCard: document.employee.rfidCard,
+          weeklyHours: document.employee.weeklyHours,
+          vacationDaysPerYear: document.employee.vacationDaysPerYear,
+          workDays: document.employee.workDays,
+          startDate: document.employee.startDate,
+          defaultClockOut: document.employee.defaultClockOut,
+          workCategory,
+        },
+        {
+          companyName: settings.companyName,
+          companyAddress: settings.companyAddress,
+          companyPhone: settings.companyPhone,
+          companyEmail: settings.companyEmail,
+        },
+        settings.employeeInfoTemplate,
+        tempPdfPath,
+        {
+          signedAt,
+          signedByName: `${document.employee.firstName} ${document.employee.lastName}`,
+          signedIp: ip,
+        },
+      );
+
+      // Alte verschlüsselte Datei ersetzen
+      if (fs.existsSync(absEncryptedPath)) fs.unlinkSync(absEncryptedPath);
+      encryptFile(tempPdfPath, absEncryptedPath);
+      fs.unlinkSync(tempPdfPath);
+
+      const newSize = fs.statSync(absEncryptedPath).size;
+
+      const updated = await prisma.document.update({
+        where: { id },
+        data: {
+          signedAt,
+          signedIp: ip,
+          fileSize: newSize,
+        },
+        include: { documentType: { select: { id: true, name: true, shortName: true, color: true } } },
+      });
+
+      await createAuditLog({
+        req,
+        action: 'UPDATE',
+        entityType: 'Document',
+        entityId: id,
+        note: `Dokument "${document.originalFilename}" digital bestätigt`,
+        newValues: { signedAt: signedAt.toISOString(), signedIp: ip },
+      });
+
+      io.emit('document-updated', { type: 'sign', employeeId: document.employeeId, documentId: id });
+
+      res.json(updated);
+    } catch (renderErr) {
+      console.error('Sign render error:', renderErr);
+      if (fs.existsSync(tempPdfPath)) fs.unlinkSync(tempPdfPath);
+      return res.status(500).json({ error: 'Fehler beim Erstellen des signierten PDFs' });
+    }
+  } catch (error) {
+    console.error('Sign document error:', error);
+    res.status(500).json({ error: 'Fehler bei der Signatur' });
   }
 });
 

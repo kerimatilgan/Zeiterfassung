@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { documentsApi, settingsApi, reportsApi } from '../../lib/api';
 import { useAuthStore } from '../../store/authStore';
-import { Download, Filter, FolderOpen } from 'lucide-react';
+import { Download, Filter, FolderOpen, CheckCircle2, PenLine, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const MONTHS = [
@@ -20,13 +20,29 @@ const REPORT_TYPE = { id: '__report__', name: 'Stundenabrechnung', shortName: 'S
 
 export default function EmployeeDocuments() {
   const { employee } = useAuthStore();
+  const queryClient = useQueryClient();
   const [filterType, setFilterType] = useState('');
   const [filterYear, setFilterYear] = useState<number | ''>('');
   const [filterMonth, setFilterMonth] = useState<number | ''>('');
+  const [signDoc, setSignDoc] = useState<any | null>(null);
+  const [signPassword, setSignPassword] = useState('');
 
   const { data: documents, isLoading } = useQuery({
     queryKey: ['my-documents'],
     queryFn: () => documentsApi.getMy().then((r) => r.data),
+  });
+
+  const signMutation = useMutation({
+    mutationFn: ({ id, password }: { id: string; password: string }) => documentsApi.sign(id, password),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['my-documents'] });
+      toast.success('Info-Schreiben digital bestätigt');
+      setSignDoc(null);
+      setSignPassword('');
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.error || 'Fehler bei der Signatur');
+    },
   });
 
   const { data: reports, isLoading: reportsLoading } = useQuery({
@@ -214,6 +230,22 @@ export default function EmployeeDocuments() {
                   <p className="text-xs text-gray-400 mt-1">
                     {new Date(doc.createdAt).toLocaleDateString('de-DE')} {new Date(doc.createdAt).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
                   </p>
+                  {doc.documentType.name === 'Info-Schreiben' && !doc._isReport && (
+                    doc.signedAt ? (
+                      <div className="flex items-center gap-1.5 mt-2 text-xs text-green-700 bg-green-50 rounded px-2 py-1">
+                        <CheckCircle2 size={14} />
+                        <span>Bestätigt am {new Date(doc.signedAt).toLocaleDateString('de-DE')} {new Date(doc.signedAt).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setSignDoc(doc)}
+                        className="flex items-center gap-1.5 mt-2 text-xs text-amber-700 bg-amber-50 hover:bg-amber-100 rounded px-2 py-1 w-full justify-center border border-amber-200"
+                      >
+                        <PenLine size={14} />
+                        <span>Jetzt digital bestätigen</span>
+                      </button>
+                    )
+                  )}
                 </div>
                 <button
                   onClick={() => doc._isReport ? handleReportDownload(doc) : handleDownload(doc.id, doc.originalFilename)}
@@ -239,6 +271,65 @@ export default function EmployeeDocuments() {
               Sobald dein Administrator Dokumente hochlädt, werden sie hier angezeigt.
             </p>
           )}
+        </div>
+      )}
+
+      {/* Signatur-Modal */}
+      {signDoc && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="flex items-center justify-between p-5 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <PenLine size={20} className="text-amber-600" />
+                <h3 className="text-lg font-semibold">Info-Schreiben bestätigen</h3>
+              </div>
+              <button
+                onClick={() => { setSignDoc(null); setSignPassword(''); }}
+                className="p-1 hover:bg-gray-100 rounded"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <p className="text-sm text-gray-700">
+                Mit der digitalen Bestätigung erklärst du den Erhalt und die Kenntnisnahme des Info-Schreibens
+                zur digitalen Zeiterfassung. Deine Bestätigung wird mit Zeitstempel und IP-Adresse protokolliert.
+              </p>
+              <div className="bg-gray-50 rounded-lg p-3 text-sm">
+                <p className="text-gray-500 text-xs">Dokument</p>
+                <p className="font-medium">{signDoc.originalFilename}</p>
+              </div>
+              <div>
+                <label className="label text-sm">Zur Bestätigung bitte dein Login-Passwort eingeben</label>
+                <input
+                  type="password"
+                  value={signPassword}
+                  onChange={(e) => setSignPassword(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && signPassword) signMutation.mutate({ id: signDoc.id, password: signPassword }); }}
+                  autoFocus
+                  className="input"
+                  placeholder="Passwort"
+                />
+              </div>
+            </div>
+            <div className="p-5 border-t border-gray-100 flex justify-end gap-2">
+              <button
+                onClick={() => { setSignDoc(null); setSignPassword(''); }}
+                className="btn btn-secondary"
+                disabled={signMutation.isPending}
+              >
+                Abbrechen
+              </button>
+              <button
+                onClick={() => signMutation.mutate({ id: signDoc.id, password: signPassword })}
+                disabled={signMutation.isPending || !signPassword}
+                className="btn btn-primary flex items-center gap-2"
+              >
+                <CheckCircle2 size={18} />
+                {signMutation.isPending ? 'Bestätige…' : 'Verbindlich bestätigen'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

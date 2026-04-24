@@ -4,10 +4,12 @@ import { v4 as uuidv4 } from 'uuid';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-import { prisma } from '../index.js';
+import { prisma, io } from '../index.js';
 import { authMiddleware, adminMiddleware, AuthRequest } from '../middleware/auth.js';
 import { z } from 'zod';
 import { createAuditLog } from '../utils/auditLog.js';
+import { encryptFile } from '../utils/encryption.js';
+import { renderEmployeeInfoPDF } from '../utils/employeeInfoPdf.js';
 
 // Multer-Konfiguration für Foto-Uploads
 const storage = multer.diskStorage({
@@ -97,11 +99,27 @@ router.get('/', authMiddleware, adminMiddleware, async (_req: AuthRequest, res: 
         initialBalanceYear: true,
         initialBalanceMonth: true,
         createdAt: true,
+        // Neuestes Info-Schreiben (für Signatur-Status im Admin-UI)
+        documents: {
+          where: { documentType: { name: 'Info-Schreiben' } },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: { id: true, signedAt: true, createdAt: true, originalFilename: true },
+        },
       },
       orderBy: { lastName: 'asc' },
     });
 
-    res.json(employees);
+    // documents-Feld in klareres Feld umbenennen für die UI
+    const withInfoStatus = employees.map((e) => {
+      const { documents, ...rest } = e;
+      return {
+        ...rest,
+        latestInfoLetter: documents[0] || null,
+      };
+    });
+
+    res.json(withInfoStatus);
   } catch (error) {
     console.error('Get employees error:', error);
     res.status(500).json({ error: 'Fehler beim Laden der Mitarbeiter' });
@@ -664,6 +682,146 @@ router.delete('/:id/rfid', authMiddleware, adminMiddleware, async (req: AuthRequ
   } catch (error) {
     console.error('Remove RFID error:', error);
     res.status(500).json({ error: 'Fehler beim Entfernen der RFID-Karte' });
+  }
+});
+
+// Info-Schreiben als PDF generieren und in den Dokumenten des MA ablegen
+router.post('/:id/generate-info-pdf', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const employee = await prisma.employee.findUnique({
+      where: { id },
+      include: { workCategory: { select: { name: true, earliestClockIn: true } } },
+    });
+    if (!employee) {
+      return res.status(404).json({ error: 'Mitarbeiter nicht gefunden' });
+    }
+
+    const settings = await prisma.settings.findUnique({ where: { id: 'default' } });
+    if (!settings) {
+      return res.status(500).json({ error: 'Einstellungen nicht gefunden' });
+    }
+    if (!settings.employeeInfoTemplate || settings.employeeInfoTemplate.trim() === '') {
+      return res.status(400).json({ error: 'Bitte zuerst eine Vorlage unter Einstellungen → Info-Schreiben-Vorlage anlegen.' });
+    }
+
+    const docType = await prisma.documentType.findFirst({ where: { name: 'Info-Schreiben' } });
+    if (!docType) {
+      return res.status(500).json({ error: 'Dokumenttyp "Info-Schreiben" nicht gefunden' });
+    }
+
+    // Pflichtdaten prüfen — nur die Variablen, die die aktuelle Vorlage auch wirklich nutzt
+    const usedPlaceholders = new Set<string>();
+    const phRegex = /\{\{(\w+)\}\}/g;
+    let m: RegExpExecArray | null;
+    while ((m = phRegex.exec(settings.employeeInfoTemplate)) !== null) {
+      usedPlaceholders.add(m[1]);
+    }
+
+    const missing: string[] = [];
+    const needsWorkCategory = usedPlaceholders.has('workCategory') || usedPlaceholders.has('earliestClockIn');
+    if (needsWorkCategory && !employee.workCategory) missing.push('Arbeitskategorie');
+    if (usedPlaceholders.has('rfidCard') && !employee.rfidCard) missing.push('Kartennummer');
+    if (usedPlaceholders.has('defaultClockOut') && !employee.defaultClockOut) missing.push('reguläres Arbeitsende');
+    if (usedPlaceholders.has('startDate') && !employee.startDate) missing.push('Eintrittsdatum');
+    if (usedPlaceholders.has('email') && !employee.email) missing.push('E-Mail-Adresse');
+    if (usedPlaceholders.has('phone') && !employee.phone) missing.push('Telefonnummer');
+    if (usedPlaceholders.has('companyAddress') && !settings.companyAddress) missing.push('Firmenadresse (Einstellungen)');
+    if (usedPlaceholders.has('companyPhone') && !settings.companyPhone) missing.push('Firmentelefon (Einstellungen)');
+    if (usedPlaceholders.has('companyEmail') && !settings.companyEmail) missing.push('Firmen-E-Mail (Einstellungen)');
+
+    if (missing.length > 0) {
+      return res.status(400).json({
+        error: `Info-Schreiben kann nicht erstellt werden. Folgende Felder fehlen: ${missing.join(', ')}.`,
+      });
+    }
+
+    // Verzeichnis sicherstellen
+    const dir = path.join(process.cwd(), 'uploads', 'documents', employee.id);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+    const timestamp = Date.now();
+    const tempPath = path.join(dir, `info-schreiben-${timestamp}.pdf`);
+    const finalPath = path.join(dir, `info-schreiben-${timestamp}.pdf.enc`);
+
+    try {
+      await renderEmployeeInfoPDF(
+        {
+          firstName: employee.firstName,
+          lastName: employee.lastName,
+          employeeNumber: employee.employeeNumber,
+          email: employee.email,
+          phone: employee.phone,
+          rfidCard: employee.rfidCard,
+          weeklyHours: employee.weeklyHours,
+          vacationDaysPerYear: employee.vacationDaysPerYear,
+          workDays: employee.workDays,
+          startDate: employee.startDate,
+          defaultClockOut: employee.defaultClockOut,
+          workCategory: employee.workCategory,
+        },
+        {
+          companyName: settings.companyName,
+          companyAddress: settings.companyAddress,
+          companyPhone: settings.companyPhone,
+          companyEmail: settings.companyEmail,
+        },
+        settings.employeeInfoTemplate,
+        tempPath,
+      );
+
+      const fileSize = fs.statSync(tempPath).size;
+      encryptFile(tempPath, finalPath);
+      fs.unlinkSync(tempPath);
+
+      const today = new Date();
+      const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      const originalFilename = `Info-Schreiben_${employee.lastName}_${dateStr}.pdf`;
+      const filePath = `/uploads/documents/${employee.id}/info-schreiben-${timestamp}.pdf.enc`;
+
+      const document = await prisma.document.create({
+        data: {
+          employeeId: employee.id,
+          documentTypeId: docType.id,
+          filePath,
+          originalFilename,
+          fileSize,
+          mimeType: 'application/pdf',
+          year: today.getFullYear(),
+          month: today.getMonth() + 1,
+          note: 'Automatisch generiert',
+          uploadedBy: req.employee!.id,
+          uploadedByName: `${req.employee!.firstName} ${req.employee!.lastName}`,
+        },
+        include: { documentType: { select: { id: true, name: true, shortName: true, color: true } } },
+      });
+
+      await createAuditLog({
+        req,
+        action: 'CREATE',
+        entityType: 'Document',
+        entityId: document.id,
+        newValues: {
+          employee: `${employee.firstName} ${employee.lastName}`,
+          type: docType.name,
+          filename: originalFilename,
+          source: 'auto-generated',
+        },
+      });
+
+      io.emit('document-updated', { type: 'generate', employeeId: employee.id, documentId: document.id });
+
+      res.status(201).json(document);
+    } catch (genError) {
+      console.error('Info-PDF generation error:', genError);
+      if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
+      if (fs.existsSync(finalPath)) fs.unlinkSync(finalPath);
+      return res.status(500).json({ error: 'Fehler beim Generieren des Info-Schreibens' });
+    }
+  } catch (error) {
+    console.error('Generate info PDF error:', error);
+    res.status(500).json({ error: 'Fehler beim Generieren des Info-Schreibens' });
   }
 });
 

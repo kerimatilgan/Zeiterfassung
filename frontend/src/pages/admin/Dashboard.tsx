@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { settingsApi, timeEntriesApi } from '../../lib/api';
+import { photoSrc } from '../../lib/photoUrl';
 import { Users, Clock, FileText, TrendingUp, UserCheck, AlertTriangle, ChevronRight, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -122,7 +123,7 @@ export default function AdminDashboard() {
                   <div className="flex-shrink-0">
                     {entry.employee.photoUrl ? (
                       <img
-                        src={entry.employee.photoUrl}
+                        src={photoSrc(entry.employee.photoUrl)}
                         alt=""
                         className="w-10 h-10 rounded-full object-cover"
                       />
@@ -236,7 +237,7 @@ export default function AdminDashboard() {
                   >
                     <div className="flex-shrink-0">
                       {entry.employee.photoUrl ? (
-                        <img src={entry.employee.photoUrl} alt="" className="w-10 h-10 rounded-full object-cover" />
+                        <img src={photoSrc(entry.employee.photoUrl)} alt="" className="w-10 h-10 rounded-full object-cover" />
                       ) : (
                         <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-700 font-medium">
                           {entry.employee.firstName[0]}{entry.employee.lastName[0]}
@@ -295,7 +296,7 @@ export default function AdminDashboard() {
                   >
                     <div className="flex-shrink-0">
                       {entry.employee.photoUrl ? (
-                        <img src={entry.employee.photoUrl} alt="" className="w-10 h-10 rounded-full object-cover" />
+                        <img src={photoSrc(entry.employee.photoUrl)} alt="" className="w-10 h-10 rounded-full object-cover" />
                       ) : (
                         <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-700 font-medium">
                           {entry.employee.firstName[0]}{entry.employee.lastName[0]}
