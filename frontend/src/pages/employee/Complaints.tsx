@@ -407,7 +407,7 @@ export default function EmployeeComplaints() {
                         </div>
                       )}
 
-                      {!c.resolvedAt && (
+                      {!c.resolvedAt && !c.id.startsWith('legacy-') && (
                         <div className="mt-2 flex justify-end">
                           <button
                             onClick={() => withdraw(c.id)}

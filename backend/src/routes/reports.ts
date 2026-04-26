@@ -8,6 +8,8 @@ import fs from 'fs';
 import { encryptBuffer, decryptFile } from '../utils/encryption.js';
 import { createAuditLog } from '../utils/auditLog.js';
 import { minutesBetween } from '../utils/timeCalc.js';
+import { sendDocumentNotification } from '../utils/emailService.js';
+import { sendPushToEmployee } from '../utils/pushService.js';
 
 const router = Router();
 
@@ -70,6 +72,20 @@ router.get('/my', authMiddleware, async (req: AuthRequest, res: Response) => {
   } catch (error) {
     console.error('Get my reports error:', error);
     res.status(500).json({ error: 'Fehler beim Laden der Berichte' });
+  }
+});
+
+// Eigene finalisierten Abrechnungen als gelesen markieren
+router.post('/my/mark-all-viewed', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const result = await prisma.monthlyReport.updateMany({
+      where: { employeeId: req.employee!.id, status: 'finalized', firstViewedAt: null },
+      data: { firstViewedAt: new Date() },
+    });
+    res.json({ markedAsRead: result.count });
+  } catch (error) {
+    console.error('Mark reports viewed error:', error);
+    res.status(500).json({ error: 'Fehler beim Markieren' });
   }
 });
 
@@ -419,6 +435,23 @@ router.post('/:id/finalize', authMiddleware, adminMiddleware, async (req: AuthRe
         pdfPath: pdfRelPath,
       },
     });
+
+    // Mail + Push an MA — best-effort, blockiert die Response nicht
+    const monthName = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'][report.month - 1];
+    if (report.employee.email) {
+      sendDocumentNotification(
+        report.employee.email,
+        `${report.employee.firstName} ${report.employee.lastName}`,
+        'Stundenabrechnung',
+        `Stundenabrechnung ${monthName} ${report.year}`,
+      ).catch(err => console.error('Report notification mail failed:', err));
+    }
+    sendPushToEmployee(report.employee.id, {
+      title: 'Neue Stundenabrechnung',
+      body: `${monthName} ${report.year} ist fertig`,
+      url: '/dashboard/documents',
+      tag: 'report',
+    }).catch(err => console.error('Report notification push failed:', err));
 
     res.json(updatedReport);
   } catch (error) {

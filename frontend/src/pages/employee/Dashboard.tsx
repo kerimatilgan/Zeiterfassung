@@ -1,8 +1,9 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { timeEntriesApi, documentsApi } from '../../lib/api';
+import { timeEntriesApi, documentsApi, employeesApi, reportsApi, complaintsApi } from '../../lib/api';
+import { isPushSupported, getNotificationPermission, hasActiveSubscription, enablePush } from '../../lib/pushNotifications';
 import { useAuthStore } from '../../store/authStore';
-import { useNavigate } from 'react-router-dom';
-import { Clock, Calendar, Timer, Umbrella, Thermometer, MapPin, LogIn, LogOut, X, Loader2, ChevronLeft, ChevronRight, MessageSquare, AlertTriangle, CheckCircle, Coffee, PenLine, ChevronRight as ChevronRightIcon } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Clock, Calendar, Timer, Umbrella, Thermometer, MapPin, LogIn, LogOut, X, Loader2, ChevronLeft, ChevronRight, MessageSquare, AlertTriangle, CheckCircle, Coffee, PenLine, ChevronRight as ChevronRightIcon, FileText, Bell } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, getISOWeek, addWeeks, subWeeks, isAfter } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { useState, useEffect, useCallback } from 'react';
@@ -23,14 +24,80 @@ export default function EmployeeDashboard() {
   const navigate = useNavigate();
   const [currentTime, setCurrentTime] = useState(new Date());
 
-  // Ausstehende Info-Schreiben (zur Erinnerung als Banner)
+  // Ausstehende Info-Schreiben + ungelesene Dokumente + ungelesene Abrechnungen (Banner)
   const { data: myDocuments } = useQuery({
     queryKey: ['my-documents'],
     queryFn: () => documentsApi.getMy().then((r) => r.data),
   });
+  const { data: myReports } = useQuery({
+    queryKey: ['my-reports'],
+    queryFn: () => reportsApi.getMy().then((r) => r.data),
+  });
   const pendingInfoLetters = (myDocuments || []).filter(
     (d: any) => d.documentType?.name === 'Info-Schreiben' && !d.signedAt,
   );
+  const unreadDocuments = (myDocuments || []).filter(
+    (d: any) => !d.firstViewedAt && d.documentType?.name !== 'Info-Schreiben',
+  );
+  const unreadReports = (myReports || []).filter(
+    (r: any) => r.status === 'finalized' && r.pdfPath && !r.firstViewedAt,
+  );
+  const totalUnread = unreadDocuments.length + unreadReports.length;
+
+  // Push-Aktivierungs-Banner: zeigt sich, wenn Push supported, Permission noch
+  // unentschieden ('default') und keine Subscription da. Per X dismissed → 7 Tage Ruhe.
+  const PUSH_DISMISS_KEY = 'zeiterfassung.pushBannerDismissedUntil';
+  const [showPushBanner, setShowPushBanner] = useState(false);
+  const [pushBusy, setPushBusy] = useState(false);
+  useEffect(() => {
+    (async () => {
+      if (!isPushSupported()) return;
+      if (getNotificationPermission() !== 'default') return;
+      if (await hasActiveSubscription()) return;
+      const dismissedUntil = parseInt(localStorage.getItem(PUSH_DISMISS_KEY) || '0', 10);
+      if (Date.now() < dismissedUntil) return;
+      setShowPushBanner(true);
+    })();
+  }, []);
+  const handleEnablePush = async () => {
+    setPushBusy(true);
+    try {
+      const res = await enablePush();
+      if (res.ok) {
+        toast.success('Benachrichtigungen aktiviert');
+        setShowPushBanner(false);
+      } else {
+        toast.error(res.reason || 'Konnte nicht aktiviert werden');
+        if (getNotificationPermission() !== 'default') setShowPushBanner(false);
+      }
+    } finally {
+      setPushBusy(false);
+    }
+  };
+  const dismissPushBanner = () => {
+    localStorage.setItem(PUSH_DISMISS_KEY, String(Date.now() + 7 * 24 * 60 * 60 * 1000));
+    setShowPushBanner(false);
+  };
+
+  // Position-Heartbeat: einmal beim Mount + alle 15min wenn Permission da
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    let cancelled = false;
+    const sendOnce = () => {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          if (cancelled) return;
+          employeesApi.sendPosition(pos.coords.latitude, pos.coords.longitude)
+            .catch((err) => console.debug('Position heartbeat failed:', err));
+        },
+        () => { /* Permission denied — silent skip */ },
+        { enableHighAccuracy: false, timeout: 8000, maximumAge: 60_000 },
+      );
+    };
+    sendOnce();
+    const interval = setInterval(sendOnce, 15 * 60 * 1000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, []);
 
   // PWA Stempel State
   const [showPwaModal, setShowPwaModal] = useState(false);
@@ -72,6 +139,30 @@ export default function EmployeeDashboard() {
   const [complaintStandaloneDate, setComplaintStandaloneDate] = useState<Date | null>(null);
   const [complaintMessage, setComplaintMessage] = useState('');
   const [complaintInitial, setComplaintInitial] = useState<{ message: string; resolvedAt: string | null; response: string | null; resolved: boolean } | null>(null);
+  const [complaintEntryDetails, setComplaintEntryDetails] = useState<any | null>(null);
+
+  // ?openComplaint=ENTRY_ID — direkt aus Mail-Link zur Reklamation springen
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    const id = searchParams.get('openComplaint');
+    if (!id) return;
+    timeEntriesApi.getMyEntry(id)
+      .then((res) => {
+        const entry = res.data;
+        const dt = new Date(entry.clockIn);
+        setComplaintEntryId(entry.id);
+        setComplaintEntryDetails(entry);
+        setComplaintMessage(entry.complaintMessage || `Bitte korrekte Arbeitszeit zum Eintrag vom ${format(dt, 'dd.MM.yyyy HH:mm')} angeben: `);
+        setComplaintInitial(entry.complaintMessage
+          ? { message: entry.complaintMessage, resolvedAt: entry.complaintResolvedAt, response: entry.complaintResponse, resolved: !!entry.complaintResolvedAt }
+          : null);
+        // URL-Param entfernen damit Reload das Modal nicht erneut öffnet
+        searchParams.delete('openComplaint');
+        setSearchParams(searchParams, { replace: true });
+      })
+      .catch(() => toast.error('Eintrag nicht gefunden'));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [complaintSubmitting, setComplaintSubmitting] = useState(false);
   const weekStart = startOfWeek(weekDate, { weekStartsOn: 1 });
   const weekEnd = endOfWeek(weekDate, { weekStartsOn: 1 });
@@ -220,6 +311,37 @@ export default function EmployeeDashboard() {
         <p className="text-gray-500">Deine Zeiterfassung auf einen Blick</p>
       </div>
 
+      {/* Banner: Push-Benachrichtigungen aktivieren (dezent, dismissable) */}
+      {showPushBanner && (
+        <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
+            <Bell size={18} className="text-purple-700" />
+          </div>
+          <div className="flex-1">
+            <p className="font-medium text-purple-900">Benachrichtigungen aktivieren?</p>
+            <p className="text-sm text-purple-700">
+              Erhalte Push-Nachrichten bei neuen Dokumenten, Abrechnungen und Stempel-Erinnerungen.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleEnablePush}
+            disabled={pushBusy}
+            className="btn btn-primary flex-shrink-0"
+          >
+            Aktivieren
+          </button>
+          <button
+            type="button"
+            onClick={dismissPushBanner}
+            className="text-purple-700/70 hover:text-purple-900 p-1"
+            aria-label="Schließen"
+          >
+            <X size={18} />
+          </button>
+        </div>
+      )}
+
       {/* Banner: Ausstehende Info-Schreiben zur Bestätigung */}
       {pendingInfoLetters.length > 0 && (
         <button
@@ -239,6 +361,32 @@ export default function EmployeeDashboard() {
             <p className="text-sm text-amber-700">Zu den Dokumenten wechseln und digital bestätigen</p>
           </div>
           <ChevronRightIcon size={20} className="text-amber-700 flex-shrink-0" />
+        </button>
+      )}
+
+      {/* Banner: Ungelesene Dokumente + Abrechnungen */}
+      {totalUnread > 0 && (
+        <button
+          type="button"
+          onClick={() => navigate('/dashboard/documents')}
+          className="w-full text-left bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg p-4 flex items-center gap-3 transition-colors"
+        >
+          <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+            <FileText size={18} className="text-blue-700" />
+          </div>
+          <div className="flex-1">
+            <p className="font-medium text-blue-900">
+              {totalUnread === 1
+                ? (unreadReports.length === 1 ? 'Eine neue Abrechnung wurde für dich bereitgestellt' : 'Ein neues Dokument wurde für dich bereitgestellt')
+                : `${totalUnread} neue Einträge wurden für dich bereitgestellt`}
+            </p>
+            <p className="text-sm text-blue-700">
+              {unreadDocuments.length > 0 && unreadReports.length > 0
+                ? `${unreadDocuments.length} Dokument${unreadDocuments.length === 1 ? '' : 'e'} + ${unreadReports.length} Abrechnung${unreadReports.length === 1 ? '' : 'en'}`
+                : 'Jetzt ansehen und herunterladen'}
+            </p>
+          </div>
+          <ChevronRightIcon size={20} className="text-blue-700 flex-shrink-0" />
         </button>
       )}
 
@@ -680,9 +828,23 @@ export default function EmployeeDashboard() {
                 <h2 className="text-lg font-semibold">
                   {complaintInitial?.resolved ? 'Reklamation (bearbeitet)' : complaintInitial ? 'Reklamation (offen)' : 'Neue Reklamation'}
                 </h2>
-                <button onClick={() => { setComplaintEntryId(null); setComplaintStandaloneDate(null); setComplaintMessage(''); setComplaintInitial(null); }} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+                <button onClick={() => { setComplaintEntryId(null); setComplaintStandaloneDate(null); setComplaintMessage(''); setComplaintInitial(null); setComplaintEntryDetails(null); }} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
               </div>
               <div className="p-5 space-y-3">
+                {complaintEntryDetails && (
+                  <div className="bg-amber-50 border border-amber-200 rounded p-3 text-sm">
+                    <div className="text-xs font-semibold text-amber-800 mb-1">Reklamierter Eintrag:</div>
+                    <div className="text-gray-800">
+                      <strong>{format(new Date(complaintEntryDetails.clockIn), 'EEEE, dd.MM.yyyy', { locale: de })}</strong>
+                      <br />
+                      Eingestempelt: {format(new Date(complaintEntryDetails.clockIn), 'HH:mm', { locale: de })} Uhr
+                      {complaintEntryDetails.clockOut
+                        ? ` · Ausgestempelt: ${format(new Date(complaintEntryDetails.clockOut), 'HH:mm', { locale: de })} Uhr`
+                        : <span className="text-amber-700"> · noch eingestempelt</span>}
+                      {complaintEntryDetails.breakMinutes > 0 && ` · Pause: ${complaintEntryDetails.breakMinutes} min`}
+                    </div>
+                  </div>
+                )}
                 {complaintInitial?.resolved && complaintInitial.response && (
                   <div className="bg-green-50 border border-green-200 rounded p-3 text-sm">
                     <div className="text-xs font-semibold text-green-700 mb-1">Antwort vom Admin:</div>
@@ -704,7 +866,7 @@ export default function EmployeeDashboard() {
                 </div>
               </div>
               <div className="p-5 border-t flex items-center justify-end gap-2">
-                <button onClick={() => { setComplaintEntryId(null); setComplaintStandaloneDate(null); setComplaintMessage(''); setComplaintInitial(null); }} className="text-sm text-gray-600 hover:bg-gray-100 px-4 py-2 rounded-lg">
+                <button onClick={() => { setComplaintEntryId(null); setComplaintStandaloneDate(null); setComplaintMessage(''); setComplaintInitial(null); setComplaintEntryDetails(null); }} className="text-sm text-gray-600 hover:bg-gray-100 px-4 py-2 rounded-lg">
                   Schließen
                 </button>
                 {!complaintInitial?.resolved && (
@@ -715,14 +877,15 @@ export default function EmployeeDashboard() {
                       setComplaintSubmitting(true);
                       try {
                         if (complaintEntryId) {
-                          await timeEntriesApi.createComplaint(complaintEntryId, complaintMessage);
+                          await complaintsApi.create({ message: complaintMessage, timeEntryId: complaintEntryId });
                         } else if (complaintStandaloneDate) {
                           const dateStr = format(complaintStandaloneDate, 'yyyy-MM-dd');
-                          await timeEntriesApi.createStandaloneComplaint(dateStr, complaintMessage);
+                          await complaintsApi.create({ message: complaintMessage, date: dateStr });
                         }
                         toast.success('Reklamation gesendet');
                         queryClient.invalidateQueries({ queryKey: ['week-entries'] });
                         queryClient.invalidateQueries({ queryKey: ['myStats'] });
+                        queryClient.invalidateQueries({ queryKey: ['myComplaintsV2'] });
                         setComplaintEntryId(null);
                         setComplaintStandaloneDate(null);
                         setComplaintMessage('');

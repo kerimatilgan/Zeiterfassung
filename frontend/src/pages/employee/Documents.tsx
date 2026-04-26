@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { documentsApi, settingsApi, reportsApi } from '../../lib/api';
 import { useAuthStore } from '../../store/authStore';
@@ -31,6 +31,23 @@ export default function EmployeeDocuments() {
     queryKey: ['my-documents'],
     queryFn: () => documentsApi.getMy().then((r) => r.data),
   });
+
+  // Beim Öffnen der Page: alle ungelesenen Dokumente UND Abrechnungen als
+  // gelesen markieren (entfernt Banner aus dem Dashboard).
+  useEffect(() => {
+    Promise.all([
+      documentsApi.markAllViewed().catch(() => null),
+      reportsApi.markAllViewed().catch(() => null),
+    ]).then(([docRes, repRes]) => {
+      if ((docRes as any)?.data?.markedAsRead > 0) {
+        queryClient.invalidateQueries({ queryKey: ['my-documents'] });
+      }
+      if ((repRes as any)?.data?.markedAsRead > 0) {
+        queryClient.invalidateQueries({ queryKey: ['my-reports'] });
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const signMutation = useMutation({
     mutationFn: ({ id, password }: { id: string; password: string }) => documentsApi.sign(id, password),
@@ -99,6 +116,7 @@ export default function EmployeeDocuments() {
       _reportId: r.id,
       documentTypeId: REPORT_TYPE.id,
       documentType: REPORT_TYPE,
+      firstViewedAt: r.firstViewedAt,
       originalFilename: `${employee?.lastName}_${employee?.firstName}_${String(r.month).padStart(2, '0')}_${r.year}.pdf`,
       fileSize: 0,
       year: r.year,
@@ -198,7 +216,7 @@ export default function EmployeeDocuments() {
       ) : filteredDocuments.length ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filteredDocuments.map((doc: any) => (
-            <div key={doc.id} className="card p-4 hover:shadow-md transition-shadow">
+            <div key={doc.id} className={`card p-4 hover:shadow-md transition-shadow ${!doc.firstViewedAt ? 'ring-2 ring-blue-300' : ''}`}>
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-2">
@@ -208,6 +226,11 @@ export default function EmployeeDocuments() {
                     >
                       {doc.documentType.shortName}
                     </span>
+                    {!doc.firstViewedAt && (
+                      <span className="inline-flex px-2 py-0.5 text-[10px] font-bold rounded-full bg-blue-600 text-white">
+                        NEU
+                      </span>
+                    )}
                     <span className="text-xs text-gray-500">
                       {doc.documentType.name}
                     </span>

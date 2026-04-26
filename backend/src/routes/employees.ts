@@ -10,6 +10,8 @@ import { z } from 'zod';
 import { createAuditLog } from '../utils/auditLog.js';
 import { encryptFile } from '../utils/encryption.js';
 import { renderEmployeeInfoPDF } from '../utils/employeeInfoPdf.js';
+import { sendDocumentNotification } from '../utils/emailService.js';
+import { sendPushToEmployee } from '../utils/pushService.js';
 
 // Multer-Konfiguration für Foto-Uploads
 const storage = multer.diskStorage({
@@ -686,6 +688,35 @@ router.delete('/:id/rfid', authMiddleware, adminMiddleware, async (req: AuthRequ
 });
 
 // Info-Schreiben als PDF generieren und in den Dokumenten des MA ablegen
+// Position-Heartbeat aus der PWA — speichert die aktuelle Position des MA.
+// Wird vom Cron-Job für die Standort-Erinnerung gelesen.
+router.post('/me/position', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const schema = z.object({
+      latitude: z.number().min(-90).max(90),
+      longitude: z.number().min(-180).max(180),
+    });
+    const { latitude, longitude } = schema.parse(req.body);
+
+    await prisma.employee.update({
+      where: { id: req.employee!.id },
+      data: {
+        lastKnownLatitude: latitude,
+        lastKnownLongitude: longitude,
+        lastKnownLocationAt: new Date(),
+      },
+    });
+
+    res.json({ ok: true });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: error.errors[0].message });
+    }
+    console.error('Position heartbeat error:', error);
+    res.status(500).json({ error: 'Fehler beim Speichern der Position' });
+  }
+});
+
 router.post('/:id/generate-info-pdf', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
@@ -811,6 +842,21 @@ router.post('/:id/generate-info-pdf', authMiddleware, adminMiddleware, async (re
       });
 
       io.emit('document-updated', { type: 'generate', employeeId: employee.id, documentId: document.id });
+
+      if (employee.email) {
+        sendDocumentNotification(
+          employee.email,
+          `${employee.firstName} ${employee.lastName}`,
+          docType.name,
+          originalFilename,
+        ).catch(err => console.error('Doc notification mail failed:', err));
+      }
+      sendPushToEmployee(employee.id, {
+        title: `Neues Dokument: ${docType.name}`,
+        body: originalFilename,
+        url: '/dashboard/documents',
+        tag: 'document',
+      }).catch(err => console.error('Doc notification push failed:', err));
 
       res.status(201).json(document);
     } catch (genError) {

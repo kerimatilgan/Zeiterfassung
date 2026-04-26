@@ -84,6 +84,9 @@ export const employeesApi = {
   deletePhoto: (id: string) => api.delete(`/employees/${id}/photo`),
   // Info-Schreiben generieren (erstellt PDF in MA-Dokumenten)
   generateInfoPdf: (id: string) => api.post(`/employees/${id}/generate-info-pdf`),
+  // PWA-Heartbeat: aktuelle MA-Position für Standort-Erinnerung speichern
+  sendPosition: (latitude: number, longitude: number) =>
+    api.post('/employees/me/position', { latitude, longitude }),
 };
 
 // Terminal (RFID Registration)
@@ -100,6 +103,7 @@ export const terminalApi = {
 // Time Entries
 export const timeEntriesApi = {
   getMy: (params?: { from?: string; to?: string }) => api.get('/time-entries/my', { params }),
+  getMyEntry: (id: string) => api.get(`/time-entries/my/entry/${id}`),
   getMyStatus: () => api.get('/time-entries/my/status'),
   getMyStats: () => api.get('/time-entries/my/stats'),
   getAll: (params?: { employeeId?: string; from?: string; to?: string }) =>
@@ -174,6 +178,14 @@ export const reportsApi = {
   downloadPdf: (id: string) => api.get(`/reports/${id}/pdf`, { responseType: 'blob' }),
   previewPdf: (id: string) => api.get(`/reports/${id}/preview-pdf`, { responseType: 'blob' }),
   delete: (id: string) => api.delete(`/reports/${id}`),
+  markAllViewed: () => api.post('/reports/my/mark-all-viewed'),
+};
+
+export const pushApi = {
+  getVapidPublicKey: () => api.get('/push/vapid-public-key'),
+  subscribe: (subscription: { endpoint: string; keys: { p256dh: string; auth: string } }) =>
+    api.post('/push/subscribe', subscription),
+  unsubscribe: (endpoint: string) => api.post('/push/unsubscribe', { endpoint }),
 };
 
 // Settings
@@ -322,6 +334,7 @@ export const documentsApi = {
   update: (id: string, data: any) => api.put(`/documents/${id}`, data),
   delete: (id: string) => api.delete(`/documents/${id}`),
   sign: (id: string, password: string) => api.post(`/documents/${id}/sign`, { password }),
+  markAllViewed: () => api.post('/documents/my/mark-all-viewed'),
 };
 
 export const backupApi = {

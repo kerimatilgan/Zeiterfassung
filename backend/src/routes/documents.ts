@@ -8,6 +8,8 @@ import fs from 'fs';
 import { encryptFile, decryptFile } from '../utils/encryption.js';
 import bcrypt from 'bcryptjs';
 import { renderEmployeeInfoPDF } from '../utils/employeeInfoPdf.js';
+import { sendDocumentNotification } from '../utils/emailService.js';
+import { sendPushToEmployee } from '../utils/pushService.js';
 
 const router = Router();
 
@@ -84,6 +86,20 @@ router.get('/my', authMiddleware, async (req: AuthRequest, res: Response) => {
   }
 });
 
+// Alle eigenen ungelesenen Dokumente als "gelesen" markieren
+router.post('/my/mark-all-viewed', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const result = await prisma.document.updateMany({
+      where: { employeeId: req.employee!.id, firstViewedAt: null },
+      data: { firstViewedAt: new Date() },
+    });
+    res.json({ markedAsRead: result.count });
+  } catch (error) {
+    console.error('Mark documents viewed error:', error);
+    res.status(500).json({ error: 'Fehler beim Markieren als gelesen' });
+  }
+});
+
 // Dokumente eines Mitarbeiters abrufen (Admin)
 router.get('/employee/:employeeId', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
   try {
@@ -121,7 +137,7 @@ router.post('/employee/:employeeId', authMiddleware, adminMiddleware, documentUp
     // Prüfe ob Mitarbeiter existiert
     const employee = await prisma.employee.findUnique({
       where: { id: employeeId },
-      select: { id: true, firstName: true, lastName: true },
+      select: { id: true, firstName: true, lastName: true, email: true },
     });
 
     if (!employee) {
@@ -186,6 +202,22 @@ router.post('/employee/:employeeId', authMiddleware, adminMiddleware, documentUp
     });
 
     io.emit('document-updated', { type: 'upload', employeeId, documentId: document.id });
+
+    // Mail + Push an MA — best-effort, blockiert die Response nicht
+    if (employee.email) {
+      sendDocumentNotification(
+        employee.email,
+        `${employee.firstName} ${employee.lastName}`,
+        docType.name,
+        req.file.originalname,
+      ).catch(err => console.error('Doc notification mail failed:', err));
+    }
+    sendPushToEmployee(employeeId, {
+      title: `Neues Dokument: ${docType.name}`,
+      body: req.file.originalname,
+      url: '/dashboard/documents',
+      tag: 'document',
+    }).catch(err => console.error('Doc notification push failed:', err));
 
     res.status(201).json(document);
   } catch (error) {

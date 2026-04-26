@@ -37,6 +37,20 @@ router.get('/my', authMiddleware, async (req: AuthRequest, res: Response) => {
 });
 
 // Aktueller Status (eingestempelt?)
+// Einzelnen eigenen TimeEntry abrufen (z.B. für direkten Reklamations-Link aus Mail)
+router.get('/my/entry/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const entry = await prisma.timeEntry.findUnique({ where: { id: req.params.id } });
+    if (!entry || entry.employeeId !== req.employee!.id) {
+      return res.status(404).json({ error: 'Eintrag nicht gefunden' });
+    }
+    res.json(entry);
+  } catch (error) {
+    console.error('Get my entry error:', error);
+    res.status(500).json({ error: 'Fehler beim Laden des Eintrags' });
+  }
+});
+
 router.get('/my/status', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const activeEntry = await prisma.timeEntry.findFirst({

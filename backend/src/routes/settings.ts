@@ -8,6 +8,7 @@ import path from 'path';
 import multer from 'multer';
 import { createAuditLog } from '../utils/auditLog.js';
 import { testConnection, sendTestEmail } from '../utils/emailService.js';
+import { geocodeAddress } from '../utils/geocoding.js';
 import {
   getGermanHolidays,
   getBundeslandFromPLZ,
@@ -71,6 +72,10 @@ router.get('/', authMiddleware, async (_req: AuthRequest, res: Response) => {
         overtimeThreshold: true,
         pdfShowWorkCategory: true,
         employeeInfoTemplate: true,
+        companyLatitude: true,
+        companyLongitude: true,
+        companyRadiusMeters: true,
+        locationReminderEnabled: true,
         backupFrequency: true,
         backupTime: true,
         backupWeekday: true,
@@ -99,12 +104,29 @@ router.put('/', authMiddleware, adminMiddleware, async (req: AuthRequest, res: R
       overtimeThreshold: z.number().min(0).max(168).optional(),
       pdfShowWorkCategory: z.boolean().optional(),
       employeeInfoTemplate: z.string().max(100_000).optional().nullable(),
+      companyLatitude: z.number().min(-90).max(90).optional().nullable(),
+      companyLongitude: z.number().min(-180).max(180).optional().nullable(),
+      companyRadiusMeters: z.number().int().min(50).max(50_000).optional(),
+      locationReminderEnabled: z.boolean().optional(),
     });
 
     const data = schema.parse(req.body);
 
     // Alte Werte für Audit Log
     const oldSettings = await prisma.settings.findUnique({ where: { id: 'default' } });
+
+    // Wenn die Firmen-Adresse geändert wurde: automatisch geocoden und
+    // companyLatitude/Longitude überschreiben (UI nimmt nur Adresse entgegen).
+    let geocoded: { latitude: number; longitude: number } | null = null;
+    const addressChanged = data.companyAddress !== undefined && data.companyAddress !== oldSettings?.companyAddress;
+    if (addressChanged && data.companyAddress) {
+      const result = await geocodeAddress(data.companyAddress);
+      if (result) {
+        geocoded = { latitude: result.latitude, longitude: result.longitude };
+        (data as any).companyLatitude = result.latitude;
+        (data as any).companyLongitude = result.longitude;
+      }
+    }
 
     const settings = await prisma.settings.upsert({
       where: { id: 'default' },
@@ -131,7 +153,12 @@ router.put('/', authMiddleware, adminMiddleware, async (req: AuthRequest, res: R
       newValues: redact(settings),
     });
 
-    res.json(settings);
+    // Wenn Adresse geändert wurde aber Geocoding fehlschlug, gibt's eine Warnung
+    const geocodeWarning = addressChanged && data.companyAddress && !geocoded
+      ? 'Adresse konnte nicht in Koordinaten umgewandelt werden — Standort-Erinnerung ist nicht aktiv.'
+      : null;
+
+    res.json({ ...settings, _geocodeWarning: geocodeWarning });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: error.errors[0].message });

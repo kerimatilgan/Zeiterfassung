@@ -11,26 +11,102 @@ const router = Router();
 // EMPLOYEE: Eigene Reklamationen
 // ============================================================
 
-// Alle eigenen Reklamationen
+// Alle eigenen Reklamationen — kombiniert die neue Complaint-Tabelle
+// und die ältere TimeEntry.complaintMessage-Variante (Dashboard-Modal).
 router.get('/my', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
-    const complaints = await prisma.complaint.findMany({
-      where: { employeeId: req.employee!.id },
-      include: {
-        timeEntry: {
-          select: {
-            id: true,
-            clockIn: true,
-            clockOut: true,
-            breakMinutes: true,
-            clockInViaPwa: true,
-            clockOutViaPwa: true,
+    const employeeId = req.employee!.id;
+
+    const [complaints, legacyEntries] = await Promise.all([
+      prisma.complaint.findMany({
+        where: { employeeId },
+        include: {
+          timeEntry: {
+            select: {
+              id: true,
+              clockIn: true,
+              clockOut: true,
+              breakMinutes: true,
+              clockInViaPwa: true,
+              clockOutViaPwa: true,
+            },
           },
         },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-    res.json(complaints);
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.timeEntry.findMany({
+        where: { employeeId, complaintMessage: { not: null } },
+        select: {
+          id: true,
+          clockIn: true,
+          clockOut: true,
+          breakMinutes: true,
+          clockInViaPwa: true,
+          clockOutViaPwa: true,
+          complaintMessage: true,
+          complaintAt: true,
+          complaintResolvedAt: true,
+          complaintResolvedBy: true,
+          complaintResponse: true,
+          complaintOriginalClockIn: true,
+          complaintOriginalClockOut: true,
+          complaintOriginalBreakMinutes: true,
+        },
+      }),
+    ]);
+
+    // TimeEntries, für die schon ein Complaint-Eintrag existiert, NICHT doppelt anzeigen
+    const knownTimeEntryIds = new Set(complaints.map(c => c.timeEntryId).filter(Boolean));
+
+    // Resolver-Namen für Legacy-Komplains (resolvedBy ist nur die Employee-ID)
+    const resolverIds = legacyEntries
+      .map(e => e.complaintResolvedBy)
+      .filter((id): id is string => !!id);
+    const resolvers = resolverIds.length > 0
+      ? await prisma.employee.findMany({
+          where: { id: { in: Array.from(new Set(resolverIds)) } },
+          select: { id: true, firstName: true, lastName: true },
+        })
+      : [];
+    const resolverNameById = new Map(
+      resolvers.map(r => [r.id, `${r.firstName} ${r.lastName}`]),
+    );
+
+    const legacyComplaints = legacyEntries
+      .filter(e => !knownTimeEntryIds.has(e.id))
+      .map(e => ({
+        id: `legacy-${e.id}`,
+        employeeId,
+        timeEntryId: e.id,
+        date: e.clockIn,
+        message: e.complaintMessage!,
+        originalClockIn: e.complaintOriginalClockIn,
+        originalClockOut: e.complaintOriginalClockOut,
+        originalBreakMinutes: e.complaintOriginalBreakMinutes,
+        resolvedAt: e.complaintResolvedAt,
+        resolvedBy: e.complaintResolvedBy,
+        resolvedByName: e.complaintResolvedBy ? resolverNameById.get(e.complaintResolvedBy) || null : null,
+        response: e.complaintResponse,
+        // Bei alten Einträgen sind die "neuen" Werte = die aktuellen Felder am TimeEntry
+        newClockIn: e.complaintResolvedAt ? e.clockIn : null,
+        newClockOut: e.complaintResolvedAt ? e.clockOut : null,
+        newBreakMinutes: e.complaintResolvedAt ? e.breakMinutes : null,
+        createdAt: e.complaintAt || e.clockIn,
+        timeEntry: {
+          id: e.id,
+          clockIn: e.clockIn,
+          clockOut: e.clockOut,
+          breakMinutes: e.breakMinutes,
+          clockInViaPwa: e.clockInViaPwa,
+          clockOutViaPwa: e.clockOutViaPwa,
+        },
+        _legacy: true as const,
+      }));
+
+    const merged = [...complaints, ...legacyComplaints]
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    res.json(merged);
   } catch (error) {
     console.error('Get my complaints error:', error);
     res.status(500).json({ error: 'Fehler beim Laden der Reklamationen' });
@@ -255,27 +331,93 @@ router.get('/all', authMiddleware, adminMiddleware, async (req: AuthRequest, res
     if (from) where.date = { ...where.date, gte: new Date(from as string) };
     if (to) where.date = { ...where.date, lte: new Date(to as string) };
 
-    const complaints = await prisma.complaint.findMany({
-      where,
-      include: {
-        employee: { select: { id: true, firstName: true, lastName: true, employeeNumber: true } },
-        timeEntry: { select: { id: true, clockIn: true, clockOut: true, breakMinutes: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-    res.json(complaints);
+    // Auch Legacy-Komplains (TimeEntry.complaintMessage) berücksichtigen
+    const legacyWhere: any = {
+      complaintMessage: { not: null },
+      employee: { isAdmin: false },
+    };
+    if (resolved === 'true') legacyWhere.complaintResolvedAt = { not: null };
+    else if (resolved === 'false') legacyWhere.complaintResolvedAt = null;
+    if (employeeId) legacyWhere.employeeId = employeeId;
+    if (from) legacyWhere.clockIn = { ...legacyWhere.clockIn, gte: new Date(from as string) };
+    if (to) legacyWhere.clockIn = { ...legacyWhere.clockIn, lte: new Date(to as string) };
+
+    const [complaints, legacyEntries] = await Promise.all([
+      prisma.complaint.findMany({
+        where,
+        include: {
+          employee: { select: { id: true, firstName: true, lastName: true, employeeNumber: true } },
+          timeEntry: { select: { id: true, clockIn: true, clockOut: true, breakMinutes: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.timeEntry.findMany({
+        where: legacyWhere,
+        include: { employee: { select: { id: true, firstName: true, lastName: true, employeeNumber: true, isAdmin: true } } },
+      }),
+    ]);
+
+    const knownTimeEntryIds = new Set(complaints.map(c => c.timeEntryId).filter(Boolean));
+
+    const resolverIds = legacyEntries.map(e => e.complaintResolvedBy).filter((id): id is string => !!id);
+    const resolvers = resolverIds.length > 0
+      ? await prisma.employee.findMany({
+          where: { id: { in: Array.from(new Set(resolverIds)) } },
+          select: { id: true, firstName: true, lastName: true },
+        })
+      : [];
+    const resolverNameById = new Map(resolvers.map(r => [r.id, `${r.firstName} ${r.lastName}`]));
+
+    const legacyComplaints = legacyEntries
+      .filter(e => !knownTimeEntryIds.has(e.id))
+      .map(e => ({
+        id: `legacy-${e.id}`,
+        employeeId: e.employeeId,
+        timeEntryId: e.id,
+        date: e.clockIn,
+        message: e.complaintMessage!,
+        originalClockIn: e.complaintOriginalClockIn,
+        originalClockOut: e.complaintOriginalClockOut,
+        originalBreakMinutes: e.complaintOriginalBreakMinutes,
+        resolvedAt: e.complaintResolvedAt,
+        resolvedBy: e.complaintResolvedBy,
+        resolvedByName: e.complaintResolvedBy ? resolverNameById.get(e.complaintResolvedBy) || null : null,
+        response: e.complaintResponse,
+        newClockIn: e.complaintResolvedAt ? e.clockIn : null,
+        newClockOut: e.complaintResolvedAt ? e.clockOut : null,
+        newBreakMinutes: e.complaintResolvedAt ? e.breakMinutes : null,
+        createdAt: e.complaintAt || e.clockIn,
+        employee: { id: e.employee.id, firstName: e.employee.firstName, lastName: e.employee.lastName, employeeNumber: e.employee.employeeNumber },
+        timeEntry: { id: e.id, clockIn: e.clockIn, clockOut: e.clockOut, breakMinutes: e.breakMinutes },
+        _legacy: true as const,
+      }));
+
+    const merged = [...complaints, ...legacyComplaints]
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    res.json(merged);
   } catch (error) {
+    console.error('Get all complaints error:', error);
     res.status(500).json({ error: 'Fehler beim Laden' });
   }
 });
 
-// Pending count für Badge
+// Pending count für Badge — kombiniert beide Quellen
 router.get('/pending/count', authMiddleware, adminMiddleware, async (_req: AuthRequest, res: Response) => {
   try {
-    const count = await prisma.complaint.count({
-      where: { resolvedAt: null, employee: { isAdmin: false } },
-    });
-    res.json({ count });
+    const [newCount, legacyCount] = await Promise.all([
+      prisma.complaint.count({
+        where: { resolvedAt: null, employee: { isAdmin: false } },
+      }),
+      prisma.timeEntry.count({
+        where: {
+          complaintMessage: { not: null },
+          complaintResolvedAt: null,
+          employee: { isAdmin: false },
+        },
+      }),
+    ]);
+    res.json({ count: newCount + legacyCount });
   } catch (error) {
     res.status(500).json({ error: 'Fehler' });
   }
@@ -294,6 +436,12 @@ const resolveSchema = z.object({
 
 router.post('/:id/resolve', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
   try {
+    // Legacy-IDs (TimeEntry-basierte Komplains) extra behandeln
+    if (req.params.id.startsWith('legacy-')) {
+      return res.status(400).json({
+        error: 'Diese Reklamation stammt noch aus dem alten System. Bitte direkt am Zeiteintrag bearbeiten.',
+      });
+    }
     const data = resolveSchema.parse(req.body);
     const complaint = await prisma.complaint.findUnique({
       where: { id: req.params.id },

@@ -43,6 +43,13 @@ model Employee {
   canClockInPwa   Boolean @default(false) // Darf sich über PWA einstempeln
   canClockOutPwa  Boolean @default(false) // Darf sich über PWA ausstempeln
 
+  // Letzte bekannte Position (Heartbeat von der PWA, für Standort-Erinnerung)
+  lastKnownLatitude       Float?
+  lastKnownLongitude      Float?
+  lastKnownLocationAt     DateTime?
+  // Wann die letzte Standort-Erinnerung verschickt wurde (Rate-Limit pro Schicht)
+  lastLocationReminderAt  DateTime?
+
   // Initiale Salden (Import aus alter Software)
   initialOvertimeBalance  Float   @default(0) // Überstunden-Saldo Startwert
   initialVacationDaysUsed Int     @default(0) // Bereits genommene Urlaubstage
@@ -61,6 +68,20 @@ model Employee {
   vacationDeductions  VacationDeduction[]
   vacationAdjustments VacationAdjustment[]
   complaints          Complaint[]
+  pushSubscriptions   PushSubscription[]
+}
+
+// Web-Push-Subscriptions pro MA + Gerät
+model PushSubscription {
+  id          String   @id @default(uuid())
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  endpoint    String   @unique // PushManager.subscribe() endpoint URL
+  p256dh      String
+  auth        String
+  userAgent   String?
+  createdAt   DateTime @default(now())
+  lastUsedAt  DateTime @default(now())
 }
 
 // Passkeys (WebAuthn)
@@ -197,6 +218,8 @@ model MonthlyReport {
   notes           String?
   createdBy       String   // Admin der die Abrechnung erstellt hat
   finalizedAt     DateTime?
+  // Wann der MA die finalisierte Abrechnung zum ersten Mal angesehen hat — für "ungelesen"-Banner
+  firstViewedAt   DateTime?
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -211,6 +234,12 @@ model Settings {
   companyAddress        String?
   companyPhone          String?
   companyEmail          String?
+
+  // Firmen-Standort für Stempel-Erinnerung (zu weit entfernt + noch eingestempelt)
+  companyLatitude       Float?
+  companyLongitude      Float?
+  companyRadiusMeters   Int     @default(500)
+  locationReminderEnabled Boolean @default(false)
 
   defaultBreakMinutes   Int     @default(30) // Standard-Pause bei > 6h
   overtimeThreshold     Float   @default(40.0) // Ab wann Überstunden zählen (Wochenstunden)
@@ -349,6 +378,8 @@ model Document {
   // Digitale Signatur (aktuell nur für Info-Schreiben genutzt)
   signedAt         DateTime?
   signedIp         String?
+  // Wann das Dokument zum ersten Mal vom MA aufgerufen wurde — für "ungelesen"-Banner
+  firstViewedAt    DateTime?
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 }

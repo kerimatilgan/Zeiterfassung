@@ -446,6 +446,10 @@ export default function AdminSettings() {
     defaultBreakMinutes: 30,
     overtimeThreshold: 40,
     pdfShowWorkCategory: false,
+    companyLatitude: null as number | null,
+    companyLongitude: null as number | null,
+    companyRadiusMeters: 500,
+    locationReminderEnabled: false,
   });
 
   const [showHolidayModal, setShowHolidayModal] = useState(false);
@@ -572,6 +576,10 @@ export default function AdminSettings() {
         defaultBreakMinutes: settings.defaultBreakMinutes || 30,
         overtimeThreshold: settings.overtimeThreshold || 40,
         pdfShowWorkCategory: settings.pdfShowWorkCategory || false,
+        companyLatitude: settings.companyLatitude ?? null,
+        companyLongitude: settings.companyLongitude ?? null,
+        companyRadiusMeters: settings.companyRadiusMeters ?? 500,
+        locationReminderEnabled: settings.locationReminderEnabled ?? false,
       });
     }
   }, [settings]);
@@ -592,9 +600,12 @@ export default function AdminSettings() {
 
   const updateMutation = useMutation({
     mutationFn: (data: typeof formData) => settingsApi.update(data),
-    onSuccess: () => {
+    onSuccess: (res: any) => {
       queryClient.invalidateQueries({ queryKey: ['settings'] });
       toast.success('Einstellungen gespeichert');
+      if (res?.data?._geocodeWarning) {
+        toast(res.data._geocodeWarning, { icon: '⚠️', duration: 6000 });
+      }
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.error || 'Fehler beim Speichern');
@@ -1093,6 +1104,53 @@ export default function AdminSettings() {
                   <p className="text-xs text-gray-500">Zeigt Kategorie und früheste Einstempelzeit auf dem PDF</p>
                 </div>
               </label>
+            </div>
+
+            {/* Standort-Erinnerung */}
+            <div className="mt-6 pt-6 border-t border-gray-100">
+              <h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                <MapPin size={16} />
+                Standort-Erinnerung
+              </h3>
+              <p className="text-xs text-gray-500 mb-4">
+                Schickt MAs eine Mail-Erinnerung wenn sie noch eingestempelt sind, ihre PWA aber zu weit
+                vom Geschäft entfernt ist. Der Standort wird automatisch aus der oben angegebenen
+                <strong> Firmen-Adresse</strong> ermittelt (geocoded). Prüfung läuft stündlich,
+                max. 1 Erinnerung pro Stunde pro MA.
+              </p>
+              <label className="flex items-center gap-3 cursor-pointer mb-4">
+                <input
+                  type="checkbox"
+                  checked={formData.locationReminderEnabled}
+                  onChange={(e) => setFormData({ ...formData, locationReminderEnabled: e.target.checked })}
+                  className="rounded"
+                />
+                <div>
+                  <p className="text-sm font-medium text-gray-700">Standort-Erinnerung aktiv</p>
+                </div>
+              </label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="label text-xs">Radius (Meter)</label>
+                  <input
+                    type="number"
+                    min="50"
+                    max="50000"
+                    value={formData.companyRadiusMeters}
+                    onChange={(e) => setFormData({ ...formData, companyRadiusMeters: parseInt(e.target.value) || 500 })}
+                    className="input text-sm"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Erinnerung wird ausgelöst, wenn der MA weiter als dieser Wert vom Geschäft entfernt ist.</p>
+                </div>
+                <div>
+                  <label className="label text-xs">Ermittelte Koordinaten</label>
+                  <div className="px-3 py-2 bg-gray-50 rounded-md text-xs text-gray-600 font-mono">
+                    {formData.companyLatitude != null && formData.companyLongitude != null
+                      ? `${formData.companyLatitude.toFixed(5)}, ${formData.companyLongitude.toFixed(5)}`
+                      : '— (wird beim Speichern aus der Adresse ermittelt)'}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
           <div className="p-6 border-t border-gray-100 flex justify-end">

@@ -156,8 +156,9 @@ export default function Login() {
                 </button>
               </form>
 
-              {/* Passkey Button - only in secure context (https or localhost) */}
-              {window.isSecureContext && (
+              {/* Passkey Button - only in secure context (https or localhost) UND nicht in nativer App
+                  (Capacitor/Tauri-WebView unterstützt WebAuthn ohne Asset-Links nicht zuverlässig) */}
+              {window.isSecureContext && !isNativeApp() && (
                 <>
                   <div className="relative my-6">
                     <div className="absolute inset-0 flex items-center">

@@ -6,6 +6,7 @@ import { startRegistration } from '@simplewebauthn/browser';
 import { Lock, Eye, EyeOff, Save, ShieldCheck, Fingerprint, Trash2, Plus, CheckCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ServerUrlSettings from '../../components/ServerUrlSettings';
+import PushNotificationSettings from '../../components/PushNotificationSettings';
 
 export default function EmployeeSettings() {
   const { employee } = useAuthStore();
@@ -431,6 +432,8 @@ export default function EmployeeSettings() {
           </button>
         )}
       </div>}
+
+      <PushNotificationSettings />
 
       {/* Nur in nativen Apps sichtbar (Capacitor/Tauri) */}
       <ServerUrlSettings />

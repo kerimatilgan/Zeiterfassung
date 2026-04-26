@@ -381,3 +381,105 @@ export async function sendComplaintResolvedNotification(
     text: `Reklamation bearbeitet\n\nHallo ${employeeName},\n\nIhre Reklamation zum Zeiteintrag vom ${dateStr} wurde von ${adminName} bearbeitet.\n\nIhre ursprüngliche Nachricht:\n${originalComplaint}${responseText}${changesText}`,
   });
 }
+
+// Liest die Frontend-URL für Links in Mails (mit Fallback)
+function getFrontendUrl(): string {
+  return (process.env.FRONTEND_URL || '').replace(/\/+$/, '');
+}
+
+// Doc-Notification: Mail wenn neues Dokument für MA bereitgestellt wurde
+export async function sendDocumentNotification(
+  employeeEmail: string,
+  employeeName: string,
+  documentTypeName: string,
+  documentFilename: string,
+): Promise<void> {
+  const link = `${getFrontendUrl()}/dashboard/documents`;
+  await sendEmail({
+    to: employeeEmail,
+    subject: `Zeiterfassung — Neues Dokument: ${documentTypeName}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #2563EB;">📄 Neues Dokument bereitgestellt</h2>
+        <p>Hallo ${h(employeeName)},</p>
+        <p>für dich wurde ein neues Dokument hinterlegt:</p>
+        <table style="border-collapse: collapse; margin: 20px 0;">
+          <tr>
+            <td style="padding: 8px 16px 8px 0; color: #6B7280;">Typ:</td>
+            <td style="padding: 8px 0; font-weight: bold;">${h(documentTypeName)}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 16px 8px 0; color: #6B7280;">Datei:</td>
+            <td style="padding: 8px 0;">${h(documentFilename)}</td>
+          </tr>
+        </table>
+        <p>
+          <a href="${h(link)}"
+             style="background: #2563EB; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+            Zu den Dokumenten
+          </a>
+        </p>
+        <hr style="border: none; border-top: 1px solid #E5E7EB; margin: 20px 0;">
+        <p style="color: #6B7280; font-size: 12px;">
+          Diese Nachricht wurde automatisch gesendet.
+        </p>
+      </div>
+    `,
+    text: `Neues Dokument bereitgestellt\n\nHallo ${employeeName},\n\nfür dich wurde ein neues Dokument hinterlegt:\nTyp: ${documentTypeName}\nDatei: ${documentFilename}\n\nÖffnen: ${link}`,
+  });
+}
+
+// Standort-Erinnerung: MA ist eingestempelt aber nicht mehr in der Nähe vom Laden.
+// Wenn `complaintEntryId` gesetzt ist, kann der MA NICHT selbst per App
+// ausstempeln — der Link führt direkt ins Reklamations-Formular für diesen Eintrag.
+// Aus Datenschutzgründen wird die genaue Distanz NICHT in der Mail genannt.
+export async function sendLocationReminderEmail(
+  employeeEmail: string,
+  employeeName: string,
+  _distanceMeters: number,
+  clockedInSinceText: string,
+  complaintEntryId?: string | null,
+): Promise<void> {
+  const link = complaintEntryId
+    ? `${getFrontendUrl()}/dashboard?openComplaint=${complaintEntryId}`
+    : `${getFrontendUrl()}/dashboard`;
+
+  const actionHtml = complaintEntryId
+    ? `<p>Du kannst dich für diesen Eintrag nicht per App ausstempeln. Bitte melde deine korrekte Arbeitszeit, indem du eine Reklamation für diesen Eintrag stellst:</p>
+       <p>
+         <a href="${h(link)}"
+            style="background: #F59E0B; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+           Reklamation stellen
+         </a>
+       </p>`
+    : `<p>Falls du vergessen hast auszustempeln, kannst du das jetzt nachholen:</p>
+       <p>
+         <a href="${h(link)}"
+            style="background: #F59E0B; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+           Zur Zeiterfassung
+         </a>
+       </p>`;
+
+  const actionText = complaintEntryId
+    ? `Du kannst dich für diesen Eintrag nicht per App ausstempeln. Bitte stelle eine Reklamation: ${link}`
+    : `Falls du vergessen hast auszustempeln: ${link}`;
+
+  await sendEmail({
+    to: employeeEmail,
+    subject: 'Zeiterfassung — Erinnerung: Du bist noch eingestempelt',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #F59E0B;">⏰ Du bist noch eingestempelt</h2>
+        <p>Hallo ${h(employeeName)},</p>
+        <p>laut deiner Zeiterfassung bist du seit <strong>${h(clockedInSinceText)}</strong> eingestempelt,
+        aber du bist nicht mehr in der Nähe des Geschäfts.</p>
+        ${actionHtml}
+        <hr style="border: none; border-top: 1px solid #E5E7EB; margin: 20px 0;">
+        <p style="color: #6B7280; font-size: 12px;">
+          Wenn du dienstlich unterwegs bist, kannst du diese Nachricht ignorieren.
+        </p>
+      </div>
+    `,
+    text: `Du bist noch eingestempelt\n\nHallo ${employeeName},\n\nseit ${clockedInSinceText} bist du eingestempelt, aber nicht mehr in der Nähe des Geschäfts.\n\n${actionText}`,
+  });
+}

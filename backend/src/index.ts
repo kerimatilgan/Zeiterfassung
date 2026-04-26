@@ -19,12 +19,14 @@ import auditLogRoutes from './routes/auditLogs.js';
 import twoFactorRoutes from './routes/twoFactor.js';
 import documentRoutes from './routes/documents.js';
 import backupRoutes from './routes/backup.js';
+import pushRoutes from './routes/push.js';
 import { authMiddleware, adminMiddleware } from './middleware/auth.js';
 import setupRoutes from './routes/setup.js';
 import complaintRoutes from './routes/complaints.js';
 import { startBackupScheduler } from './services/backup/scheduler.js';
 import { startAutoClockOutScheduler } from './services/autoClockOut.js';
 import { startVacationCarryOverScheduler } from './services/vacationCarryOver.js';
+import { startLocationReminderScheduler, runLocationReminderCheck } from './services/locationReminder.js';
 
 export const prisma = new PrismaClient();
 
@@ -185,6 +187,7 @@ app.use('/api/documents', documentRoutes);
 app.use('/api/backup', backupRoutes);
 app.use('/api/setup', setupRoutes);
 app.use('/api/complaints', complaintRoutes);
+app.use('/api/push', pushRoutes);
 
 // Health Check — bewusst minimal, keine interne Info exposen
 app.get('/api/health', (_req, res) => {
@@ -202,6 +205,30 @@ app.get('/api/_debug-ip', authMiddleware, adminMiddleware, (req, res) => {
     xRealIp: req.headers['x-real-ip'] || null,
     trustProxySetting: req.app.get('trust proxy'),
   });
+});
+
+// Admin-Test: Standort-Erinnerung sofort triggern, ohne auf den stündlichen Cron zu warten.
+// Optional kann eine Test-Position für einen MA gesetzt werden, falls der noch keine
+// PWA-Heartbeat gesendet hat.
+app.post('/api/_debug/location-check', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { setPositionForEmployeeId, latitude, longitude } = req.body || {};
+    if (setPositionForEmployeeId && typeof latitude === 'number' && typeof longitude === 'number') {
+      await prisma.employee.update({
+        where: { id: setPositionForEmployeeId },
+        data: {
+          lastKnownLatitude: latitude,
+          lastKnownLongitude: longitude,
+          lastKnownLocationAt: new Date(),
+        },
+      });
+    }
+    const result = await runLocationReminderCheck();
+    res.json(result);
+  } catch (err: any) {
+    console.error('Debug location-check failed:', err);
+    res.status(500).json({ error: err.message || 'Fehler' });
+  }
 });
 
 
@@ -271,6 +298,7 @@ async function main() {
   startBackupScheduler();
   startAutoClockOutScheduler();
   startVacationCarryOverScheduler();
+  startLocationReminderScheduler();
 
   httpServer.listen(Number(PORT), '0.0.0.0', () => {
     console.log(`🚀 Zeiterfassung Backend läuft auf http://0.0.0.0:${PORT}`);
