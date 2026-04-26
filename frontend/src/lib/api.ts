@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { useAuthStore } from '../store/authStore';
+import { getApiBaseUrl } from './serverConfig';
 
 // Formatiert Zahlen im deutschen Format (Komma als Dezimaltrennzeichen)
 export const formatNumber = (value: number, decimals: number = 2): string => {
@@ -7,10 +8,17 @@ export const formatNumber = (value: number, decimals: number = 2): string => {
 };
 
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: getApiBaseUrl(),
   headers: {
     'Content-Type': 'application/json',
   },
+});
+
+// Bei jedem Request die aktuelle baseURL neu lesen — falls der User
+// sie zur Laufzeit in den Einstellungen geändert hat.
+api.interceptors.request.use((config) => {
+  config.baseURL = getApiBaseUrl();
+  return config;
 });
 
 // Request interceptor für Auth Token

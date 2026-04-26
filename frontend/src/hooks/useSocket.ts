@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
+import { getServerUrl } from '../lib/serverConfig';
 
 interface TimeEntryEvent {
   type: 'clock_in' | 'clock_out' | 'manual_create' | 'update' | 'delete';
@@ -20,9 +21,13 @@ export function useSocket() {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    // Socket.io Verbindung zum Backend aufbauen — mit JWT-Auth
+    // Socket.io Verbindung zum Backend aufbauen — mit JWT-Auth.
+    // Im Browser (gleiche Domain) reicht window.location.origin; in Capacitor/Tauri
+    // muss eine absolute URL aus serverConfig verwendet werden.
     const token = useAuthStore.getState().token || '';
-    const socket = io(window.location.origin, {
+    const serverUrl = getServerUrl();
+    const socketTarget = serverUrl || window.location.origin;
+    const socket = io(socketTarget, {
       path: '/socket.io/',
       transports: ['websocket', 'polling'],
       auth: { token },

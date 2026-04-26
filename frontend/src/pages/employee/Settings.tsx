@@ -5,6 +5,7 @@ import { useAuthStore } from '../../store/authStore';
 import { startRegistration } from '@simplewebauthn/browser';
 import { Lock, Eye, EyeOff, Save, ShieldCheck, Fingerprint, Trash2, Plus, CheckCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
+import ServerUrlSettings from '../../components/ServerUrlSettings';
 
 export default function EmployeeSettings() {
   const { employee } = useAuthStore();
@@ -430,6 +431,9 @@ export default function EmployeeSettings() {
           </button>
         )}
       </div>}
+
+      {/* Nur in nativen Apps sichtbar (Capacitor/Tauri) */}
+      <ServerUrlSettings />
     </div>
   );
 }

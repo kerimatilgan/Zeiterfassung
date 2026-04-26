@@ -1,0 +1,71 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:        # manuell auslösbar via "Run workflow"
+  push:
+    tags:
+      - 'app-v*'             # Push eines Tags wie "app-v1.0.0" triggert Build + Release
+  pull_request:
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/build-android.yml'
+
+jobs:
+  build:
+    name: Build APK
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: .
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x ./gradlew
+        working-directory: frontend/android
+
+      - name: Build debug APK
+        run: ./gradlew assembleDebug
+        working-directory: frontend/android
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: zeiterfassung-android-debug
+          path: frontend/android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
+
+      - name: Create Release (only on tag)
+        if: startsWith(github.ref, 'refs/tags/app-v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: frontend/android/app/build/outputs/apk/debug/app-debug.apk
+          generate_release_notes: true

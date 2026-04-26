@@ -4,7 +4,8 @@ import { useAuthStore } from '../store/authStore';
 import { authApi, twoFactorApi } from '../lib/api';
 import { startAuthentication } from '@simplewebauthn/browser';
 import toast from 'react-hot-toast';
-import { Clock, LogIn, Fingerprint, ShieldCheck, ArrowLeft } from 'lucide-react';
+import { Clock, LogIn, Fingerprint, ShieldCheck, ArrowLeft, Server } from 'lucide-react';
+import { isNativeApp, getServerUrl, setServerUrl, getDefaultServerUrl } from '../lib/serverConfig';
 
 type LoginStep = 'credentials' | 'totp';
 
@@ -19,6 +20,8 @@ export default function Login() {
   const totpInputRef = useRef<HTMLInputElement>(null);
   const { login } = useAuthStore();
   const navigate = useNavigate();
+  const [showServerModal, setShowServerModal] = useState(false);
+  const [serverInput, setServerInput] = useState(getServerUrl() || getDefaultServerUrl());
 
   useEffect(() => {
     if (step === 'totp' && totpInputRef.current) {
@@ -257,7 +260,76 @@ export default function Login() {
             </>
           )}
         </div>
+
+        {/* Server-Konfiguration nur in nativen Apps */}
+        {isNativeApp() && (
+          <div className="mt-4 text-center">
+            <button
+              onClick={() => setShowServerModal(true)}
+              className="inline-flex items-center gap-1 text-xs text-white/80 hover:text-white"
+            >
+              <Server size={12} />
+              Server: {getServerUrl() || getDefaultServerUrl()}
+            </button>
+          </div>
+        )}
       </div>
+
+      {/* Server-Konfig-Modal */}
+      {showServerModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="p-5 border-b border-gray-100 flex items-center gap-2">
+              <Server size={20} className="text-primary-600" />
+              <h3 className="text-lg font-semibold">Server-URL konfigurieren</h3>
+            </div>
+            <div className="p-5 space-y-3">
+              <p className="text-sm text-gray-600">
+                Adresse der Zeiterfassungs-Instanz, mit der sich diese App verbinden soll.
+              </p>
+              <input
+                type="url"
+                value={serverInput}
+                onChange={(e) => setServerInput(e.target.value)}
+                className="input"
+                placeholder="https://zeit.handy-insel.de"
+                spellCheck={false}
+                autoCapitalize="off"
+                autoCorrect="off"
+              />
+              <button
+                type="button"
+                onClick={() => setServerInput(getDefaultServerUrl())}
+                className="text-xs text-gray-500 hover:text-gray-700"
+              >
+                Auf Standard ({getDefaultServerUrl()}) zurücksetzen
+              </button>
+            </div>
+            <div className="p-5 border-t border-gray-100 flex justify-end gap-2">
+              <button
+                onClick={() => setShowServerModal(false)}
+                className="btn btn-secondary"
+              >
+                Abbrechen
+              </button>
+              <button
+                onClick={() => {
+                  if (!/^https?:\/\//.test(serverInput)) {
+                    toast.error('URL muss mit http:// oder https:// beginnen');
+                    return;
+                  }
+                  setServerUrl(serverInput);
+                  toast.success('Gespeichert. App wird neu geladen…');
+                  setTimeout(() => window.location.reload(), 1000);
+                }}
+                className="btn btn-primary"
+              >
+                Speichern
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
