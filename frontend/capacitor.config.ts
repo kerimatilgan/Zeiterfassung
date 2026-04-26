@@ -3,16 +3,17 @@ import type { CapacitorConfig } from '@capacitor/cli';
 const config: CapacitorConfig = {
   appId: 'de.handyinsel.zeiterfassung',
   appName: 'Zeiterfassung',
-  // Vite-Build-Output dient als Web-Asset-Verzeichnis
+  // dist/ wird als Bootstrap-Bundle gepackt (für Offline-Splash-Screen),
+  // tatsächlich lädt die App das Frontend remote von server.url —
+  // damit Origin = zeit.handy-insel.de und Passkeys funktionieren.
   webDir: 'dist',
   android: {
-    // Erlaubt Cleartext-Traffic im Dev-Modus für lokale Backend-Tests
     allowMixedContent: false,
   },
   server: {
+    url: 'https://zeit.handy-insel.de',
     androidScheme: 'https',
-    // Backend-URL wird zur Laufzeit aus LocalStorage gelesen — siehe lib/serverConfig.ts.
-    // Hier KEIN url-Eintrag, sonst lädt die App das Frontend remote statt der lokal gepackten dist/.
+    cleartext: false,
   },
 };
 

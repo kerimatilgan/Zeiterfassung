@@ -38,10 +38,38 @@ app.set('trust proxy', 2);
 const FRONTEND_URL = process.env.FRONTEND_URL || '';
 const JWT_SECRET = process.env.JWT_SECRET || '';
 
-// Socket.io Setup (CORS eingeschränkt auf FRONTEND_URL)
+// Erlaubte Origins: Web-App + native Wrapper (Capacitor/Tauri).
+// Native Apps senden je nach Plattform unterschiedliche Origin-Header,
+// die alle auf "localhost" mit eigenem Schema laufen.
+const ALLOWED_ORIGINS: (string | RegExp)[] = [
+  ...(FRONTEND_URL ? [FRONTEND_URL] : []),
+  // Capacitor (Android/iOS): mit + ohne https
+  'capacitor://localhost',
+  'http://localhost',
+  'https://localhost',
+  'ionic://localhost',
+  // Tauri 2 (Windows/Linux/macOS)
+  'tauri://localhost',
+  'https://tauri.localhost',
+  // Tauri benutzt z.T. Ports
+  /^tauri:\/\/localhost(:\d+)?$/,
+  /^https:\/\/tauri\.localhost(:\d+)?$/,
+];
+
+function isOriginAllowed(origin: string | undefined): boolean {
+  if (!origin) return true; // Server-to-Server / curl / mobile-fetch ohne Origin
+  return ALLOWED_ORIGINS.some(allowed =>
+    typeof allowed === 'string' ? allowed === origin : allowed.test(origin)
+  );
+}
+
+// Socket.io Setup
 export const io = new Server(httpServer, {
   cors: {
-    origin: FRONTEND_URL || false,
+    origin: (origin, callback) => {
+      if (isOriginAllowed(origin)) callback(null, true);
+      else callback(new Error(`Socket.io CORS: Origin ${origin} not allowed`));
+    },
     methods: ['GET', 'POST'],
   },
 });
@@ -82,8 +110,14 @@ app.use(helmet({
   contentSecurityPolicy: false,  // CSP wird im nginx gesetzt (flexibler)
   crossOriginEmbedderPolicy: false,
 }));
-// CORS: nur die eigene Frontend-URL
-app.use(cors({ origin: FRONTEND_URL || false, credentials: false }));
+// CORS: Web-Frontend + native Apps (Capacitor/Tauri)
+app.use(cors({
+  origin: (origin, callback) => {
+    if (isOriginAllowed(origin)) callback(null, true);
+    else callback(new Error(`CORS: Origin ${origin} not allowed`));
+  },
+  credentials: false,
+}));
 app.use(express.json());
 
 // Request Logging
