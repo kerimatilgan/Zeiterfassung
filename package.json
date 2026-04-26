@@ -14,10 +14,6 @@
     "dev": "concurrently \"npm run backend\" \"npm run frontend\""
   },
   "devDependencies": {
-    "@types/web-push": "^3.6.4",
     "concurrently": "^8.2.2"
-  },
-  "dependencies": {
-    "web-push": "^3.6.7"
   }
 }
