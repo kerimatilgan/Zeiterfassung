@@ -449,22 +449,55 @@ export default function AdminTimeEntries() {
 
                   const ents = getEntries(day), abs = getAbsence(day), hol = getHoliday(day);
                   const nw = !workDays.includes(day.getDay()), td = isSameDay(day, new Date()), sel = isSameDay(day, selectedDate), iS = inSel(day), fut = day > new Date(), he = ents.length > 0, ih = !!hol && !nw;
+                  // Abwesenheits-Farbe: typeigene Farbe aus DB (Urlaub blau, Krank rot, Sonderurlaub lila, …)
+                  // Selektion/Tag-Marker überschreiben das per Tailwind-Klasse — wenn beides anliegt, gewinnt das.
                   let bg = 'bg-gray-50', tx = 'text-gray-900';
+                  let bgStyle: React.CSSProperties | undefined;
                   if (outOfRange) { bg = 'bg-gray-50'; tx = 'text-gray-300'; }
-                  else if (sel) { bg = 'bg-primary-600'; tx = 'text-white'; } else if (iS) { bg = 'bg-purple-200'; tx = 'text-purple-900'; } else if (nw) { bg = 'bg-gray-100'; tx = 'text-gray-400'; } else if (ih) { bg = 'bg-red-100'; tx = 'text-red-700'; } else if (abs) { bg = 'bg-blue-100'; tx = 'text-blue-700'; } else if (he) { bg = 'bg-green-100'; tx = 'text-green-800'; } else if (!fut && !nw) { bg = 'bg-orange-100'; tx = 'text-orange-700'; }
+                  else if (sel) { bg = 'bg-primary-600'; tx = 'text-white'; }
+                  else if (iS) { bg = 'bg-purple-200'; tx = 'text-purple-900'; }
+                  else if (nw) { bg = 'bg-gray-100'; tx = 'text-gray-400'; }
+                  else if (ih) { bg = 'bg-red-100'; tx = 'text-red-700'; }
+                  else if (abs) { bg = ''; tx = 'text-gray-800'; bgStyle = { backgroundColor: abs.absenceType.color + '40', boxShadow: `inset 0 0 0 1px ${abs.absenceType.color}80` }; }
+                  else if (he) { bg = 'bg-green-100'; tx = 'text-green-800'; }
+                  else if (!fut && !nw) { bg = 'bg-orange-100'; tx = 'text-orange-700'; }
                   return <div key={day.toISOString()}
                     onClick={() => { if (!isSelecting && !outOfRange) setSelectedDate(day); }}
                     onMouseDown={e => { if (outOfRange) return; e.preventDefault(); setIsSelecting(true); setSelectionStart(day); setSelectionEnd(day); }}
                     onMouseEnter={() => { if (isSelecting) setSelectionEnd(day); }}
-                    className={`aspect-square rounded flex flex-col items-center justify-center text-xs font-medium select-none ${outOfRange ? 'cursor-not-allowed opacity-40' : 'cursor-pointer hover:ring-2 hover:ring-primary-300'} ${bg} ${tx} ${td && !sel && !outOfRange ? 'ring-2 ring-primary-500' : ''}`}>
+                    style={bgStyle}
+                    className={`aspect-square rounded flex flex-col items-center justify-center text-xs font-medium select-none ${outOfRange ? 'cursor-not-allowed opacity-40' : 'cursor-pointer hover:ring-2 hover:ring-primary-300'} ${bg} ${tx} ${td && !sel && !outOfRange ? 'ring-2 ring-primary-500' : ''}`}
+                    title={abs ? abs.absenceType.name : hol ? hol.name : undefined}>
                     <span className={sel && !outOfRange ? 'font-bold' : ''}>{format(day, 'd')}</span>
                     {he && !sel && !iS && !outOfRange && <span className="text-[8px] leading-none mt-0.5 opacity-75 pointer-events-none">{fmtMin(calcMin(day))}</span>}
+                    {abs && !sel && !iS && !outOfRange && <span className="text-[8px] leading-none mt-0.5 font-semibold pointer-events-none truncate max-w-full px-0.5" style={{ color: abs.absenceType.color }}>{abs.absenceType.shortName}</span>}
                   </div>;
                 });
               })()}
             </div>
             <div className="mt-3 pt-3 border-t flex flex-wrap gap-x-3 gap-y-1">
-              {[['bg-green-100','Gearbeitet'],['bg-orange-100','Fehlt'],['bg-blue-100','Abwesend'],['bg-red-100','Feiertag'],['bg-gray-100','Frei']].map(([c,l]) => <div key={l} className="flex items-center gap-1 text-[10px] text-gray-500"><div className={`w-2.5 h-2.5 rounded ${c}`} />{l}</div>)}
+              {/* Statische Status-Farben */}
+              {[['bg-green-100','Gearbeitet'],['bg-orange-100','Fehlt'],['bg-red-100','Feiertag'],['bg-gray-100','Frei']].map(([c,l]) => (
+                <div key={l} className="flex items-center gap-1 text-[10px] text-gray-500">
+                  <div className={`w-2.5 h-2.5 rounded ${c}`} />{l}
+                </div>
+              ))}
+              {/* Abwesenheitstypen mit eigener Farbe — nur die im aktuellen Monat tatsächlich vorkommenden */}
+              {(() => {
+                const seen = new Set<string>();
+                const usedTypes: { id: string; name: string; color: string }[] = [];
+                absences.forEach(a => {
+                  if (!seen.has(a.absenceTypeId)) {
+                    seen.add(a.absenceTypeId);
+                    usedTypes.push({ id: a.absenceTypeId, name: a.absenceType.name, color: a.absenceType.color });
+                  }
+                });
+                return usedTypes.map(t => (
+                  <div key={t.id} className="flex items-center gap-1 text-[10px] text-gray-500">
+                    <div className="w-2.5 h-2.5 rounded" style={{ backgroundColor: t.color + '40', boxShadow: `inset 0 0 0 1px ${t.color}80` }} />{t.name}
+                  </div>
+                ));
+              })()}
             </div>
 
             {/* Urlaubsanpassungen */}
