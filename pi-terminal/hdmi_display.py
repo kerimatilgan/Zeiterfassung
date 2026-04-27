@@ -346,9 +346,13 @@ class HDMIDisplay:
         while self.running:
             try:
                 if not self.sio.connected:
+                    # Polling zuerst: engine.io 6.x lehnt den Direct-WebSocket-Handshake
+                    # von python-socketio ab (leerer Cookie-Header → 400 Bad Request).
+                    # Über Polling wird die Session aufgebaut, danach versucht der
+                    # Client das WS-Upgrade — falls das scheitert bleibt Polling stabil.
                     self.sio.connect(
                         self.backend_url,
-                        transports=['websocket', 'polling'],
+                        transports=['polling', 'websocket'],
                         auth={'api_key': self._get_api_key()},
                     )
                 time.sleep(1)
