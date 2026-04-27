@@ -5,8 +5,9 @@ import { useConfirm } from '../../components/ConfirmDialog';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import toast from 'react-hot-toast';
-import { FileText, Download, Check, Trash2, Eye, Plus, X, RefreshCw, Edit2, Calendar, Filter, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { FileText, Download, Check, Trash2, Eye, Plus, X, RefreshCw, Edit2, Calendar, Filter, AlertTriangle, ChevronLeft, ChevronRight, Upload } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import DocumentUploadModal from '../../components/DocumentUploadModal';
 
 // Formatiert Dezimalstunden zu H:MM Format (unterstützt negative Werte)
 const formatHoursToTime = (hours: number): string => {
@@ -41,6 +42,10 @@ export default function AdminReports() {
   const [batchDone, setBatchDone] = useState(false);
   const isBatchMode = batchEmployees.length > 0;
 
+  // Dokumenten-Upload-Modal: optional vorbelegt aus Vorschau-Kontext
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [uploadPrefill, setUploadPrefill] = useState<{ employeeId?: string; year?: number; month?: number; lock?: boolean }>({});
+
   // Filter state (status from URL param if present)
   const [searchParams] = useSearchParams();
   const [filterEmployee, setFilterEmployee] = useState('');
@@ -66,6 +71,7 @@ export default function AdminReports() {
     mutationFn: () => reportsApi.preview(selectedEmployee, selectedYear, selectedMonth),
     onSuccess: (response) => {
       setPreviewData(response.data);
+      setShowCreateModal(false);
       setShowPreviewModal(true);
     },
     onError: (error: any) => {
@@ -251,13 +257,23 @@ export default function AdminReports() {
           <h1 className="text-2xl font-bold text-gray-900">Abrechnungen</h1>
           <p className="text-gray-500">Monatsabrechnungen verwalten</p>
         </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="btn btn-primary flex items-center gap-2"
-        >
-          <Plus size={20} />
-          Neue Abrechnung
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => { setUploadPrefill({}); setUploadModalOpen(true); }}
+            className="btn btn-secondary flex items-center gap-2"
+            title="Externes Dokument für einen Mitarbeiter hochladen"
+          >
+            <Upload size={20} />
+            Dokument hochladen
+          </button>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="btn btn-primary flex items-center gap-2"
+          >
+            <Plus size={20} />
+            Neue Abrechnung
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -473,10 +489,23 @@ export default function AdminReports() {
       </div>
 
       {/* Create Modal */}
-      {showCreateModal && (
+      {showCreateModal && (() => {
+        // Doppel-Check: existiert bereits eine Abrechnung für MA + Jahr + Monat?
+        const existingReport = selectedEmployee && selectedEmployee !== '__all__'
+          ? (reports || []).find((r: any) =>
+              r.employeeId === selectedEmployee && r.year === selectedYear && r.month === selectedMonth
+            )
+          : null;
+        const blockedByDuplicate = !!existingReport;
+        const blockReason = blockedByDuplicate
+          ? `Für diesen Mitarbeiter existiert bereits eine Abrechnung für ${MONTHS[selectedMonth - 1]} ${selectedYear} (Status: ${
+              existingReport.status === 'finalized' ? 'finalisiert' : existingReport.status === 'paid' ? 'bezahlt' : 'Entwurf'
+            }).`
+          : '';
+        return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
               <h2 className="text-xl font-semibold">Neue Abrechnung</h2>
               <button
                 onClick={() => setShowCreateModal(false)}
@@ -485,7 +514,7 @@ export default function AdminReports() {
                 <X size={20} />
               </button>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="px-6 pt-4 pb-6 space-y-4">
               <div>
                 <label className="label">Mitarbeiter</label>
                 <select
@@ -532,6 +561,12 @@ export default function AdminReports() {
                   </select>
                 </div>
               </div>
+              {blockedByDuplicate && (
+                <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+                  <AlertTriangle size={16} className="text-amber-600 shrink-0 mt-0.5" />
+                  <span>{blockReason}</span>
+                </div>
+              )}
               <div className="flex justify-end gap-3 pt-4">
                 <button
                   onClick={() => setShowCreateModal(false)}
@@ -541,7 +576,8 @@ export default function AdminReports() {
                 </button>
                 <button
                   onClick={() => selectedEmployee === '__all__' ? handleBatchStart() : previewMutation.mutate()}
-                  disabled={!selectedEmployee || previewMutation.isPending}
+                  disabled={!selectedEmployee || previewMutation.isPending || blockedByDuplicate}
+                  title={blockedByDuplicate ? blockReason : undefined}
                   className="btn btn-primary flex items-center gap-2"
                 >
                   <Eye size={18} />
@@ -551,13 +587,14 @@ export default function AdminReports() {
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* Preview Modal */}
       {showPreviewModal && previewData && !batchDone && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
               {isBatchMode && (
                 <button
                   onClick={() => navigateBatchTo(batchIndex - 1)}
@@ -591,7 +628,7 @@ export default function AdminReports() {
                 <X size={20} />
               </button>
             </div>
-            <div className="p-6 space-y-6">
+            <div className="px-6 pt-4 pb-6 space-y-4">
               {/* Employee Info */}
               <div className="p-4 bg-gray-50 rounded-lg">
                 <h3 className="font-medium text-gray-900">{previewData.employee.name}</h3>
@@ -738,13 +775,31 @@ export default function AdminReports() {
                 );
               })()}
 
-              <div className="flex justify-between gap-3 pt-4 border-t">
-                <button
-                  onClick={() => isBatchMode ? closeBatch() : setShowPreviewModal(false)}
-                  className="btn btn-secondary"
-                >
-                  {isBatchMode ? 'Abbrechen' : 'Abbrechen'}
-                </button>
+              <div className="flex justify-between gap-3 pt-4 border-t flex-wrap">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => isBatchMode ? closeBatch() : setShowPreviewModal(false)}
+                    className="btn btn-secondary"
+                  >
+                    Abbrechen
+                  </button>
+                  <button
+                    onClick={() => {
+                      setUploadPrefill({
+                        employeeId: selectedEmployee,
+                        year: selectedYear,
+                        month: selectedMonth,
+                        lock: true,
+                      });
+                      setUploadModalOpen(true);
+                    }}
+                    className="btn btn-secondary flex items-center gap-2"
+                    title="Externes Dokument für diesen Mitarbeiter & Monat hochladen"
+                  >
+                    <Upload size={16} />
+                    Dokument hochladen
+                  </button>
+                </div>
                 <div className="flex gap-2">
                   {isBatchMode && (
                     <button
@@ -974,6 +1029,17 @@ export default function AdminReports() {
           </div>
         </div>
       )}
+
+      {/* Dokumenten-Upload-Modal — sowohl aus Listenansicht als auch aus Vorschau-Modal */}
+      <DocumentUploadModal
+        isOpen={uploadModalOpen}
+        onClose={() => setUploadModalOpen(false)}
+        defaultEmployeeId={uploadPrefill.employeeId}
+        defaultYear={uploadPrefill.year}
+        defaultMonth={uploadPrefill.month}
+        lockEmployee={uploadPrefill.lock}
+        lockPeriod={uploadPrefill.lock}
+      />
     </div>
   );
 }
