@@ -3,7 +3,8 @@ import { complaintsApi, employeesApi } from '../../lib/api';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { AlertTriangle, CheckCircle, Clock, MessageSquare, X, Check, User, Calendar, Search } from 'lucide-react';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
 interface Complaint {
@@ -119,6 +120,47 @@ export default function AdminComplaints() {
     setAdminResponse('');
   };
 
+  // Deep-Link aus Admin-Dashboard-Widget: ?entry=<entryId> oder ?id=<complaintId>
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const deepLinkHandled = useRef(false);
+
+  useEffect(() => {
+    if (deepLinkHandled.current) return;
+    const entryParam = searchParams.get('entry');
+    const idParam = searchParams.get('id');
+    if (!entryParam && !idParam) return;
+    if (!complaints) return;
+
+    deepLinkHandled.current = true;
+
+    const match = idParam
+      ? complaints.find(c => c.id === idParam)
+      : complaints.find(c => c.timeEntryId === entryParam);
+
+    if (match) {
+      setFilterStatus('all');
+      setFilterEmployee('');
+      setFilterMonth('');
+      setSearch('');
+      setHighlightedId(match.id);
+      setTimeout(() => {
+        itemRefs.current[match.id]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 50);
+      setTimeout(() => setHighlightedId(null), 3000);
+      // Wenn noch offen: gleich Bearbeiten-Form öffnen
+      if (!match.resolvedAt) openEdit(match);
+    } else {
+      toast.error('Reklamation nicht gefunden');
+    }
+
+    const next = new URLSearchParams(searchParams);
+    next.delete('entry');
+    next.delete('id');
+    setSearchParams(next, { replace: true });
+  }, [complaints, searchParams, setSearchParams]);
+
   const handleResolve = (apply: boolean) => {
     if (!editing) return;
     const payload: any = { response: adminResponse || undefined };
@@ -203,8 +245,13 @@ export default function AdminComplaints() {
           {filtered.map(c => {
             const isResolved = !!c.resolvedAt;
             const dayDate = new Date(c.date);
+            const isHighlighted = highlightedId === c.id;
             return (
-              <div key={c.id} className={`bg-white border-l-4 border rounded-lg p-4 ${isResolved ? 'border-l-green-500' : 'border-l-amber-500'}`}>
+              <div
+                key={c.id}
+                ref={(el) => { itemRefs.current[c.id] = el; }}
+                className={`bg-white border-l-4 border rounded-lg p-4 transition-colors ${isResolved ? 'border-l-green-500' : 'border-l-amber-500'} ${isHighlighted ? 'ring-2 ring-amber-400 bg-amber-50' : ''}`}
+              >
                 <div className="flex items-start justify-between gap-3 flex-wrap">
                   <div className="flex items-start gap-3 flex-1 min-w-[250px]">
                     {isResolved ? <CheckCircle className="text-green-500 mt-1 shrink-0" size={20} /> : <AlertTriangle className="text-amber-500 mt-1 shrink-0" size={20} />}

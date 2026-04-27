@@ -116,7 +116,7 @@ export default function AdminDashboard() {
               <div
                 key={entry.id}
                 className="p-4 hover:bg-orange-100 cursor-pointer transition-colors"
-                onClick={() => navigate(`/admin/employees?openEmployee=${entry.employeeId}&entryId=${entry.id}&date=${entry.clockIn}`)}
+                onClick={() => navigate(`/admin/complaints?entry=${encodeURIComponent(entry.id)}`)}
               >
                 <div className="flex items-start gap-3">
                   {/* Avatar */}
@@ -159,7 +159,7 @@ export default function AdminDashboard() {
           {pendingComplaints.count > 5 && (
             <div className="p-3 border-t border-orange-200 text-center">
               <button
-                onClick={() => navigate('/admin/employees')}
+                onClick={() => navigate('/admin/complaints')}
                 className="text-sm text-orange-700 hover:text-orange-900 font-medium"
               >
                 Alle {pendingComplaints.count} Reklamationen anzeigen →

@@ -3,7 +3,8 @@ import { timeEntriesApi, complaintsApi } from '../../lib/api';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { AlertTriangle, CheckCircle, Clock, MessageSquare, Plus, X, Send, Calendar as CalendarIcon, MapPin, Coffee, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
 interface Complaint {
@@ -52,6 +53,11 @@ export default function EmployeeComplaints() {
   const [newMessage, setNewMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Deep-Link aus Dashboard/Mail: ?entry=<entryId> oder ?date=YYYY-MM-DD
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
   const { data: complaints } = useQuery({
     queryKey: ['myComplaintsV2'],
     queryFn: () => complaintsApi.getMy().then(r => r.data as Complaint[]),
@@ -83,6 +89,56 @@ export default function EmployeeComplaints() {
   });
 
   const months = [...new Set((complaints || []).map(c => format(new Date(c.createdAt), 'yyyy-MM')))].sort().reverse();
+
+  // Deep-Link: einmaliges Routing nach Daten-Load auswerten
+  const deepLinkHandled = useRef(false);
+  useEffect(() => {
+    if (deepLinkHandled.current) return;
+
+    const entryParam = searchParams.get('entry');
+    const dateParam = searchParams.get('date');
+    if (!entryParam && !dateParam) return;
+
+    // Erst auswerten sobald die Komplaint-Liste geladen ist
+    if (entryParam && !complaints) return;
+
+    deepLinkHandled.current = true;
+
+    if (entryParam) {
+      const match = (complaints || []).find(c => c.timeEntryId === entryParam);
+      if (match) {
+        setFilter('all');
+        setFilterMonth('');
+        setHighlightedId(match.id);
+        // Auf nächstem Frame scrollen damit das Element im DOM ist
+        setTimeout(() => {
+          itemRefs.current[match.id]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 50);
+        // Highlight nach 3s wieder entfernen
+        setTimeout(() => setHighlightedId(null), 3000);
+      } else {
+        // Keine bestehende Rekla → Neuformular vorbefüllen
+        timeEntriesApi.getMyEntry(entryParam)
+          .then((res) => {
+            const entry = res.data;
+            const dateStr = format(new Date(entry.clockIn), 'yyyy-MM-dd');
+            setShowNewForm(true);
+            setLookupDate(dateStr);
+            setActiveEntryId(entry.id);
+          })
+          .catch(() => toast.error('Eintrag nicht gefunden'));
+      }
+    } else if (dateParam) {
+      setShowNewForm(true);
+      setLookupDate(dateParam);
+    }
+
+    // URL-Params entfernen damit Reload nicht erneut triggert
+    const next = new URLSearchParams(searchParams);
+    next.delete('entry');
+    next.delete('date');
+    setSearchParams(next, { replace: true });
+  }, [complaints, searchParams, setSearchParams]);
 
   // Nach Tag gruppieren (für Historie)
   const byDay: Record<string, Complaint[]> = {};
@@ -331,7 +387,11 @@ export default function EmployeeComplaints() {
             </div>
             <div className="divide-y">
               {items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map((c, idx) => (
-                <div key={c.id} className="p-4">
+                <div
+                  key={c.id}
+                  ref={(el) => { itemRefs.current[c.id] = el; }}
+                  className={`p-4 transition-colors ${highlightedId === c.id ? 'bg-amber-100 ring-2 ring-amber-400 ring-inset' : ''}`}
+                >
                   <div className="flex items-start gap-3">
                     <div className={`p-2 rounded-lg mt-0.5 ${c.resolvedAt ? 'bg-green-100' : 'bg-amber-100'}`}>
                       {c.resolvedAt

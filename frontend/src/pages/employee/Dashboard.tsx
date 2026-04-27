@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { timeEntriesApi, documentsApi, employeesApi, reportsApi, complaintsApi } from '../../lib/api';
+import { timeEntriesApi, documentsApi, employeesApi, reportsApi } from '../../lib/api';
 import { isPushSupported, getNotificationPermission, hasActiveSubscription, enablePush } from '../../lib/pushNotifications';
 import { useAuthStore } from '../../store/authStore';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -135,35 +135,15 @@ export default function EmployeeDashboard() {
   // Wochenansicht State
   const [weekDate, setWeekDate] = useState(new Date());
   const [expandedDay, setExpandedDay] = useState<string | null>(null);
-  const [complaintEntryId, setComplaintEntryId] = useState<string | null>(null);
-  const [complaintStandaloneDate, setComplaintStandaloneDate] = useState<Date | null>(null);
-  const [complaintMessage, setComplaintMessage] = useState('');
-  const [complaintInitial, setComplaintInitial] = useState<{ message: string; resolvedAt: string | null; response: string | null; resolved: boolean } | null>(null);
-  const [complaintEntryDetails, setComplaintEntryDetails] = useState<any | null>(null);
 
-  // ?openComplaint=ENTRY_ID — direkt aus Mail-Link zur Reklamation springen
-  const [searchParams, setSearchParams] = useSearchParams();
+  // ?openComplaint=ENTRY_ID — direkt aus Mail-Link zur neuen Reklamations-Übersicht springen
+  const [searchParams] = useSearchParams();
   useEffect(() => {
     const id = searchParams.get('openComplaint');
     if (!id) return;
-    timeEntriesApi.getMyEntry(id)
-      .then((res) => {
-        const entry = res.data;
-        const dt = new Date(entry.clockIn);
-        setComplaintEntryId(entry.id);
-        setComplaintEntryDetails(entry);
-        setComplaintMessage(entry.complaintMessage || `Bitte korrekte Arbeitszeit zum Eintrag vom ${format(dt, 'dd.MM.yyyy HH:mm')} angeben: `);
-        setComplaintInitial(entry.complaintMessage
-          ? { message: entry.complaintMessage, resolvedAt: entry.complaintResolvedAt, response: entry.complaintResponse, resolved: !!entry.complaintResolvedAt }
-          : null);
-        // URL-Param entfernen damit Reload das Modal nicht erneut öffnet
-        searchParams.delete('openComplaint');
-        setSearchParams(searchParams, { replace: true });
-      })
-      .catch(() => toast.error('Eintrag nicht gefunden'));
+    navigate(`/dashboard/complaints?entry=${encodeURIComponent(id)}`, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const [complaintSubmitting, setComplaintSubmitting] = useState(false);
   const weekStart = startOfWeek(weekDate, { weekStartsOn: 1 });
   const weekEnd = endOfWeek(weekDate, { weekStartsOn: 1 });
   const weekDays = eachDayOfInterval({ start: weekStart, end: weekEnd });
@@ -732,10 +712,7 @@ export default function EmployeeDashboard() {
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           const prev = dayEntries[idx - 1];
-                                          setComplaintEntryId(prev.id);
-                                          setComplaintStandaloneDate(null);
-                                          setComplaintMessage(prev.complaintMessage || `Reklamation zur Pause (${pauseLabel}): `);
-                                          setComplaintInitial(prev.complaintMessage ? { message: prev.complaintMessage, resolvedAt: prev.complaintResolvedAt, response: prev.complaintResponse, resolved: !!prev.complaintResolvedAt } : null);
+                                          navigate(`/dashboard/complaints?entry=${encodeURIComponent(prev.id)}`);
                                         }}
                                         className="ml-auto text-xs px-2 py-0.5 rounded text-orange-600 hover:bg-orange-100"
                                       >
@@ -764,10 +741,7 @@ export default function EmployeeDashboard() {
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      setComplaintEntryId(entry.id);
-                                      setComplaintStandaloneDate(null);
-                                      setComplaintMessage(entry.complaintMessage || '');
-                                      setComplaintInitial(entry.complaintMessage ? { message: entry.complaintMessage, resolvedAt: entry.complaintResolvedAt, response: entry.complaintResponse, resolved: !!entry.complaintResolvedAt } : null);
+                                      navigate(`/dashboard/complaints?entry=${encodeURIComponent(entry.id)}`);
                                     }}
                                     className={`ml-auto text-xs px-2 py-1 rounded ${
                                       entry.complaintMessage
@@ -790,10 +764,7 @@ export default function EmployeeDashboard() {
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  setComplaintStandaloneDate(day);
-                                  setComplaintEntryId(null);
-                                  setComplaintMessage('');
-                                  setComplaintInitial(null);
+                                  navigate(`/dashboard/complaints?date=${format(day, 'yyyy-MM-dd')}`);
                                 }}
                                 className="text-xs px-3 py-1 rounded bg-amber-100 text-amber-700 hover:bg-amber-200 flex items-center gap-1"
                               >
@@ -811,100 +782,6 @@ export default function EmployeeDashboard() {
             </div>
           );
         })()}
-
-        {/* Reklamations-Modal */}
-        {(complaintEntryId || complaintStandaloneDate) && (
-          <div
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-            onClick={() => {
-              setComplaintEntryId(null);
-              setComplaintStandaloneDate(null);
-              setComplaintMessage('');
-              setComplaintInitial(null);
-            }}
-          >
-            <div className="bg-white rounded-lg shadow-xl max-w-lg w-full" onClick={(e) => e.stopPropagation()}>
-              <div className="p-5 border-b flex items-center justify-between">
-                <h2 className="text-lg font-semibold">
-                  {complaintInitial?.resolved ? 'Reklamation (bearbeitet)' : complaintInitial ? 'Reklamation (offen)' : 'Neue Reklamation'}
-                </h2>
-                <button onClick={() => { setComplaintEntryId(null); setComplaintStandaloneDate(null); setComplaintMessage(''); setComplaintInitial(null); setComplaintEntryDetails(null); }} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
-              </div>
-              <div className="p-5 space-y-3">
-                {complaintEntryDetails && (
-                  <div className="bg-amber-50 border border-amber-200 rounded p-3 text-sm">
-                    <div className="text-xs font-semibold text-amber-800 mb-1">Reklamierter Eintrag:</div>
-                    <div className="text-gray-800">
-                      <strong>{format(new Date(complaintEntryDetails.clockIn), 'EEEE, dd.MM.yyyy', { locale: de })}</strong>
-                      <br />
-                      Eingestempelt: {format(new Date(complaintEntryDetails.clockIn), 'HH:mm', { locale: de })} Uhr
-                      {complaintEntryDetails.clockOut
-                        ? ` · Ausgestempelt: ${format(new Date(complaintEntryDetails.clockOut), 'HH:mm', { locale: de })} Uhr`
-                        : <span className="text-amber-700"> · noch eingestempelt</span>}
-                      {complaintEntryDetails.breakMinutes > 0 && ` · Pause: ${complaintEntryDetails.breakMinutes} min`}
-                    </div>
-                  </div>
-                )}
-                {complaintInitial?.resolved && complaintInitial.response && (
-                  <div className="bg-green-50 border border-green-200 rounded p-3 text-sm">
-                    <div className="text-xs font-semibold text-green-700 mb-1">Antwort vom Admin:</div>
-                    <div className="text-gray-700 whitespace-pre-wrap">{complaintInitial.response}</div>
-                  </div>
-                )}
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">
-                    {complaintInitial ? 'Deine Nachricht' : 'Was möchtest du reklamieren?'}
-                  </label>
-                  <textarea
-                    value={complaintMessage}
-                    onChange={(e) => setComplaintMessage(e.target.value)}
-                    rows={5}
-                    placeholder="z.B. Habe vergessen auszustempeln, war eigentlich bis 17:00 da..."
-                    disabled={!!complaintInitial?.resolved}
-                    className="w-full border rounded px-3 py-2 text-sm disabled:bg-gray-50"
-                  />
-                </div>
-              </div>
-              <div className="p-5 border-t flex items-center justify-end gap-2">
-                <button onClick={() => { setComplaintEntryId(null); setComplaintStandaloneDate(null); setComplaintMessage(''); setComplaintInitial(null); setComplaintEntryDetails(null); }} className="text-sm text-gray-600 hover:bg-gray-100 px-4 py-2 rounded-lg">
-                  Schließen
-                </button>
-                {!complaintInitial?.resolved && (
-                  <button
-                    disabled={complaintSubmitting || !complaintMessage.trim()}
-                    onClick={async () => {
-                      if (!complaintMessage.trim()) { toast.error('Bitte Nachricht eingeben'); return; }
-                      setComplaintSubmitting(true);
-                      try {
-                        if (complaintEntryId) {
-                          await complaintsApi.create({ message: complaintMessage, timeEntryId: complaintEntryId });
-                        } else if (complaintStandaloneDate) {
-                          const dateStr = format(complaintStandaloneDate, 'yyyy-MM-dd');
-                          await complaintsApi.create({ message: complaintMessage, date: dateStr });
-                        }
-                        toast.success('Reklamation gesendet');
-                        queryClient.invalidateQueries({ queryKey: ['week-entries'] });
-                        queryClient.invalidateQueries({ queryKey: ['myStats'] });
-                        queryClient.invalidateQueries({ queryKey: ['myComplaintsV2'] });
-                        setComplaintEntryId(null);
-                        setComplaintStandaloneDate(null);
-                        setComplaintMessage('');
-                        setComplaintInitial(null);
-                      } catch (err: any) {
-                        toast.error(err.response?.data?.error || 'Fehler beim Senden');
-                      } finally {
-                        setComplaintSubmitting(false);
-                      }
-                    }}
-                    className="text-sm bg-primary-600 text-white hover:bg-primary-700 px-4 py-2 rounded-lg disabled:opacity-50"
-                  >
-                    {complaintInitial ? 'Aktualisieren' : 'Reklamation senden'}
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Arbeitszeit Monat */}
         <div className="card p-5">
