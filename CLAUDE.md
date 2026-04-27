@@ -250,3 +250,36 @@ pm2 restart zeiterfassung-backend
 - Backend-URL in config.json prüfen
 - API-Key prüfen
 - Firewall-Regeln prüfen (Port 3004)
+
+### Pi-Display zeigt "offline" obwohl Admin-Übersicht "online" anzeigt
+Symptom: HDMI-Display meldet dauerhaft "Verbindungsfehler"/"Getrennt", die
+Terminals-Seite (`/admin/terminals`) zeigt aber beide als online.
+
+Ursache: REST-Heartbeat (`/api/terminal/active`, alle 30 s) läuft sauber →
+`Terminal.lastSeen` wird aktualisiert → Admin-Seite sagt "online". Aber der
+Socket.IO-Handshake aus `hdmi_display.py` schlägt fehl, sobald der Client
+versucht, **direkt** per WebSocket zu verbinden: python-socketio sendet einen
+leeren `Cookie:`-Header, den engine.io ≥ 6.x mit `400 Bad Request` ablehnt.
+Beim Direct-WS-Modus fällt der Client nicht auf Polling zurück → bleibt im
+Fehler-Status hängen.
+
+Fix (einmalig, schon im Repo): in `pi-terminal/hdmi_display.py` muss
+`self.sio.connect(..., transports=['polling', 'websocket'], ...)` stehen
+(Polling zuerst, dann optional Upgrade). Wenn das Upgrade scheitert, läuft
+Polling stabil weiter — Realtime-Events kommen trotzdem an.
+
+Diagnose-Befehle:
+```bash
+# Logs auf dem Pi
+ssh pi@<PI-IP> 'sudo journalctl -u zeiterfassung-display -n 30 --no-pager'
+# Manueller Test (sollte "CONNECTED via polling" zeigen)
+ssh pi@<PI-IP> 'python3 -c "import socketio,json
+cfg=json.load(open(\"/home/pi/zeiterfassung-terminal/config.json\"))
+s=socketio.Client(); s.on(\"connect\", lambda: print(\"OK\",s.transport()))
+s.connect(cfg[\"backend_url\"], transports=[\"polling\",\"websocket\"], auth={\"api_key\":cfg[\"api_key\"]})"'
+```
+
+Service neu starten:
+```bash
+ssh pi@<PI-IP> 'sudo systemctl restart zeiterfassung-display'
+```
