@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { reportsApi, employeesApi } from '../../lib/api';
 import { useConfirm } from '../../components/ConfirmDialog';
@@ -488,7 +489,9 @@ export default function AdminReports() {
         </div>
       </div>
 
-      {/* Create Modal */}
+      {/* Create Modal — per Portal direkt am body, damit der bg-black/50-Overlay
+          nicht durch ein Layout-Vorfahren-Element (z.B. transform am Sidebar)
+          auf einen Teilbereich beschränkt wird. */}
       {showCreateModal && (() => {
         // Doppel-Check: existiert bereits eine Abrechnung für MA + Jahr + Monat?
         const existingReport = selectedEmployee && selectedEmployee !== '__all__'
@@ -502,7 +505,7 @@ export default function AdminReports() {
               existingReport.status === 'finalized' ? 'finalisiert' : existingReport.status === 'paid' ? 'bezahlt' : 'Entwurf'
             }).`
           : '';
-        return (
+        return createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
@@ -586,12 +589,13 @@ export default function AdminReports() {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
         );
       })()}
 
-      {/* Preview Modal */}
-      {showPreviewModal && previewData && !batchDone && (
+      {/* Preview Modal — siehe Kommentar oben am Create Modal */}
+      {showPreviewModal && previewData && !batchDone && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
@@ -851,11 +855,12 @@ export default function AdminReports() {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Batch-Zusammenfassung */}
-      {batchDone && (
+      {batchDone && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 text-center">
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -879,11 +884,12 @@ export default function AdminReports() {
               Schließen
             </button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Edit Modal */}
-      {showEditModal && editingReport && (
+      {showEditModal && editingReport && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-lg">
             <div className="p-6 border-b border-gray-100 flex items-center justify-between">
@@ -1027,7 +1033,8 @@ export default function AdminReports() {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Dokumenten-Upload-Modal — sowohl aus Listenansicht als auch aus Vorschau-Modal */}

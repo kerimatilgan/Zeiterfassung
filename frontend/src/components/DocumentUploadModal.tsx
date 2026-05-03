@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { documentsApi, employeesApi, settingsApi } from '../lib/api';
 import { Upload, X, FileText } from 'lucide-react';
@@ -76,6 +77,9 @@ export default function DocumentUploadModal({
 
   if (!isOpen) return null;
 
+  // Per Portal direkt am body rendern, damit der bg-black/50-Overlay garantiert
+  // den ganzen Viewport bedeckt — unabhängig von Vorfahren-Stacking-Contexts.
+
   const canSubmit = !!employeeId && !!documentTypeId && !!file && !uploading;
 
   const submit = async () => {
@@ -103,7 +107,7 @@ export default function DocumentUploadModal({
     }
   };
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
         <div className="p-6 border-b border-gray-100 flex items-center justify-between">
@@ -260,6 +264,7 @@ export default function DocumentUploadModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
