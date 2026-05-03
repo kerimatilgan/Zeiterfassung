@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { documentsApi, employeesApi, settingsApi } from '../lib/api';
-import { Upload, X, FileText } from 'lucide-react';
+import { Upload, X, FileText, Lock, Eye } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const MONTHS = [
@@ -20,6 +20,9 @@ interface DocumentUploadModalProps {
   // Wenn true, ist der jeweilige Wert fix und im UI nicht änderbar
   lockEmployee?: boolean;
   lockPeriod?: boolean;
+  // Self-Upload-Modus: blendet MA-Picker aus und zeigt Sichtbarkeits-Checkbox.
+  // POST geht an /documents/my (statt /documents/employee/:id).
+  selfUpload?: boolean;
   // Optional: zusätzlicher Erfolg-Callback (z.B. um andere Queries zu invalidieren)
   onSuccess?: () => void;
 }
@@ -32,6 +35,7 @@ export default function DocumentUploadModal({
   defaultMonth,
   lockEmployee = false,
   lockPeriod = false,
+  selfUpload = false,
   onSuccess,
 }: DocumentUploadModalProps) {
   const queryClient = useQueryClient();
@@ -45,6 +49,8 @@ export default function DocumentUploadModal({
   const [file, setFile] = useState<File | null>(null);
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
+  // Privacy-by-default: Admin sieht es nur, wenn der MA aktiv freigibt
+  const [visibleToAdmin, setVisibleToAdmin] = useState(false);
 
   // Bei jedem Öffnen Defaults reapplizieren
   useEffect(() => {
@@ -56,13 +62,14 @@ export default function DocumentUploadModal({
     setNote('');
     setFile(null);
     setDragging(false);
+    setVisibleToAdmin(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, defaultEmployeeId, defaultYear, defaultMonth]);
 
   const { data: employees } = useQuery({
     queryKey: ['employees-for-upload'],
     queryFn: () => employeesApi.getAll().then(r => r.data),
-    enabled: isOpen && !lockEmployee,
+    enabled: isOpen && !lockEmployee && !selfUpload,
   });
 
   const { data: documentTypes } = useQuery({
@@ -80,24 +87,36 @@ export default function DocumentUploadModal({
   // Per Portal direkt am body rendern, damit der bg-black/50-Overlay garantiert
   // den ganzen Viewport bedeckt — unabhängig von Vorfahren-Stacking-Contexts.
 
-  const canSubmit = !!employeeId && !!documentTypeId && !!file && !uploading;
+  const canSubmit = (!!documentTypeId && !!file && !uploading) && (selfUpload || !!employeeId);
 
   const submit = async () => {
-    if (!file || !employeeId || !documentTypeId) {
-      toast.error('Bitte Mitarbeiter, Typ und Datei wählen');
+    if (!file || !documentTypeId || (!selfUpload && !employeeId)) {
+      toast.error(selfUpload ? 'Bitte Typ und Datei wählen' : 'Bitte Mitarbeiter, Typ und Datei wählen');
       return;
     }
     setUploading(true);
     try {
-      await documentsApi.upload(employeeId, file, {
-        documentTypeId,
-        year,
-        month,
-        note: note || undefined,
-      });
+      if (selfUpload) {
+        await documentsApi.uploadMy(file, {
+          documentTypeId,
+          year,
+          month,
+          note: note || undefined,
+          visibleToAdmin,
+        });
+      } else {
+        await documentsApi.upload(employeeId, file, {
+          documentTypeId,
+          year,
+          month,
+          note: note || undefined,
+        });
+      }
       toast.success('Dokument hochgeladen');
-      queryClient.invalidateQueries({ queryKey: ['employee-documents', employeeId] });
       queryClient.invalidateQueries({ queryKey: ['my-documents'] });
+      if (!selfUpload) {
+        queryClient.invalidateQueries({ queryKey: ['employee-documents', employeeId] });
+      }
       onSuccess?.();
       onClose();
     } catch (err: any) {
@@ -121,32 +140,34 @@ export default function DocumentUploadModal({
         </div>
 
         <div className="overflow-y-auto p-6 space-y-4">
-          {/* Mitarbeiter */}
-          <div>
-            <label className="label text-xs">Mitarbeiter *</label>
-            {lockEmployee && lockedEmployee ? (
-              <div className="input py-2 text-sm bg-gray-50 text-gray-700">
-                {lockedEmployee.lastName}, {lockedEmployee.firstName}
-              </div>
-            ) : (
-              <select
-                value={employeeId}
-                onChange={(e) => setEmployeeId(e.target.value)}
-                className="input py-2 text-sm"
-                disabled={lockEmployee}
-              >
-                <option value="">Bitte wählen...</option>
-                {(employees || [])
-                  .filter((e: any) => !e.isAdmin)
-                  .sort((a: any, b: any) => a.lastName.localeCompare(b.lastName))
-                  .map((e: any) => (
-                    <option key={e.id} value={e.id}>
-                      {e.lastName}, {e.firstName} {!e.isActive ? '(inaktiv)' : ''}
-                    </option>
-                  ))}
-              </select>
-            )}
-          </div>
+          {/* Mitarbeiter — im Self-Upload-Modus blendet sich diese Zeile weg */}
+          {!selfUpload && (
+            <div>
+              <label className="label text-xs">Mitarbeiter *</label>
+              {lockEmployee && lockedEmployee ? (
+                <div className="input py-2 text-sm bg-gray-50 text-gray-700">
+                  {lockedEmployee.lastName}, {lockedEmployee.firstName}
+                </div>
+              ) : (
+                <select
+                  value={employeeId}
+                  onChange={(e) => setEmployeeId(e.target.value)}
+                  className="input py-2 text-sm"
+                  disabled={lockEmployee}
+                >
+                  <option value="">Bitte wählen...</option>
+                  {(employees || [])
+                    .filter((e: any) => !e.isAdmin)
+                    .sort((a: any, b: any) => a.lastName.localeCompare(b.lastName))
+                    .map((e: any) => (
+                      <option key={e.id} value={e.id}>
+                        {e.lastName}, {e.firstName} {!e.isActive ? '(inaktiv)' : ''}
+                      </option>
+                    ))}
+                </select>
+              )}
+            </div>
+          )}
 
           {/* Typ + Periode */}
           <div className="grid grid-cols-2 gap-3">
@@ -205,6 +226,31 @@ export default function DocumentUploadModal({
               maxLength={200}
             />
           </div>
+
+          {/* Sichtbarkeit (nur im Self-Upload-Modus) */}
+          {selfUpload && (
+            <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+              visibleToAdmin ? 'border-amber-300 bg-amber-50' : 'border-gray-200 bg-gray-50 hover:bg-gray-100'
+            }`}>
+              <input
+                type="checkbox"
+                checked={visibleToAdmin}
+                onChange={(e) => setVisibleToAdmin(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+              />
+              <div className="flex-1 text-sm">
+                <div className="flex items-center gap-1.5 font-medium text-gray-900">
+                  {visibleToAdmin ? <Eye size={14} className="text-amber-600" /> : <Lock size={14} className="text-gray-500" />}
+                  {visibleToAdmin ? 'Admin darf dieses Dokument sehen' : 'Privates Dokument'}
+                </div>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {visibleToAdmin
+                    ? 'Erscheint auch in der Admin-Ansicht deiner Dokumente.'
+                    : 'Nur du siehst dieses Dokument. Admin sieht weder Datei noch Existenz.'}
+                </p>
+              </div>
+            </label>
+          )}
 
           {/* Datei-Drop */}
           <label

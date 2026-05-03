@@ -375,6 +375,9 @@ model Document {
   note             String?
   uploadedBy       String
   uploadedByName   String
+  // Sichtbarkeit: Admin-Uploads sind immer true. MA-Self-Uploads können auf
+  // false gesetzt werden — dann sieht das Dokument NUR der MA selbst.
+  visibleToAdmin   Boolean      @default(true)
   // Digitale Signatur (aktuell nur für Info-Schreiben genutzt)
   signedAt         DateTime?
   signedIp         String?

@@ -330,6 +330,19 @@ export const documentsApi = {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },
+  // MA lädt für sich selbst hoch
+  uploadMy: (file: File, metadata: { documentTypeId: string; year?: number; month?: number; note?: string; visibleToAdmin: boolean }) => {
+    const formData = new FormData();
+    formData.append('document', file);
+    formData.append('documentTypeId', metadata.documentTypeId);
+    if (metadata.year) formData.append('year', String(metadata.year));
+    if (metadata.month) formData.append('month', String(metadata.month));
+    if (metadata.note) formData.append('note', metadata.note);
+    formData.append('visibleToAdmin', String(metadata.visibleToAdmin));
+    return api.post('/documents/my', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
   download: (id: string) => api.get(`/documents/${id}/download`, { responseType: 'blob' }),
   update: (id: string, data: any) => api.put(`/documents/${id}`, data),
   delete: (id: string) => api.delete(`/documents/${id}`),

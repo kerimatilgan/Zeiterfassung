@@ -2,8 +2,11 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { documentsApi, settingsApi, reportsApi } from '../../lib/api';
 import { useAuthStore } from '../../store/authStore';
-import { Download, Filter, FolderOpen, CheckCircle2, PenLine, X } from 'lucide-react';
+import { Download, Filter, FolderOpen, CheckCircle2, PenLine, X, Upload, Lock, Eye, Trash2, Pencil } from 'lucide-react';
 import toast from 'react-hot-toast';
+import DocumentUploadModal from '../../components/DocumentUploadModal';
+import DocumentEditModal from '../../components/DocumentEditModal';
+import { useConfirm } from '../../components/ConfirmDialog';
 
 const MONTHS = [
   'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
@@ -21,11 +24,32 @@ const REPORT_TYPE = { id: '__report__', name: 'Stundenabrechnung', shortName: 'S
 export default function EmployeeDocuments() {
   const { employee } = useAuthStore();
   const queryClient = useQueryClient();
+  const confirm = useConfirm();
   const [filterType, setFilterType] = useState('');
   const [filterYear, setFilterYear] = useState<number | ''>('');
   const [filterMonth, setFilterMonth] = useState<number | ''>('');
   const [signDoc, setSignDoc] = useState<any | null>(null);
   const [signPassword, setSignPassword] = useState('');
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [editingDoc, setEditingDoc] = useState<any | null>(null);
+
+  const deleteOwnUpload = async (doc: any) => {
+    const ok = await confirm({
+      title: 'Dokument löschen?',
+      variant: 'danger',
+      confirmText: 'Löschen',
+      message: `Datei "${doc.originalFilename}" endgültig löschen?`,
+    });
+    if (!ok) return;
+    try {
+      await documentsApi.delete(doc.id);
+      toast.success('Dokument gelöscht');
+      queryClient.invalidateQueries({ queryKey: ['my-documents'] });
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Fehler beim Löschen');
+    }
+  };
+
 
   const { data: documents, isLoading } = useQuery({
     queryKey: ['my-documents'],
@@ -148,9 +172,18 @@ export default function EmployeeDocuments() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Meine Dokumente</h1>
-        <p className="text-gray-500">Gehaltsabrechnungen, Verträge und weitere Dokumente</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Meine Dokumente</h1>
+          <p className="text-gray-500">Gehaltsabrechnungen, Verträge und eigene Uploads</p>
+        </div>
+        <button
+          onClick={() => setUploadOpen(true)}
+          className="btn btn-primary flex items-center gap-2"
+        >
+          <Upload size={18} />
+          Dokument hochladen
+        </button>
       </div>
 
       {/* Filters */}
@@ -215,11 +248,13 @@ export default function EmployeeDocuments() {
         <div className="card p-12 text-center text-gray-500">Laden...</div>
       ) : filteredDocuments.length ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredDocuments.map((doc: any) => (
+          {filteredDocuments.map((doc: any) => {
+            const isOwnUpload = !doc._isReport && doc.uploadedBy === employee?.id;
+            return (
             <div key={doc.id} className={`card p-4 hover:shadow-md transition-shadow ${!doc.firstViewedAt ? 'ring-2 ring-blue-300' : ''}`}>
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-2">
+                  <div className="flex items-center gap-2 mb-2 flex-wrap">
                     <span
                       className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full text-white"
                       style={{ backgroundColor: doc.documentType.color }}
@@ -230,6 +265,17 @@ export default function EmployeeDocuments() {
                       <span className="inline-flex px-2 py-0.5 text-[10px] font-bold rounded-full bg-blue-600 text-white">
                         NEU
                       </span>
+                    )}
+                    {isOwnUpload && (
+                      doc.visibleToAdmin ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium rounded-full bg-amber-100 text-amber-700" title="Eigener Upload — auch für Admin sichtbar">
+                          <Eye size={10} /> Admin sichtbar
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium rounded-full bg-gray-100 text-gray-700" title="Eigener Upload — privat (nur du siehst es)">
+                          <Lock size={10} /> Privat
+                        </span>
+                      )
                     )}
                     <span className="text-xs text-gray-500">
                       {doc.documentType.name}
@@ -270,16 +316,37 @@ export default function EmployeeDocuments() {
                     )
                   )}
                 </div>
-                <button
-                  onClick={() => doc._isReport ? handleReportDownload(doc) : handleDownload(doc.id, doc.originalFilename)}
-                  className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg flex-shrink-0"
-                  title="Herunterladen"
-                >
-                  <Download size={20} />
-                </button>
+                <div className="flex flex-col gap-1 flex-shrink-0">
+                  <button
+                    onClick={() => doc._isReport ? handleReportDownload(doc) : handleDownload(doc.id, doc.originalFilename)}
+                    className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg"
+                    title="Herunterladen"
+                  >
+                    <Download size={20} />
+                  </button>
+                  {isOwnUpload && (
+                    <>
+                      <button
+                        onClick={() => setEditingDoc(doc)}
+                        className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+                        title="Bearbeiten"
+                      >
+                        <Pencil size={18} />
+                      </button>
+                      <button
+                        onClick={() => deleteOwnUpload(doc)}
+                        className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
+                        title="Löschen"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <div className="card p-12 text-center">
@@ -290,10 +357,16 @@ export default function EmployeeDocuments() {
             {allDocuments.length ? 'Keine Dokumente für diesen Filter' : 'Noch keine Dokumente'}
           </h3>
           {!allDocuments.length && (
-            <p className="text-gray-500">
-              Sobald dein Administrator Dokumente hochlädt, werden sie hier angezeigt.
+            <p className="text-gray-500 mb-4">
+              Sobald dein Administrator Dokumente hochlädt — oder du selbst welche hochlädst — werden sie hier angezeigt.
             </p>
           )}
+          <button
+            onClick={() => setUploadOpen(true)}
+            className="btn btn-primary inline-flex items-center gap-2"
+          >
+            <Upload size={18} /> Dokument hochladen
+          </button>
         </div>
       )}
 
@@ -355,6 +428,21 @@ export default function EmployeeDocuments() {
           </div>
         </div>
       )}
+
+      {/* Self-Upload Modal */}
+      <DocumentUploadModal
+        isOpen={uploadOpen}
+        onClose={() => setUploadOpen(false)}
+        selfUpload
+      />
+
+      {/* Edit Modal für eigene Self-Uploads */}
+      <DocumentEditModal
+        isOpen={!!editingDoc}
+        onClose={() => setEditingDoc(null)}
+        doc={editingDoc}
+        mode="self"
+      />
     </div>
   );
 }

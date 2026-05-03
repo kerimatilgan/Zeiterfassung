@@ -59,6 +59,34 @@ const documentUpload = multer({
   },
 });
 
+// Multer-Storage für MA-Self-Uploads — nutzt req.employee.id (nicht URL-Param)
+const selfDocumentStorage = multer.diskStorage({
+  destination: (req: any, _file, cb) => {
+    const employeeId = req.employee?.id;
+    if (!employeeId) return cb(new Error('Nicht authentifiziert'), '');
+    const dir = path.join(process.cwd(), 'uploads', 'documents', employeeId);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (_req, file, cb) => {
+    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `doc-${uniqueSuffix}${ext}.enc`);
+  },
+});
+
+const selfDocumentUpload = multer({
+  storage: selfDocumentStorage,
+  limits: { fileSize: 50 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (ALLOWED_DOC_MIMES.has(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error(`Dateityp "${file.mimetype}" nicht erlaubt. Zulässig: PDF, Bilder, Office-Dokumente, Text.`));
+    }
+  },
+});
+
 // ============================================
 // Endpoints
 // ============================================
@@ -100,13 +128,100 @@ router.post('/my/mark-all-viewed', authMiddleware, async (req: AuthRequest, res:
   }
 });
 
+// MA lädt selbst ein Dokument hoch (eigenes Archiv)
+// visibleToAdmin: true → Admin sieht es in der MA-Doc-Liste
+// visibleToAdmin: false → nur der MA selbst sieht/lädt es runter
+router.post('/my', authMiddleware, selfDocumentUpload.single('document'), async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'Keine Datei hochgeladen' });
+    }
+
+    const { documentTypeId, year, month, note, visibleToAdmin } = req.body;
+
+    if (!documentTypeId) {
+      fs.unlinkSync(req.file.path);
+      return res.status(400).json({ error: 'Dokumenttyp ist erforderlich' });
+    }
+
+    const docType = await prisma.documentType.findUnique({ where: { id: documentTypeId } });
+    if (!docType) {
+      fs.unlinkSync(req.file.path);
+      return res.status(404).json({ error: 'Dokumenttyp nicht gefunden' });
+    }
+
+    // Datei verschlüsseln (in-place) — gleicher Flow wie Admin-Upload
+    const originalSize = req.file.size;
+    try {
+      const tempPath = req.file.path + '.tmp';
+      fs.renameSync(req.file.path, tempPath);
+      encryptFile(tempPath, req.file.path);
+      fs.unlinkSync(tempPath);
+    } catch (encError) {
+      console.error('Encryption error (self-upload):', encError);
+      if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+      if (fs.existsSync(req.file.path + '.tmp')) fs.unlinkSync(req.file.path + '.tmp');
+      return res.status(500).json({ error: 'Fehler bei der Verschlüsselung' });
+    }
+
+    const filePath = `/uploads/documents/${req.employee!.id}/${req.file.filename}`;
+    // Body kommt aus multipart/form-data → boolean wird als String "true"/"false" geliefert
+    const visible = visibleToAdmin === 'true' || visibleToAdmin === true;
+
+    const document = await prisma.document.create({
+      data: {
+        employeeId: req.employee!.id,
+        documentTypeId,
+        filePath,
+        originalFilename: req.file.originalname,
+        fileSize: originalSize,
+        mimeType: req.file.mimetype,
+        year: year ? parseInt(year) : null,
+        month: month ? parseInt(month) : null,
+        note: note || null,
+        uploadedBy: req.employee!.id,
+        uploadedByName: `${(req.employee as any).firstName} ${(req.employee as any).lastName}`,
+        visibleToAdmin: visible,
+      },
+      include: { documentType: { select: { id: true, name: true, shortName: true, color: true } } },
+    });
+
+    await createAuditLog({
+      req,
+      action: 'UPLOAD',
+      entityType: 'Document',
+      entityId: document.id,
+      newValues: {
+        type: docType.name,
+        filename: req.file.originalname,
+        year: year || null,
+        month: month || null,
+        sichtbarkeit: visible ? 'sichtbar für Admin' : 'privat (nur für MA)',
+      },
+      note: `Eigenes Dokument "${req.file.originalname}" (${docType.name}) hochgeladen — ${visible ? 'sichtbar für Admin' : 'privat'}`,
+    });
+
+    // WebSocket-Update nur an Admin senden wenn das Dokument sichtbar ist —
+    // bei privaten Uploads ändert sich für Admin nichts.
+    if (visible) {
+      io.emit('document-updated', { type: 'upload', employeeId: req.employee!.id, documentId: document.id });
+    }
+
+    res.status(201).json(document);
+  } catch (error) {
+    console.error('Self-upload document error:', error);
+    res.status(500).json({ error: 'Fehler beim Hochladen' });
+  }
+});
+
 // Dokumente eines Mitarbeiters abrufen (Admin)
+// Private MA-Self-Uploads (visibleToAdmin: false) werden komplett rausgefiltert.
 router.get('/employee/:employeeId', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const { employeeId } = req.params;
 
     const documents = await prisma.document.findMany({
-      where: { employeeId },
+      where: { employeeId, visibleToAdmin: true },
       include: { documentType: { select: { id: true, name: true, shortName: true, color: true } } },
       orderBy: [{ year: 'desc' }, { month: 'desc' }, { createdAt: 'desc' }],
     });
@@ -246,6 +361,10 @@ router.get('/:id/download', authMiddleware, async (req: AuthRequest, res: Respon
     if (!req.employee!.isAdmin && req.employee!.id !== document.employeeId) {
       return res.status(403).json({ error: 'Kein Zugriff auf dieses Dokument' });
     }
+    // Privater MA-Self-Upload: auch Admin darf nicht runterladen
+    if (req.employee!.isAdmin && !document.visibleToAdmin) {
+      return res.status(403).json({ error: 'Privates Dokument — kein Admin-Zugriff' });
+    }
 
     const filePath = path.join(process.cwd(), document.filePath);
     if (!fs.existsSync(filePath)) {
@@ -290,24 +409,72 @@ router.get('/:id/download', authMiddleware, async (req: AuthRequest, res: Respon
   }
 });
 
-// Dokument-Metadaten aktualisieren (Admin)
-router.put('/:id', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
+// Dokument-Metadaten aktualisieren
+// - Admin: alle Felder (documentTypeId, year, month, note, visibleToAdmin, originalFilename)
+// - MA: nur originalFilename, documentTypeId, note, visibleToAdmin auf eigenen Self-Uploads
+router.put('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { documentTypeId, year, month, note } = req.body;
+    const { documentTypeId, year, month, note, visibleToAdmin, originalFilename } = req.body;
+
+    const existing = await prisma.document.findUnique({
+      where: { id },
+      select: { id: true, employeeId: true, uploadedBy: true, visibleToAdmin: true },
+    });
+    if (!existing) {
+      return res.status(404).json({ error: 'Dokument nicht gefunden' });
+    }
+
+    const isAdmin = req.employee!.isAdmin;
+    const isOwnSelfUpload = existing.employeeId === req.employee!.id
+      && existing.uploadedBy === req.employee!.id;
+
+    if (!isAdmin && !isOwnSelfUpload) {
+      return res.status(403).json({ error: 'Kein Zugriff auf dieses Dokument' });
+    }
+
+    const data: any = {};
+
+    if (visibleToAdmin !== undefined) {
+      data.visibleToAdmin = !!visibleToAdmin;
+    }
+    if (documentTypeId) {
+      data.documentTypeId = documentTypeId;
+    }
+    if (note !== undefined) {
+      data.note = note || null;
+    }
+    if (originalFilename !== undefined) {
+      const trimmed = String(originalFilename).trim();
+      if (!trimmed) {
+        return res.status(400).json({ error: 'Dateiname darf nicht leer sein' });
+      }
+      if (trimmed.length > 200) {
+        return res.status(400).json({ error: 'Dateiname zu lang (max. 200 Zeichen)' });
+      }
+      data.originalFilename = trimmed;
+    }
+    // Periode-Felder bleiben Admin-only
+    if (isAdmin) {
+      if (year !== undefined) data.year = year ? parseInt(year) : null;
+      if (month !== undefined) data.month = month ? parseInt(month) : null;
+    }
+
+    if (Object.keys(data).length === 0) {
+      return res.status(400).json({ error: 'Keine Änderung übermittelt' });
+    }
 
     const document = await prisma.document.update({
       where: { id },
-      data: {
-        ...(documentTypeId && { documentTypeId }),
-        ...(year !== undefined && { year: year ? parseInt(year) : null }),
-        ...(month !== undefined && { month: month ? parseInt(month) : null }),
-        ...(note !== undefined && { note: note || null }),
-      },
+      data,
       include: { documentType: { select: { id: true, name: true, shortName: true, color: true } } },
     });
 
-    io.emit('document-updated', { type: 'update', employeeId: document.employeeId, documentId: document.id });
+    // WebSocket-Update nur senden wenn das Dokument für Admin sichtbar ist (oder
+    // gerade sichtbar wurde) — bei privaten Uploads betrifft die Änderung den Admin nicht.
+    if (document.visibleToAdmin || existing.visibleToAdmin) {
+      io.emit('document-updated', { type: 'update', employeeId: document.employeeId, documentId: document.id });
+    }
 
     res.json(document);
   } catch (error) {
@@ -316,8 +483,8 @@ router.put('/:id', authMiddleware, adminMiddleware, async (req: AuthRequest, res
   }
 });
 
-// Dokument löschen (Admin)
-router.delete('/:id', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
+// Dokument löschen — Admin überall, MA nur eigene Self-Uploads (uploadedBy = self)
+router.delete('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
 
@@ -331,6 +498,14 @@ router.delete('/:id', authMiddleware, adminMiddleware, async (req: AuthRequest, 
 
     if (!document) {
       return res.status(404).json({ error: 'Dokument nicht gefunden' });
+    }
+
+    // Berechtigung: Admin darf alles, MA nur eigene Self-Uploads
+    const isOwnSelfUpload = !req.employee!.isAdmin
+      && document.employeeId === req.employee!.id
+      && document.uploadedBy === req.employee!.id;
+    if (!req.employee!.isAdmin && !isOwnSelfUpload) {
+      return res.status(403).json({ error: 'Nur eigene hochgeladene Dokumente können gelöscht werden' });
     }
 
     // Verschlüsselte Datei löschen
