@@ -492,7 +492,11 @@ export async function generateMonthlyReportPDF(data: ReportData): Promise<void> 
         t(pausen, x, y, { width: colWidths.pausen - 5, align: 'right' }); x += colWidths.pausen;
         t(netto, x, y, { width: colWidths.netto - 5, align: 'right' }); x += colWidths.netto;
         t(soll, x, y, { width: colWidths.soll - 5, align: 'right' }); x += colWidths.soll;
+        // Tag+/- in grün/rot färben (nur dieser Spalte, Monat+/- bleibt schwarz)
+        if (day.diffMinutes > 0) doc.fillColor('#228B22');
+        else if (day.diffMinutes < 0) doc.fillColor('#DC143C');
         t(tagDiff, x, y, { width: colWidths.tagDiff - 5, align: 'right' }); x += colWidths.tagDiff;
+        doc.fillColor(rowColor);
         t(monatDiff, x, y, { width: colWidths.monatDiff - 5, align: 'right' });
 
         doc.fillColor('#000000');
