@@ -3,6 +3,7 @@ import { prisma, io } from '../index.js';
 import { authMiddleware, adminMiddleware, AuthRequest } from '../middleware/auth.js';
 import { z } from 'zod';
 import { createAuditLog } from '../utils/auditLog.js';
+import { dateRangeFilter } from '../utils/dateRange.js';
 import { sendComplaintNotification, sendComplaintResolvedNotification, sendEmail } from '../utils/emailService.js';
 import { calculateTargetHours } from '../utils/targetHours.js';
 import { hoursBetween } from '../utils/timeCalc.js';
@@ -16,12 +17,8 @@ router.get('/my', authMiddleware, async (req: AuthRequest, res: Response) => {
 
     const where: any = { employeeId: req.employee!.id };
 
-    if (from) {
-      where.clockIn = { ...where.clockIn, gte: new Date(from as string) };
-    }
-    if (to) {
-      where.clockIn = { ...where.clockIn, lte: new Date(to as string) };
-    }
+    const range = dateRangeFilter(from, to);
+    if (Object.keys(range).length) where.clockIn = range;
 
     const entries = await prisma.timeEntry.findMany({
       where,
@@ -81,12 +78,8 @@ router.get('/', authMiddleware, adminMiddleware, async (req: AuthRequest, res: R
     if (employeeId) {
       where.employeeId = employeeId;
     }
-    if (from) {
-      where.clockIn = { ...where.clockIn, gte: new Date(from as string) };
-    }
-    if (to) {
-      where.clockIn = { ...where.clockIn, lte: new Date(to as string) };
-    }
+    const range = dateRangeFilter(from, to);
+    if (Object.keys(range).length) where.clockIn = range;
 
     const entries = await prisma.timeEntry.findMany({
       where,
@@ -1692,12 +1685,8 @@ router.get('/flagged', authMiddleware, adminMiddleware, async (req: AuthRequest,
     }
 
     // Datumsfilter
-    if (from) {
-      where.clockIn = { ...where.clockIn, gte: new Date(from as string) };
-    }
-    if (to) {
-      where.clockIn = { ...where.clockIn, lte: new Date(to as string) };
-    }
+    const range = dateRangeFilter(from, to);
+    if (Object.keys(range).length) where.clockIn = { ...where.clockIn, ...range };
 
     const entries = await prisma.timeEntry.findMany({
       where,

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../index.js';
 import { authMiddleware, adminMiddleware, AuthRequest } from '../middleware/auth.js';
 import { createAuditLog } from '../utils/auditLog.js';
+import { dateRangeFilter } from '../utils/dateRange.js';
 import { sendComplaintNotification, sendComplaintResolvedNotification } from '../utils/emailService.js';
 
 const router = Router();
@@ -328,8 +329,8 @@ router.get('/all', authMiddleware, adminMiddleware, async (req: AuthRequest, res
     if (resolved === 'true') where.resolvedAt = { not: null };
     else if (resolved === 'false') where.resolvedAt = null;
     if (employeeId) where.employeeId = employeeId;
-    if (from) where.date = { ...where.date, gte: new Date(from as string) };
-    if (to) where.date = { ...where.date, lte: new Date(to as string) };
+    const range = dateRangeFilter(from, to);
+    if (Object.keys(range).length) where.date = range;
 
     // Auch Legacy-Komplains (TimeEntry.complaintMessage) berücksichtigen
     const legacyWhere: any = {
@@ -339,8 +340,7 @@ router.get('/all', authMiddleware, adminMiddleware, async (req: AuthRequest, res
     if (resolved === 'true') legacyWhere.complaintResolvedAt = { not: null };
     else if (resolved === 'false') legacyWhere.complaintResolvedAt = null;
     if (employeeId) legacyWhere.employeeId = employeeId;
-    if (from) legacyWhere.clockIn = { ...legacyWhere.clockIn, gte: new Date(from as string) };
-    if (to) legacyWhere.clockIn = { ...legacyWhere.clockIn, lte: new Date(to as string) };
+    if (Object.keys(range).length) legacyWhere.clockIn = range;
 
     const [complaints, legacyEntries] = await Promise.all([
       prisma.complaint.findMany({
