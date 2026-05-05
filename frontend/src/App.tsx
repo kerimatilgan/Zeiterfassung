@@ -50,6 +50,16 @@ function App() {
     }).catch(() => setNeedsSetup(false));
   }, []);
 
+  // Beim App-Start (oder Tab-Reload) den eingeloggten User über /auth/me
+  // aktualisieren — sonst hat der authStore-Cache eventuell veraltete Felder
+  // (z.B. nach Backend-Schema-Erweiterungen wie dashboardCardOrder).
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    api.get('/auth/me')
+      .then(res => useAuthStore.getState().updateEmployee(res.data))
+      .catch(() => {/* ignore — auth-interceptor kümmert sich um 401 */});
+  }, [isAuthenticated]);
+
   // Loading
   if (needsSetup === null) {
     return <div className="min-h-screen flex items-center justify-center bg-gray-50">

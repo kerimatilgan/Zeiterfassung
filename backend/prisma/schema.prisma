@@ -57,6 +57,11 @@ model Employee {
   initialBalanceYear      Int?               // Ab welchem Jahr gelten die Startwerte
   initialBalanceMonth     Int?               // Ab welchem Monat gelten die Startwerte
 
+  // Persönliche UI-Präferenzen
+  // Reihenfolge der Stats-Karten im Dashboard, als JSON-Array von Karten-IDs.
+  // null/leer = Default-Reihenfolge.
+  dashboardCardOrder      String?
+
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 

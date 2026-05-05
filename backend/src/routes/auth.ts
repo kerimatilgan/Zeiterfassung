@@ -115,6 +115,7 @@ router.post('/login', loginLimiter, async (req, res) => {
         vacationDaysPerYear: employee.vacationDaysPerYear,
         workDays: employee.workDays,
         isAdmin: employee.isAdmin,
+        dashboardCardOrder: employee.dashboardCardOrder,
       },
     });
   } catch (error) {
@@ -144,6 +145,7 @@ router.get('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
         workDays: true,
         isAdmin: true,
         totpEnabled: true,
+        dashboardCardOrder: true,
         _count: { select: { passkeys: true } },
         createdAt: true,
       },

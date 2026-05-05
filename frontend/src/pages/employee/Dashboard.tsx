@@ -3,11 +3,62 @@ import { timeEntriesApi, documentsApi, employeesApi, reportsApi } from '../../li
 import { isPushSupported, getNotificationPermission, hasActiveSubscription, enablePush } from '../../lib/pushNotifications';
 import { useAuthStore } from '../../store/authStore';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Clock, Calendar, Timer, Umbrella, Thermometer, MapPin, LogIn, LogOut, X, Loader2, ChevronLeft, ChevronRight, MessageSquare, AlertTriangle, CheckCircle, Coffee, PenLine, ChevronRight as ChevronRightIcon, FileText, Bell } from 'lucide-react';
+import { Clock, Calendar, Timer, Umbrella, Thermometer, MapPin, LogIn, LogOut, X, Loader2, ChevronLeft, ChevronRight, MessageSquare, AlertTriangle, CheckCircle, Coffee, PenLine, ChevronRight as ChevronRightIcon, FileText, Bell, GripVertical } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, getISOWeek, addWeeks, subWeeks, isAfter } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  DragStartEvent,
+  DragOverlay,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  rectSortingStrategy,
+} from '@dnd-kit/sortable';
+import SortableCard from '../../components/SortableCard';
+
+// Default-Reihenfolge der sortierbaren Stats-Karten — entspricht dem visuellen
+// Layout vor dem Drag-and-Drop-Feature.
+const DEFAULT_CARD_ORDER = ['overtime', 'week', 'month', 'vacation', 'sick'] as const;
+type CardId = typeof DEFAULT_CARD_ORDER[number];
+// Welche Karten im 2-Spalten-Desktop-Grid die volle Breite spannen
+const FULL_WIDTH_CARDS: Set<CardId> = new Set(['week', 'sick']);
+// Kurze Label für die Drag-Overlay-Vorschau — die echte Karte ist während
+// des Drags ausgeblendet, am Finger schwebt stattdessen nur dieses kompakte
+// Pill mit dem Karten-Titel.
+const CARD_LABELS: Record<CardId, string> = {
+  overtime: 'Überstunden-Saldo',
+  week: 'Wochenübersicht',
+  month: 'Dieser Monat',
+  vacation: 'Urlaubstage',
+  sick: 'Krankheitstage',
+};
+
+// Parst gespeicherte Reihenfolge (JSON-String aus DB). Validiert dass alle IDs
+// existieren und hängt fehlende ans Ende — robust gegen zukünftige neue Karten.
+function parseCardOrder(raw: string | null | undefined): CardId[] {
+  if (!raw) return [...DEFAULT_CARD_ORDER];
+  try {
+    const parsed = JSON.parse(raw) as string[];
+    if (!Array.isArray(parsed)) return [...DEFAULT_CARD_ORDER];
+    const valid = parsed.filter((id): id is CardId => DEFAULT_CARD_ORDER.includes(id as CardId));
+    const missing = DEFAULT_CARD_ORDER.filter(id => !valid.includes(id));
+    return [...valid, ...missing];
+  } catch {
+    return [...DEFAULT_CARD_ORDER];
+  }
+}
 
 // Formatiert Dezimalstunden zu H:MM Format (unterstützt negative Werte)
 const formatHoursToTime = (hours: number): string => {
@@ -135,6 +186,52 @@ export default function EmployeeDashboard() {
   // Wochenansicht State
   const [weekDate, setWeekDate] = useState(new Date());
   const [expandedDay, setExpandedDay] = useState<string | null>(null);
+
+  // Sortier-Reihenfolge der Stats-Karten (per Drag-and-Drop änderbar).
+  // Persistiert in der DB pro User → folgt dem Login über alle Geräte.
+  // Initialwert kommt aus authStore.employee.dashboardCardOrder (das wird beim
+  // Login bzw. /auth/me-Refresh gefüllt).
+  const updateEmployee = useAuthStore(s => s.updateEmployee);
+  const [cardOrder, setCardOrder] = useState<CardId[]>(() => parseCardOrder(employee?.dashboardCardOrder));
+  const [activeDragId, setActiveDragId] = useState<CardId | null>(null);
+  // Wenn der authStore-Employee nach /auth/me-Refresh aktualisiert wird,
+  // einmalig den lokalen State angleichen (z.B. bei Wechsel von Gerät).
+  useEffect(() => {
+    if (employee?.dashboardCardOrder) {
+      const fromStore = parseCardOrder(employee.dashboardCardOrder);
+      setCardOrder(prev => JSON.stringify(prev) === JSON.stringify(fromStore) ? prev : fromStore);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [employee?.dashboardCardOrder]);
+  const dndSensors = useSensors(
+    // Touch: kurzer Press hält, dann ziehen — verhindert Konflikt mit Scroll
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
+    // Maus: 5px Bewegung bevor Drag startet — verhindert dass jeder Klick zu Drag wird
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveDragId(event.active.id as CardId);
+  };
+  const handleDragEnd = (event: DragEndEvent) => {
+    setActiveDragId(null);
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    setCardOrder((items) => {
+      const oldIdx = items.indexOf(active.id as CardId);
+      const newIdx = items.indexOf(over.id as CardId);
+      if (oldIdx === -1 || newIdx === -1) return items;
+      const next = arrayMove(items, oldIdx, newIdx);
+      // Persistieren in DB + lokaler authStore-Cache (damit Reload sofort die
+      // neue Reihenfolge zeigt, ohne auf /auth/me-Refresh zu warten).
+      const orderJson = JSON.stringify(next);
+      updateEmployee({ dashboardCardOrder: orderJson });
+      employeesApi.saveDashboardOrder(next).catch(err => {
+        console.error('Dashboard-Reihenfolge konnte nicht gespeichert werden:', err);
+      });
+      return next;
+    });
+  };
 
   // ?openComplaint=ENTRY_ID — direkt aus Mail-Link zur neuen Reklamations-Übersicht springen
   const [searchParams] = useSearchParams();
@@ -518,8 +615,13 @@ export default function EmployeeDashboard() {
         </div>
       )}
 
-      {/* Stats Grid: 2 Spalten auf Desktop */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+      {/* Stats Grid: 2 Spalten auf Desktop. Karten sind per Drag-Handle (oben
+          rechts auf jeder Karte) sortierbar — Reihenfolge wird pro Browser/Gerät
+          in localStorage persistiert. */}
+      <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+        <SortableContext items={cardOrder} strategy={rectSortingStrategy}>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+        <SortableCard id="overtime" order={cardOrder.indexOf('overtime')} className={FULL_WIDTH_CARDS.has('overtime') ? 'lg:col-span-2' : ''}>
         {/* Überstunden-Saldo Gesamt */}
         <div className="card p-5">
           <div className="flex items-center gap-3 mb-3">
@@ -543,7 +645,9 @@ export default function EmployeeDashboard() {
             </div>
           )}
         </div>
+        </SortableCard>
 
+        <SortableCard id="week" order={cardOrder.indexOf('week')} className={FULL_WIDTH_CARDS.has('week') ? 'lg:col-span-2' : ''}>
         {/* Wochenübersicht */}
         {(() => {
           const weekWorkedTotal = weekDays.reduce((sum, day) => sum + getDayWorkedHours(day), 0);
@@ -552,7 +656,7 @@ export default function EmployeeDashboard() {
           const weekPercent = weekTargetTotal > 0 ? Math.round((weekWorkedTotal / weekTargetTotal) * 100) : 0;
 
           return (
-            <div className="card overflow-hidden lg:col-span-2">
+            <div className="card overflow-hidden">
               {/* Week Header */}
               <div className="p-5 bg-gradient-to-r from-gray-800 to-gray-900 text-white">
                 <div className="flex items-center justify-between">
@@ -782,7 +886,9 @@ export default function EmployeeDashboard() {
             </div>
           );
         })()}
+        </SortableCard>
 
+        <SortableCard id="month" order={cardOrder.indexOf('month')} className={FULL_WIDTH_CARDS.has('month') ? 'lg:col-span-2' : ''}>
         {/* Arbeitszeit Monat */}
         <div className="card p-5">
           <div className="flex items-center gap-3 mb-3">
@@ -812,7 +918,9 @@ export default function EmployeeDashboard() {
             </div>
           </div>
         </div>
+        </SortableCard>
 
+        <SortableCard id="vacation" order={cardOrder.indexOf('vacation')} className={FULL_WIDTH_CARDS.has('vacation') ? 'lg:col-span-2' : ''}>
         {/* Urlaubstage */}
         <div className="card p-5">
           <div className="flex items-center gap-3 mb-3">
@@ -859,9 +967,11 @@ export default function EmployeeDashboard() {
             </div>
           )}
         </div>
+        </SortableCard>
 
+        <SortableCard id="sick" order={cardOrder.indexOf('sick')} className={FULL_WIDTH_CARDS.has('sick') ? 'lg:col-span-2' : ''}>
         {/* Krankheitstage */}
-        <div className="card p-5 lg:col-span-2">
+        <div className="card p-5">
           <div className="flex items-center gap-3 mb-3">
             <div className="p-2.5 rounded-lg bg-red-100">
               <Thermometer className="w-5 h-5 text-red-600" />
@@ -879,7 +989,21 @@ export default function EmployeeDashboard() {
             </div>
           </div>
         </div>
-      </div>
+        </SortableCard>
+          </div>
+        </SortableContext>
+        {/* Beim Drag schwebt diese kompakte Pille am Finger/Cursor — die echte
+            Karte wird via opacity:0 ausgeblendet, damit es kein Layout-Chaos
+            mit unterschiedlich hohen Karten gibt. */}
+        <DragOverlay>
+          {activeDragId ? (
+            <div className="card px-4 py-3 shadow-2xl ring-2 ring-primary-400 cursor-grabbing inline-flex items-center gap-2">
+              <GripVertical size={16} className="text-gray-400" />
+              <span className="font-semibold text-gray-900">{CARD_LABELS[activeDragId]}</span>
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
 
     </div>
   );

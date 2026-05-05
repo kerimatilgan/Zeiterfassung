@@ -240,6 +240,7 @@ router.post('/totp/validate', twoFactorLimiter, async (req, res) => {
         vacationDaysPerYear: employee.vacationDaysPerYear,
         workDays: employee.workDays,
         isAdmin: employee.isAdmin,
+        dashboardCardOrder: employee.dashboardCardOrder,
       },
     });
   } catch (error) {
@@ -518,6 +519,7 @@ router.post('/passkey/auth-verify', twoFactorLimiter, async (req, res) => {
         vacationDaysPerYear: employee.vacationDaysPerYear,
         workDays: employee.workDays,
         isAdmin: employee.isAdmin,
+        dashboardCardOrder: employee.dashboardCardOrder,
       },
     });
   } catch (error) {

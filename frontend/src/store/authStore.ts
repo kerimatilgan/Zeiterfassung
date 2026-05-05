@@ -12,6 +12,7 @@ interface Employee {
   vacationDaysPerYear: number;
   workDays: string;
   isAdmin: boolean;
+  dashboardCardOrder?: string | null;
 }
 
 interface AuthState {
@@ -23,6 +24,8 @@ interface AuthState {
   login: (token: string, employee: Employee) => void;
   logout: () => void;
   setPending2FA: (data: { tempToken: string; methods: string[] } | null) => void;
+  // Patch einzelne Felder am Employee (z.B. UI-Präferenzen wie dashboardCardOrder)
+  updateEmployee: (patch: Partial<Employee>) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -35,6 +38,7 @@ export const useAuthStore = create<AuthState>()(
       login: (token, employee) => set({ token, employee, isAuthenticated: true, pending2FA: null }),
       logout: () => set({ token: null, employee: null, isAuthenticated: false, pending2FA: null }),
       setPending2FA: (data) => set({ pending2FA: data }),
+      updateEmployee: (patch) => set((state) => state.employee ? { employee: { ...state.employee, ...patch } } : {}),
     }),
     {
       name: 'auth-storage',

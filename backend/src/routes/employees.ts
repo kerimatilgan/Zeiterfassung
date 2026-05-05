@@ -717,6 +717,30 @@ router.post('/me/position', authMiddleware, async (req: AuthRequest, res: Respon
   }
 });
 
+// Reihenfolge der Stats-Karten im MA-Dashboard speichern (persönliche Präferenz,
+// folgt dem User über alle Geräte). Body: { order: string[] }.
+router.put('/me/dashboard-order', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const schema = z.object({
+      order: z.array(z.string().min(1).max(50)).max(20),
+    });
+    const { order } = schema.parse(req.body);
+
+    await prisma.employee.update({
+      where: { id: req.employee!.id },
+      data: { dashboardCardOrder: JSON.stringify(order) },
+    });
+
+    res.json({ ok: true });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: error.errors[0].message });
+    }
+    console.error('Dashboard card order save error:', error);
+    res.status(500).json({ error: 'Fehler beim Speichern' });
+  }
+});
+
 router.post('/:id/generate-info-pdf', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;

@@ -87,6 +87,9 @@ export const employeesApi = {
   // PWA-Heartbeat: aktuelle MA-Position für Standort-Erinnerung speichern
   sendPosition: (latitude: number, longitude: number) =>
     api.post('/employees/me/position', { latitude, longitude }),
+  // Persönliche Reihenfolge der Stats-Karten im Dashboard speichern
+  saveDashboardOrder: (order: string[]) =>
+    api.put('/employees/me/dashboard-order', { order }),
 };
 
 // Terminal (RFID Registration)
