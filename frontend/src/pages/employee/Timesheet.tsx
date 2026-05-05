@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { timeEntriesApi, settingsApi } from '../../lib/api';
+import { timeEntriesApi, settingsApi, complaintsApi } from '../../lib/api';
 import { useAuthStore } from '../../store/authStore';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -148,7 +148,9 @@ export default function EmployeeTimesheet() {
     setShowComplaintModal(true);
   };
 
-  // Reklamation senden
+  // Reklamation senden — geht ins NEUE Complaint-System (nicht mehr ins Legacy
+  // TimeEntry.complaintMessage). Damit ist die Rekla im Admin-Bereich
+  // /admin/complaints und in der Übersicht /dashboard/complaints sauber bearbeitbar.
   const handleSubmitComplaint = async () => {
     if (!complaintMessage.trim()) {
       toast.error('Bitte geben Sie eine Nachricht ein');
@@ -158,10 +160,9 @@ export default function EmployeeTimesheet() {
     setIsSubmitting(true);
     try {
       if (standaloneDate) {
-        // Standalone-Reklamation (kein bestehender Eintrag)
-        await timeEntriesApi.createStandaloneComplaint(standaloneDate, complaintMessage);
+        await complaintsApi.create({ date: standaloneDate, message: complaintMessage });
       } else if (selectedEntry) {
-        await timeEntriesApi.createComplaint(selectedEntry.id, complaintMessage);
+        await complaintsApi.create({ timeEntryId: selectedEntry.id, message: complaintMessage });
       }
       toast.success('Reklamation wurde gesendet');
       setShowComplaintModal(false);
@@ -176,7 +177,8 @@ export default function EmployeeTimesheet() {
     }
   };
 
-  // Reklamation zurückziehen
+  // Reklamation zurückziehen — sucht erst die Complaint-ID via timeEntryId
+  // im neuen System; falls nicht gefunden, fällt auf Legacy zurück.
   const handleDeleteComplaint = async () => {
     if (!selectedEntry) return;
 
@@ -184,7 +186,17 @@ export default function EmployeeTimesheet() {
 
     setIsSubmitting(true);
     try {
-      await timeEntriesApi.deleteComplaint(selectedEntry.id);
+      try {
+        const r = await complaintsApi.getByEntry(selectedEntry.id);
+        if (r.data?.id) {
+          await complaintsApi.delete(r.data.id);
+        } else {
+          await timeEntriesApi.deleteComplaint(selectedEntry.id);
+        }
+      } catch {
+        // Falls /by-entry 404 liefert: Legacy-Pfad
+        await timeEntriesApi.deleteComplaint(selectedEntry.id);
+      }
       toast.success('Reklamation wurde zurückgezogen');
       setShowComplaintModal(false);
       setComplaintMessage('');
