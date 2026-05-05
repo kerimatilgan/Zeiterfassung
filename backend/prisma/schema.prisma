@@ -287,6 +287,11 @@ model AbsenceType {
   requiredHours   Float    @default(0) // Pflichtstunden an diesem Tag (0 = keine Pflicht)
   color           String   @default("#3B82F6") // Farbe für Anzeige im Kalender
   countsAsVacation Boolean @default(false) // Zählt als Urlaubstag (true = wird vom Urlaubskontingent abgezogen)
+  // Wenn true: voller Tagessoll bleibt bestehen, aber 0 gearbeitete Stunden werden
+  // angerechnet → das Tagesdefizit zieht den Saldo (Überstunden) nach unten.
+  // Anwendungsfall: "Ü-Frei" (Mitarbeiter nimmt einen Tag frei und verrechnet
+  // das mit angesammelten Überstunden).
+  consumesOvertime Boolean @default(false)
   isActive        Boolean  @default(true)
   sortOrder       Int      @default(0) // Reihenfolge in Dropdowns
 

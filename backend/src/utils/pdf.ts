@@ -16,6 +16,7 @@ interface Absence {
     name: string;
     shortName: string;
     requiredHours: number;
+    consumesOvertime?: boolean;
   };
 }
 
@@ -204,17 +205,27 @@ export async function generateMonthlyReportPDF(data: ReportData): Promise<void> 
         // Target für den Tag (nur an Arbeitstagen ohne Feiertag)
         let targetMinutes = 0;
         if (isWorkDay && !holiday) {
-          // Bei Abwesenheit mit requiredHours = 0: kein Soll (z.B. Urlaub, Krank)
-          // Der Mitarbeiter muss an diesem Tag nicht arbeiten
-          if (absence && absence.absenceType.requiredHours === 0) {
-            targetMinutes = 0;
+          if (absence) {
+            if (absence.absenceType.consumesOvertime) {
+              // Ü-Frei: voller Tagessoll bleibt — die fehlenden Stunden ziehen
+              // den Überstunden-Saldo nach unten (Tag+/- = -dailyTarget).
+              targetMinutes = dailyTargetMinutes;
+            } else if (absence.absenceType.requiredHours === 0) {
+              // Urlaub, Krank, Berufsschule ganzer Tag: kein Soll an diesem Tag
+              targetMinutes = 0;
+            } else {
+              // Schule halber Tag: voller Soll, requiredHours werden als Netto angerechnet
+              targetMinutes = dailyTargetMinutes;
+            }
           } else {
             targetMinutes = dailyTargetMinutes;
           }
         }
 
-        // Bei Abwesenheit: requiredHours anrechnen (z.B. Berufsschule = halber Tag)
-        if (absence && absence.absenceType.requiredHours > 0) {
+        // Bei Abwesenheit mit requiredHours > 0 UND nicht consumesOvertime:
+        // requiredHours als bereits geleistete Arbeitszeit anrechnen (z.B. Schule halber Tag).
+        // Ü-Frei wird hier bewusst übersprungen — Netto bleibt 0/actual.
+        if (absence && absence.absenceType.requiredHours > 0 && !absence.absenceType.consumesOvertime) {
           netMinutes = absence.absenceType.requiredHours * 60;
         }
 

@@ -81,7 +81,11 @@ export async function calculateTargetHours({
     include: { absenceType: true },
   });
   const absenceMap = new Map<string, number>();
-  monthAbsences.forEach((a) => absenceMap.set(toDateKey(a.date), a.absenceType.requiredHours));
+  monthAbsences.forEach((a) => {
+    // Ü-Frei (consumesOvertime): voller Tagessoll bleibt; sonst requiredHours
+    const hours = (a.absenceType as any).consumesOvertime ? dailyHours : a.absenceType.requiredHours;
+    absenceMap.set(toDateKey(a.date), hours);
+  });
 
   const calcForRange = (fromDay: number, toDay: number): number => {
     let target = 0;

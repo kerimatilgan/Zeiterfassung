@@ -803,8 +803,15 @@ async function calculateAdjustedTargetHours(
     },
     include: { absenceType: true }
   });
+  // Pro Tag: effektives Soll je nach Abwesenheitstyp
+  // - consumesOvertime (Ü-Frei): voller Tagessoll bleibt bestehen
+  // - requiredHours = 0 (Urlaub/Krank/Berufsschule ganztags): kein Soll
+  // - requiredHours > 0 (Schule halber Tag): nur diese Stunden als Soll
   const absenceMap = new Map<string, number>();
-  absences.forEach(a => absenceMap.set(toLocalDateString(a.date), a.absenceType.requiredHours));
+  absences.forEach(a => {
+    const effective = a.absenceType.consumesOvertime ? dailyTargetHours : a.absenceType.requiredHours;
+    absenceMap.set(toLocalDateString(a.date), effective);
+  });
 
   let targetHours = 0;
 
@@ -820,10 +827,7 @@ async function calculateAdjustedTargetHours(
 
     // Abwesenheit?
     if (absenceMap.has(dateStr)) {
-      const requiredHours = absenceMap.get(dateStr)!;
-      // Bei requiredHours = 0 (Urlaub, Krank): kein Soll
-      // Bei requiredHours > 0 (Berufsschule): nur diese Stunden als Soll
-      targetHours += requiredHours;
+      targetHours += absenceMap.get(dateStr)!;
     } else {
       // Normaler Arbeitstag
       targetHours += dailyTargetHours;

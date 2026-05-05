@@ -45,7 +45,7 @@ const DEFAULT_ABSENCE_TYPES = [
   { name: 'Krank', shortName: 'Krank', requiredHours: 0, color: '#ff3333', sortOrder: 1 },
   { name: 'Berufschule ganzer Tag', shortName: 'Schule 1', requiredHours: 0, color: '#5ffb37', sortOrder: 2 },
   { name: 'Schule halber Tag', shortName: 'Schule 1/2', requiredHours: 4, color: '#bbb100', sortOrder: 3 },
-  { name: 'Ü-frei', shortName: 'Ü-Frei', requiredHours: 8, color: '#39e6f9', sortOrder: 4 },
+  { name: 'Ü-frei', shortName: 'Ü-Frei', requiredHours: 0, consumesOvertime: true, color: '#39e6f9', sortOrder: 4 },
 ];
 
 // Ersteinrichtung durchführen

@@ -466,7 +466,9 @@ router.get('/my/week-targets', authMiddleware, async (req: AuthRequest, res: Res
     absences.forEach(a => {
       // Lokale Datumskeys verwenden (nicht UTC!)
       const key = `${a.date.getFullYear()}-${String(a.date.getMonth() + 1).padStart(2, '0')}-${String(a.date.getDate()).padStart(2, '0')}`;
-      absenceMap.set(key, { hours: a.absenceType.requiredHours, type: a.absenceType.name });
+      // Ü-Frei (consumesOvertime): voller Tagessoll bleibt; sonst requiredHours
+      const hours = (a.absenceType as any).consumesOvertime ? dailyHours : a.absenceType.requiredHours;
+      absenceMap.set(key, { hours, type: a.absenceType.name });
     });
 
     // Pro Tag berechnen
@@ -608,8 +610,12 @@ router.get('/my/stats', authMiddleware, async (req: AuthRequest, res: Response) 
       const isHol = weekHolidays.some(h => `${h.date.getFullYear()}-${String(h.date.getMonth() + 1).padStart(2, '0')}-${String(h.date.getDate()).padStart(2, '0')}` === dk);
       if (isHol) continue;
       const abs = weekAbsences.find(a => `${a.date.getFullYear()}-${String(a.date.getMonth() + 1).padStart(2, '0')}-${String(a.date.getDate()).padStart(2, '0')}` === dk);
-      if (abs) { weeklyTarget += abs.absenceType.requiredHours; }
-      else { weeklyTarget += wDailyHours; }
+      if (abs) {
+        // Ü-Frei: voller Tagessoll, sonst requiredHours
+        weeklyTarget += (abs.absenceType as any).consumesOvertime ? wDailyHours : abs.absenceType.requiredHours;
+      } else {
+        weeklyTarget += wDailyHours;
+      }
     }
     weeklyTarget = Math.round(weeklyTarget * 100) / 100;
     const weekOvertime = weekHours - weeklyTarget;
