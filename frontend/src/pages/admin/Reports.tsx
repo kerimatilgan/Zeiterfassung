@@ -68,8 +68,16 @@ export default function AdminReports() {
     queryFn: () => reportsApi.getAll().then((r) => r.data),
   });
 
+  // Wichtig: Variablen werden explizit übergeben (nicht aus State gelesen),
+  // weil setState() asynchron ist — ein gleich darauffolgendes mutate() würde
+  // sonst noch mit dem alten employeeId gefeuert (Batch-"Erstellen & Weiter"-Bug).
   const previewMutation = useMutation({
-    mutationFn: () => reportsApi.preview(selectedEmployee, selectedYear, selectedMonth),
+    mutationFn: (vars?: { employeeId?: string; year?: number; month?: number }) =>
+      reportsApi.preview(
+        vars?.employeeId ?? selectedEmployee,
+        vars?.year ?? selectedYear,
+        vars?.month ?? selectedMonth,
+      ),
     onSuccess: (response) => {
       setPreviewData(response.data);
       setShowCreateModal(false);
@@ -130,7 +138,8 @@ export default function AdminReports() {
     setSelectedEmployee(emp.id);
     setCustomDeductionDays(0);
     setApplyDeduction(true);
-    previewMutation.mutate();
+    // ID explizit mitgeben — selectedEmployee ist erst nach Re-Render aktualisiert
+    previewMutation.mutate({ employeeId: emp.id, year: selectedYear, month: selectedMonth });
   };
 
   const navigateBatchNext = () => {
@@ -168,7 +177,7 @@ export default function AdminReports() {
     setCustomDeductionDays(0);
     setApplyDeduction(true);
     setShowCreateModal(false);
-    previewMutation.mutate();
+    previewMutation.mutate({ employeeId: eligible[0].id, year: selectedYear, month: selectedMonth });
   };
 
   const closeBatch = () => {
@@ -578,7 +587,7 @@ export default function AdminReports() {
                   Abbrechen
                 </button>
                 <button
-                  onClick={() => selectedEmployee === '__all__' ? handleBatchStart() : previewMutation.mutate()}
+                  onClick={() => selectedEmployee === '__all__' ? handleBatchStart() : previewMutation.mutate({ employeeId: selectedEmployee, year: selectedYear, month: selectedMonth })}
                   disabled={!selectedEmployee || previewMutation.isPending || blockedByDuplicate}
                   title={blockedByDuplicate ? blockReason : undefined}
                   className="btn btn-primary flex items-center gap-2"
@@ -597,7 +606,7 @@ export default function AdminReports() {
       {/* Preview Modal — siehe Kommentar oben am Create Modal */}
       {showPreviewModal && previewData && !batchDone && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
               {isBatchMode && (
                 <button

@@ -100,7 +100,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Offene Reklamationen Widget */}
-      {pendingComplaints && pendingComplaints.count > 0 && (
+      {pendingComplaints && pendingComplaints.count > 0 && (pendingComplaints.entries?.length ?? 0) > 0 && (
         <div className="card border-2 border-orange-200 bg-orange-50">
           <div className="p-4 border-b border-orange-200 flex items-center justify-between">
             <h2 className="text-lg font-semibold text-orange-800 flex items-center gap-2">
@@ -112,7 +112,7 @@ export default function AdminDashboard() {
             </h2>
           </div>
           <div className="divide-y divide-orange-200">
-            {pendingComplaints.entries.map((entry: any) => (
+            {(pendingComplaints.entries ?? []).map((entry: any) => (
               <div
                 key={entry.id}
                 className="p-4 hover:bg-orange-100 cursor-pointer transition-colors"
