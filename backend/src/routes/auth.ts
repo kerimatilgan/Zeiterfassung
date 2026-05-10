@@ -14,11 +14,14 @@ const JWT_SECRET: string = (() => {
   if (!s || s.length < 32) throw new Error('JWT_SECRET env var missing or too short');
   return s;
 })();
-const FRONTEND_URL: string = (() => {
-  const s = process.env.FRONTEND_URL;
-  if (!s) throw new Error('FRONTEND_URL env var required (e.g. https://zeit.example.com)');
-  return s.replace(/\/+$/, '');
-})();
+// Erste konfigurierte FRONTEND_URL als Base für Password-Reset-Links.
+// FRONTEND_URL kann komma-getrennt sein — wir nehmen den ersten Eintrag.
+// Wenn nichts gesetzt ist: Password-Reset-Endpoints lehnen die Anfrage zur
+// Laufzeit ab; das Backend startet aber trotzdem (für Setup/Test ohne SMTP).
+const FRONTEND_URL: string = (process.env.FRONTEND_URL || '')
+  .split(',')[0]
+  .trim()
+  .replace(/\/+$/, '');
 
 const router = Router();
 
@@ -238,6 +241,9 @@ router.post('/forgot-password', forgotPasswordLimiter, async (req, res) => {
       },
     });
 
+    if (!FRONTEND_URL) {
+      return res.status(500).json({ error: 'Server-Konfiguration unvollständig: FRONTEND_URL muss gesetzt sein, damit Password-Reset-Links versendet werden können.' });
+    }
     const resetUrl = `${FRONTEND_URL}/reset-password?token=${resetToken}`;
 
     try {
@@ -378,6 +384,9 @@ router.post('/admin-reset-password', authMiddleware, async (req: AuthRequest, re
       },
     });
 
+    if (!FRONTEND_URL) {
+      return res.status(500).json({ error: 'Server-Konfiguration unvollständig: FRONTEND_URL muss gesetzt sein, damit Password-Reset-Links versendet werden können.' });
+    }
     const resetUrl = `${FRONTEND_URL}/reset-password?token=${resetToken}`;
 
     try {

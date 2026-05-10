@@ -40,11 +40,23 @@ app.set('trust proxy', 2);
 const FRONTEND_URL = process.env.FRONTEND_URL || '';
 const JWT_SECRET = process.env.JWT_SECRET || '';
 
+// FRONTEND_URL kann komma-getrennt mehrere Origins enthalten — z.B.
+// "https://zeit.example.com,http://10.0.0.5:8080" für Multi-Domain-Setups.
+const FRONTEND_URLS = FRONTEND_URL.split(',').map(s => s.trim()).filter(Boolean);
+
+// Wenn FRONTEND_URL leer ist, lassen wir CORS permissiv ("*") — praktisch fürs
+// erste Hochfahren / lokale Tests. Im Log gibt's ein Warning, damit man's nicht
+// produktiv vergisst.
+const PERMISSIVE_CORS = FRONTEND_URLS.length === 0;
+if (PERMISSIVE_CORS) {
+  console.warn('⚠️  FRONTEND_URL ist nicht gesetzt — CORS erlaubt jeden Origin. Für produktive Setups bitte explizit setzen!');
+}
+
 // Erlaubte Origins: Web-App + native Wrapper (Capacitor/Tauri).
 // Native Apps senden je nach Plattform unterschiedliche Origin-Header,
 // die alle auf "localhost" mit eigenem Schema laufen.
 const ALLOWED_ORIGINS: (string | RegExp)[] = [
-  ...(FRONTEND_URL ? [FRONTEND_URL] : []),
+  ...FRONTEND_URLS,
   // Capacitor (Android/iOS): mit + ohne https
   'capacitor://localhost',
   'http://localhost',
@@ -58,11 +70,26 @@ const ALLOWED_ORIGINS: (string | RegExp)[] = [
   /^https:\/\/tauri\.localhost(:\d+)?$/,
 ];
 
-function isOriginAllowed(origin: string | undefined): boolean {
+function isOriginAllowed(origin: string | undefined, requestHost?: string): boolean {
   if (!origin) return true; // Server-to-Server / curl / mobile-fetch ohne Origin
-  return ALLOWED_ORIGINS.some(allowed =>
+  // Permissiv-Modus: keine FRONTEND_URL → alles erlauben
+  if (PERMISSIVE_CORS) return true;
+  // Allow-Liste matchen (FRONTEND_URLs + native App-Schemas)
+  if (ALLOWED_ORIGINS.some(allowed =>
     typeof allowed === 'string' ? allowed === origin : allowed.test(origin)
-  );
+  )) {
+    return true;
+  }
+  // Same-Origin-Auto-Erkennung: wenn Browser-Origin und Request-Host gleich sind
+  // (typischer Docker-Fall: Frontend-nginx proxied /api/* an Backend), erlauben.
+  // Voraussetzung: Reverse-Proxy reicht den Host-Header durch (Default bei nginx).
+  if (requestHost) {
+    try {
+      const originHost = new URL(origin).host;
+      if (originHost === requestHost) return true;
+    } catch {}
+  }
+  return false;
 }
 
 // Socket.io Setup
@@ -113,12 +140,16 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,
 }));
 // CORS: Web-Frontend + native Apps (Capacitor/Tauri)
-app.use(cors({
-  origin: (origin, callback) => {
-    if (isOriginAllowed(origin)) callback(null, true);
-    else callback(new Error(`CORS: Origin ${origin} not allowed`));
-  },
-  credentials: false,
+// Per-Request-Auswertung statt statische Origin-Funktion, damit wir den Host-
+// Header lesen können (für Same-Origin-Auto-Erkennung in Container-Setups).
+app.use(cors((req, callback) => {
+  const origin = req.headers.origin as string | undefined;
+  const host = req.headers.host as string | undefined;
+  if (isOriginAllowed(origin, host)) {
+    callback(null, { origin: true, credentials: false });
+  } else {
+    callback(new Error(`CORS: Origin ${origin} not allowed`), { origin: false });
+  }
 }));
 app.use(express.json());
 
