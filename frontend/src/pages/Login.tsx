@@ -31,6 +31,12 @@ export default function Login() {
     staleTime: 5 * 60 * 1000,
   });
   const companyName = branding?.companyName?.trim() || 'Zeiterfassung';
+  // Schriftgröße an die Länge anpassen — Karte ist max-w-md (~448 px)
+  const companyNameSizeClass = companyName.length <= 16
+    ? 'text-2xl'
+    : companyName.length <= 24
+    ? 'text-xl'
+    : 'text-lg';
 
   useEffect(() => {
     if (step === 'totp' && totpInputRef.current) {
@@ -109,8 +115,8 @@ export default function Login() {
             <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-100 rounded-full mb-4">
               <Clock className="w-8 h-8 text-primary-600" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 truncate" title={companyName}>{companyName}</h1>
-            <p className="text-gray-500">Zeiterfassung</p>
+            <h1 className={`${companyNameSizeClass} font-bold text-gray-900 leading-tight break-words`} title={companyName}>{companyName}</h1>
+            <p className="text-gray-500 mt-1">Zeiterfassung</p>
           </div>
 
           {step === 'credentials' ? (
