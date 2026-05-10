@@ -1,14 +1,14 @@
 name: Build Android APK
 
 on:
-  workflow_dispatch:        # manuell auslösbar via "Run workflow"
+  workflow_dispatch:
   push:
     tags:
-      - 'app-v*'             # Push eines Tags wie "app-v1.0.0" triggert Build + Release
+      - 'app-v*'
   pull_request:
     paths:
       - 'frontend/**'
-      - '.github/workflows/build-android.yml'
+      - '.gitea/workflows/build-android.yml'
 
 jobs:
   build:
@@ -63,9 +63,9 @@ jobs:
           path: frontend/android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
 
-      - name: Create Release (only on tag)
-        if: startsWith(github.ref, 'refs/tags/app-v')
-        uses: softprops/action-gh-release@v2
+      - name: Create Gitea Release (only on tag)
+        if: startsWith(gitea.ref, 'refs/tags/app-v')
+        uses: https://gitea.com/actions/release-action@main
         with:
           files: frontend/android/app/build/outputs/apk/debug/app-debug.apk
-          generate_release_notes: true
+          api_key: ${{ secrets.GITEA_TOKEN }}

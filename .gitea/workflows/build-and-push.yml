@@ -6,15 +6,15 @@ on:
   workflow_dispatch:
 
 env:
-  REGISTRY: ghcr.io
+  # Gitea-eigene Container-Registry. Format: <gitea-host>/<owner>/<image>.
+  # ACHTUNG: Bei HTTP-only-Gitea muss der Runner-Docker-Daemon den Host als
+  # insecure-registry kennen (/etc/docker/daemon.json).
+  REGISTRY: 10.10.10.3:3004
   OWNER: kerimatilgan
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
 
     strategy:
       fail-fast: false
@@ -31,12 +31,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Log in to GHCR
+      - name: Log in to Gitea Registry
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ gitea.actor }}
+          # GITEA_TOKEN wird pro Job automatisch bereitgestellt (Pendant zu GITHUB_TOKEN).
+          password: ${{ secrets.GITEA_TOKEN }}
 
       - name: Build & Push ${{ matrix.service }}
         uses: docker/build-push-action@v5
@@ -45,4 +46,4 @@ jobs:
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.OWNER }}/${{ matrix.image }}:latest
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/${{ matrix.image }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/${{ matrix.image }}:${{ gitea.sha }}
