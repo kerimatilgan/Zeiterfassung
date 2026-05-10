@@ -14,9 +14,10 @@ services:
       - zeit_data:/app/prisma
       - zeit_reports:/app/reports
       - zeit_uploads:/app/uploads
-    # Direkte Port-Veröffentlichung — für Tests ohne Reverse-Proxy einkommentieren:
-    # ports:
-    #   - "3001:3001"
+    # Direkte Port-Veröffentlichung — für Tests ohne Reverse-Proxy: nur das
+    # führende '#' der nächsten zwei Zeilen entfernen (ohne das Leerzeichen).
+    #ports:
+    #  - "3001:3001"
     restart: unless-stopped
     labels:
       - "traefik.enable=true"
@@ -28,9 +29,10 @@ services:
     image: git.kerimatilgan.de/kerimatilgan/zeiterfassung-frontend:latest
     depends_on:
       - backend
-    # Direkte Port-Veröffentlichung — für Tests ohne Reverse-Proxy einkommentieren:
-    # ports:
-    #   - "8080:80"
+    # Direkte Port-Veröffentlichung — für Tests ohne Reverse-Proxy: nur das
+    # führende '#' der nächsten zwei Zeilen entfernen (ohne das Leerzeichen).
+    #ports:
+    #  - "8080:80"
     restart: unless-stopped
     labels:
       - "traefik.enable=true"
