@@ -553,22 +553,36 @@ router.get('/my/stats', authMiddleware, async (req: AuthRequest, res: Response) 
     const empWorkDays = (employee?.workDays ?? '1,2,3,4,5').split(',').map(Number);
     const isEmpWorkDay = (d: Date) => empWorkDays.includes(d.getDay() === 0 ? 7 : d.getDay());
 
-    // Urlaubstage dieses Jahr zählen (nur Arbeitstage mit countsAsVacation=true)
+    // Feiertage im Jahr — Urlaub/Krank an einem Feiertag zählt nicht (kein Arbeitstag).
+    const yearHolidays = await prisma.holiday.findMany({
+      where: { date: { gte: startOfYear, lte: endOfYear } },
+    });
+    const yearHolidaySet = new Set(yearHolidays.map(h => {
+      const d = new Date(h.date);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }));
+    const isHoliday = (d: Date) => {
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      return yearHolidaySet.has(key);
+    };
+    const isCountableAbsence = (d: Date) => isEmpWorkDay(d) && !isHoliday(d);
+
+    // Urlaubstage dieses Jahr zählen (nur Arbeitstage mit countsAsVacation=true, ohne Feiertage)
     const vacAbsYear = await prisma.employeeAbsence.findMany({
       where: { employeeId: req.employee!.id, date: { gte: startOfYear, lte: endOfYear }, absenceType: { countsAsVacation: true } },
     });
-    const vacationAbsences = vacAbsYear.filter(a => isEmpWorkDay(a.date)).length;
+    const vacationAbsences = vacAbsYear.filter(a => isCountableAbsence(a.date)).length;
 
     const sickAbsYear = await prisma.employeeAbsence.findMany({
       where: { employeeId: req.employee!.id, date: { gte: startOfYear, lte: endOfYear }, absenceType: { name: { contains: 'Krank' } } },
     });
-    const sickDaysYear = sickAbsYear.filter(a => isEmpWorkDay(a.date)).length;
+    const sickDaysYear = sickAbsYear.filter(a => isCountableAbsence(a.date)).length;
 
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
     const sickAbsMonth = await prisma.employeeAbsence.findMany({
       where: { employeeId: req.employee!.id, date: { gte: startOfMonth, lte: endOfMonth }, absenceType: { name: { contains: 'Krank' } } },
     });
-    const sickDaysMonth = sickAbsMonth.filter(a => isEmpWorkDay(a.date)).length;
+    const sickDaysMonth = sickAbsMonth.filter(a => isCountableAbsence(a.date)).length;
 
     // Stunden berechnen - offene Einträge (aktuell eingestempelt) zählen bis jetzt
     // Sekunden werden bei der Berechnung abgeschnitten (08:49:22 → 08:49:00)
@@ -795,19 +809,38 @@ async function calcVacationDetails(employeeId: string, year: number) {
   const initialInYear = (employee as any).initialBalanceYear === year;
   const initialVacUsed = initialInYear ? ((employee as any).initialVacationDaysUsed ?? 0) : 0;
 
-  // Reguläre Urlaubstage (countsAsVacation=true, nur Arbeitstage)
+  // Feiertage im Jahr — Urlaub an einem Feiertag zählt nicht (kein Arbeitstag).
+  const detailHolidays = await prisma.holiday.findMany({
+    where: { date: { gte: yearStart, lte: yearEnd } },
+  });
+  const detailHolidaySet = new Set(detailHolidays.map(h => {
+    const d = new Date(h.date);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }));
+  const isDetailHoliday = (d: Date) => {
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    return detailHolidaySet.has(key);
+  };
+
+  // Reguläre Urlaubstage (countsAsVacation=true, nur Arbeitstage, ohne Feiertage)
   const vacationAbsences = await prisma.employeeAbsence.findMany({
     where: { employeeId, date: { gte: yearStart, lte: yearEnd }, absenceType: { countsAsVacation: true } },
     include: { absenceType: true },
   });
-  const vacationUsed = vacationAbsences.filter(a => workDayNums.includes(new Date(a.date).getDay())).length + initialVacUsed;
+  const vacationUsed = vacationAbsences.filter(a => {
+    const d = new Date(a.date);
+    return workDayNums.includes(d.getDay()) && !isDetailHoliday(d);
+  }).length + initialVacUsed;
 
-  // Sonderurlaub (countsAsVacation=false, aber nicht Krank/Schule etc.)
+  // Sonderurlaub (countsAsVacation=false, aber nicht Krank/Schule etc.) — auch hier Feiertage ausnehmen
   const specialAbsences = await prisma.employeeAbsence.findMany({
     where: { employeeId, date: { gte: yearStart, lte: yearEnd }, absenceType: { countsAsVacation: false, name: { contains: 'Sonderurlaub' } } },
     include: { absenceType: true },
   });
-  const specialLeaveUsed = specialAbsences.filter(a => workDayNums.includes(new Date(a.date).getDay())).length;
+  const specialLeaveUsed = specialAbsences.filter(a => {
+    const d = new Date(a.date);
+    return workDayNums.includes(d.getDay()) && !isDetailHoliday(d);
+  }).length;
 
   // Minusstunden-Abzüge
   const deductions = await prisma.vacationDeduction.findMany({

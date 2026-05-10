@@ -850,7 +850,14 @@ async function calculateVacationDaysUsed(employeeId: string, year: number, month
 
   const workDayNums = employee.workDays.split(',').map(Number);
 
-  // Alle Urlaubs-Abwesenheiten (countsAsVacation=true, nur Arbeitstage)
+  // Feiertage im Bereich vorladen — Urlaub/Krank an einem Feiertag wird NICHT
+  // als Urlaubstag gezählt (kein Arbeitstag).
+  const holidays = await prisma.holiday.findMany({
+    where: { date: { gte: startOfYear, lte: endOfMonth } },
+  });
+  const holidaySet = new Set(holidays.map(h => toLocalDateString(h.date)));
+
+  // Alle Urlaubs-Abwesenheiten (countsAsVacation=true, nur Arbeitstage, ohne Feiertage)
   const absences = await prisma.employeeAbsence.findMany({
     where: {
       employeeId,
@@ -858,7 +865,10 @@ async function calculateVacationDaysUsed(employeeId: string, year: number, month
       absenceType: { countsAsVacation: true },
     },
   });
-  const vacDays = absences.filter(a => workDayNums.includes(new Date(a.date).getDay())).length;
+  const vacDays = absences.filter(a => {
+    const d = new Date(a.date);
+    return workDayNums.includes(d.getDay()) && !holidaySet.has(toLocalDateString(d));
+  }).length;
 
   // Initiale Urlaubstage addieren
   let total = vacDays;
