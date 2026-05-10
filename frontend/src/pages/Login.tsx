@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import { authApi, twoFactorApi } from '../lib/api';
+import { authApi, twoFactorApi, settingsApi } from '../lib/api';
+import { useQuery } from '@tanstack/react-query';
 import { startAuthentication } from '@simplewebauthn/browser';
 import toast from 'react-hot-toast';
 import { Clock, LogIn, Fingerprint, ShieldCheck, ArrowLeft, Server } from 'lucide-react';
@@ -22,6 +23,14 @@ export default function Login() {
   const navigate = useNavigate();
   const [showServerModal, setShowServerModal] = useState(false);
   const [serverInput, setServerInput] = useState(getServerUrl() || getDefaultServerUrl());
+
+  // Firmenname für die Login-Karte (öffentlich, ohne Auth)
+  const { data: branding } = useQuery({
+    queryKey: ['public-branding'],
+    queryFn: () => settingsApi.getPublic().then((r) => r.data as { companyName: string }),
+    staleTime: 5 * 60 * 1000,
+  });
+  const companyName = branding?.companyName?.trim() || 'Zeiterfassung';
 
   useEffect(() => {
     if (step === 'totp' && totpInputRef.current) {
@@ -100,7 +109,7 @@ export default function Login() {
             <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-100 rounded-full mb-4">
               <Clock className="w-8 h-8 text-primary-600" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900">Handy-Insel</h1>
+            <h1 className="text-2xl font-bold text-gray-900 truncate" title={companyName}>{companyName}</h1>
             <p className="text-gray-500">Zeiterfassung</p>
           </div>
 

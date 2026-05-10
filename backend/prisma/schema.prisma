@@ -235,7 +235,7 @@ model MonthlyReport {
 // Einstellungen
 model Settings {
   id                    String  @id @default("default")
-  companyName           String  @default("Handy-Insel")
+  companyName           String  @default("Zeiterfassung")
   companyAddress        String?
   companyPhone          String?
   companyEmail          String?

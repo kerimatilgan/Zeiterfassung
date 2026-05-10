@@ -1,7 +1,7 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { useQuery } from '@tanstack/react-query';
-import { complaintsApi } from '../lib/api';
+import { complaintsApi, settingsApi } from '../lib/api';
 import {
   LayoutDashboard,
   Users,
@@ -38,6 +38,14 @@ export default function Layout({ isAdmin = false }: LayoutProps) {
     enabled: isAdmin,
     refetchInterval: 30000, // Alle 30 Sekunden aktualisieren
   });
+
+  // Firmenname für die Sidebar — kommt aus den (öffentlichen) Settings
+  const { data: branding } = useQuery({
+    queryKey: ['public-branding'],
+    queryFn: () => settingsApi.getPublic().then((r) => r.data as { companyName: string }),
+    staleTime: 5 * 60 * 1000, // 5 min im Cache, ändert sich selten
+  });
+  const companyName = branding?.companyName?.trim() || 'Zeiterfassung';
 
   const handleLogout = () => {
     logout();
@@ -100,7 +108,7 @@ export default function Layout({ isAdmin = false }: LayoutProps) {
           {/* Logo + Mobile Close Button */}
           <div className="p-6 border-b border-gray-200 flex items-start justify-between">
             <div>
-              <h1 className="text-xl font-bold text-primary-600">Handy-Insel</h1>
+              <h1 className="text-xl font-bold text-primary-600 truncate" title={companyName}>{companyName}</h1>
               <p className="text-sm text-gray-500">Zeiterfassung</p>
             </div>
             {/* Mobile Close Button */}

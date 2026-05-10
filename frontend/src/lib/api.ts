@@ -194,6 +194,8 @@ export const pushApi = {
 // Settings
 export const settingsApi = {
   get: () => api.get('/settings'),
+  // Öffentliche Branding-Infos (Firmenname) — ohne Auth, für Login + Sidebar-Header
+  getPublic: () => api.get('/settings/public'),
   update: (data: any) => api.put('/settings', data),
   getDashboardStats: () => api.get('/settings/dashboard-stats'),
   getCurrentlyClockedIn: () => api.get('/settings/currently-clocked-in'),

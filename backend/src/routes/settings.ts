@@ -92,6 +92,22 @@ router.get('/', authMiddleware, async (_req: AuthRequest, res: Response) => {
   }
 });
 
+// Öffentliche Branding-Infos — von Login-Seite + Sidebar gelesen, ohne Auth
+// damit der Firmenname schon vor dem Login angezeigt werden kann.
+// Nur unkritisches Feld: Firmenname.
+router.get('/public', async (_req, res) => {
+  try {
+    const settings = await prisma.settings.findUnique({
+      where: { id: 'default' },
+      select: { companyName: true },
+    });
+    res.json({ companyName: settings?.companyName || '' });
+  } catch (error) {
+    console.error('Get public settings error:', error);
+    res.status(500).json({ error: 'Fehler beim Laden' });
+  }
+});
+
 // Einstellungen aktualisieren (Admin)
 router.put('/', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
   try {
