@@ -36,8 +36,11 @@ jobs:
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ gitea.actor }}
-          # GITEA_TOKEN wird pro Job automatisch bereitgestellt (Pendant zu GITHUB_TOKEN).
-          password: ${{ secrets.GITEA_TOKEN }}
+          # ACHTUNG: secrets.GITEA_TOKEN funktioniert hier NICHT — der hat keinen
+          # write:package-Scope. Stattdessen einen Gitea-PAT mit Scope
+          # `write:package` anlegen (User-Settings → Applications) und unter
+          # Repo-Settings → Actions → Secrets als REGISTRY_TOKEN hinterlegen.
+          password: ${{ secrets.REGISTRY_TOKEN }}
 
       - name: Build & Push ${{ matrix.service }}
         uses: docker/build-push-action@v5
