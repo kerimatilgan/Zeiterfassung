@@ -7,9 +7,7 @@ on:
 
 env:
   # Gitea-eigene Container-Registry. Format: <gitea-host>/<owner>/<image>.
-  # ACHTUNG: Bei HTTP-only-Gitea muss der Runner-Docker-Daemon den Host als
-  # insecure-registry kennen (/etc/docker/daemon.json).
-  REGISTRY: 10.10.10.3:3004
+  REGISTRY: git.kerimatilgan.de
   OWNER: kerimatilgan
 
 jobs:

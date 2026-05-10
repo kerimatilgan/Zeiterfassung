@@ -1,15 +1,22 @@
 services:
   backend:
-    image: ghcr.io/kerimatilgan/zeiterfassung-backend:latest
+    image: git.kerimatilgan.de/kerimatilgan/zeiterfassung-backend:latest
     environment:
       - PORT=3001
+      # Pflicht — siehe README "Environment Variables"
       - JWT_SECRET=${JWT_SECRET}
-      - TERMINAL_API_KEY=${TERMINAL_API_KEY}
+      - FRONTEND_URL=${FRONTEND_URL}
+      - DOCUMENT_ENCRYPTION_KEY=${DOCUMENT_ENCRYPTION_KEY}
+      # Optional
+      - TERMINAL_API_KEY=${TERMINAL_API_KEY:-}
       - DATABASE_URL=file:/app/prisma/zeiterfassung.db
     volumes:
       - zeit_data:/app/prisma
       - zeit_reports:/app/reports
       - zeit_uploads:/app/uploads
+    # Direkte Port-Veröffentlichung — für Tests ohne Reverse-Proxy einkommentieren:
+    # ports:
+    #   - "3001:3001"
     restart: unless-stopped
     labels:
       - "traefik.enable=true"
@@ -18,9 +25,12 @@ services:
       - "traefik.http.services.zeit-backend.loadbalancer.server.port=3001"
 
   frontend:
-    image: ghcr.io/kerimatilgan/zeiterfassung-frontend:latest
+    image: git.kerimatilgan.de/kerimatilgan/zeiterfassung-frontend:latest
     depends_on:
       - backend
+    # Direkte Port-Veröffentlichung — für Tests ohne Reverse-Proxy einkommentieren:
+    # ports:
+    #   - "8080:80"
     restart: unless-stopped
     labels:
       - "traefik.enable=true"

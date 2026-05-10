@@ -128,7 +128,84 @@ pm2 save
 pm2 startup
 ```
 
-Für die Static-Auslieferung des Frontends (`frontend/dist/`) gibt es ein nginx-Example im Repo (`nginx/` bzw. `/etc/nginx/sites-available/zeiterfassung`). Docker-Alternative: `docker-compose.yml` liegt ebenfalls bei, wird aktuell aber nicht im Prod-Setup genutzt.
+Für die Static-Auslieferung des Frontends (`frontend/dist/`) gibt es ein nginx-Example im Repo (`nginx/` bzw. `/etc/nginx/sites-available/zeiterfassung`).
+
+## Docker-Deployment
+
+Die Container-Images werden via Gitea Actions gebaut und in der Gitea-Container-Registry unter `git.kerimatilgan.de/kerimatilgan/zeiterfassung-{backend,frontend}:latest` veröffentlicht.
+
+### Quick-Start: einzelne Container
+
+```bash
+# Vorab: in der Gitea-Registry einloggen (Personal Access Token mit read:package)
+docker login git.kerimatilgan.de
+# Username: <dein Gitea-User>
+# Password: <dein PAT>
+
+# Backend
+docker run -d --name zeit-backend \
+  -p 3001:3001 \
+  -e JWT_SECRET="$(openssl rand -hex 32)" \
+  -e DOCUMENT_ENCRYPTION_KEY="$(openssl rand -hex 32)" \
+  -e FRONTEND_URL="http://localhost:8080" \
+  -v zeit_data:/app/prisma \
+  -v zeit_uploads:/app/uploads \
+  -v zeit_reports:/app/reports \
+  --restart unless-stopped \
+  git.kerimatilgan.de/kerimatilgan/zeiterfassung-backend:latest
+
+# Frontend
+docker run -d --name zeit-frontend \
+  -p 8080:80 \
+  --link zeit-backend:backend \
+  --restart unless-stopped \
+  git.kerimatilgan.de/kerimatilgan/zeiterfassung-frontend:latest
+```
+
+Aufrufbar unter `http://localhost:8080` (Frontend) bzw. `http://localhost:3001/api/health` (Backend).
+
+> **Achtung**: Die hier per `openssl rand` generierten Secrets sind nur fürs schnelle Testen. Für echtes Deployment in eine `.env`-Datei oder ein Secret-Management — und vor allem **nicht zwischen Re-Starts neu generieren**, sonst sind alle JWTs und verschlüsselte Dokumente unbrauchbar.
+
+### docker-compose
+
+Die mitgelieferte `docker-compose.prod.yml` kombiniert Backend + Frontend mit benannten Volumes für Persistenz und enthält Traefik-Labels für den Reverse-Proxy.
+
+```bash
+# 1. .env neben docker-compose.prod.yml anlegen:
+cat > .env <<EOF
+JWT_SECRET=$(openssl rand -hex 32)
+DOCUMENT_ENCRYPTION_KEY=$(openssl rand -hex 32)
+FRONTEND_URL=https://zeit.kerimatilgan.de
+TERMINAL_API_KEY=$(openssl rand -hex 24)
+EOF
+chmod 600 .env
+
+# 2. In Gitea-Registry einloggen + starten
+docker login git.kerimatilgan.de
+docker compose -f docker-compose.prod.yml up -d
+
+# 3. Logs verfolgen
+docker compose -f docker-compose.prod.yml logs -f
+
+# 4. Stoppen / Updaten
+docker compose -f docker-compose.prod.yml pull        # neue Images holen
+docker compose -f docker-compose.prod.yml up -d       # mit neuem Image neu starten
+docker compose -f docker-compose.prod.yml down        # alles stoppen (Volumes bleiben)
+```
+
+Die Compose-Datei verwendet als Standard die Traefik-Labels für Routing über `zeit.kerimatilgan.de` / `zeit-api.kerimatilgan.de`. Wenn du **ohne Traefik** testen willst, einfach in `docker-compose.prod.yml` die auskommentierten `ports:`-Blöcke einkommentieren — dann sind die Container direkt erreichbar.
+
+### Persistenz
+
+Die drei benannten Volumes enthalten den State, der zwischen Re-Deployments erhalten bleiben muss:
+
+| Volume | Inhalt |
+|---|---|
+| `zeit_data` | SQLite-DB (`zeiterfassung.db`) |
+| `zeit_uploads` | Mitarbeiter-Fotos, verschlüsselte Dokumente, Logos |
+| `zeit_reports` | Generierte Monats-Abrechnungs-PDFs |
+
+Backup: die drei Volumes plus die `.env` reichen für eine vollständige Wiederherstellung. Komfortabler ist die in der App eingebaute Backup-Funktion (Admin → Einstellungen → Backup), die automatisch Snapshots auf konfigurierbare Storage-Targets schreibt.
 
 ## Sicherheit
 
