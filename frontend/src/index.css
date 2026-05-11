@@ -8,8 +8,33 @@ body {
   color: #111827;
 }
 
+html.dark {
+  /* native Form-Controls, Scrollbars, Date-/Time-Picker etc. dunkel rendern */
+  color-scheme: dark;
+}
+
 html.dark body {
   background-color: #030712; /* gray-950 */
+  color: #f3f4f6;
+}
+
+/* Baseline für Text-/Auswahlfelder ohne explizite dark:-Klassen.
+   Niedrige Spezifität (html.dark + Element) → explizite Tailwind-dark:-Utilities
+   überschreiben das hier weiterhin. */
+html.dark input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):not([type='file']):not([type='submit']):not([type='button']):not([type='reset']),
+html.dark select,
+html.dark textarea {
+  background-color: #1f2937; /* gray-800 */
+  border-color: #374151;     /* gray-700 */
+  color: #f3f4f6;
+}
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+  color: #6b7280; /* gray-500 */
+}
+html.dark select option,
+html.dark select optgroup {
+  background-color: #1f2937;
   color: #f3f4f6;
 }
 
