@@ -514,7 +514,13 @@ router.get('/sso/callback', async (req, res: Response) => {
     const displayName: string = (userinfo.name || claims.name || userinfo.preferred_username || email || sub) as string;
 
     if (!email) return ssoRedirectError(res, 'Kein E-Mail-Claim erhalten — Anmeldung abgebrochen.');
-    if (emailVerified === false) return ssoRedirectError(res, 'E-Mail beim Identity-Provider nicht verifiziert.');
+    // Hinweis: email_verified wird NICHT als harte Bedingung geprüft — Authentik
+    // liefert das je nach Konfiguration als false, obwohl die Adresse passt. Der
+    // eigentliche Zugriffsgate ist ohnehin das Vorhandensein eines Kontos mit
+    // genau dieser E-Mail (Self-Service-Registrierung ist nicht möglich).
+    if (emailVerified === false) {
+      console.warn(`SSO: email_verified=false für ${email} — wird trotzdem akzeptiert.`);
+    }
 
     // Nutzer ermitteln: zuerst per sub, dann per E-Mail (case-insensitive).
     let employee = await prisma.employee.findUnique({ where: { ssoSubject: sub } });
