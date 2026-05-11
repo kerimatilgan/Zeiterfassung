@@ -119,6 +119,7 @@ router.post('/login', loginLimiter, async (req, res) => {
         workDays: employee.workDays,
         isAdmin: employee.isAdmin,
         dashboardCardOrder: employee.dashboardCardOrder,
+        theme: employee.theme,
       },
     });
   } catch (error) {
@@ -149,6 +150,7 @@ router.get('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
         isAdmin: true,
         totpEnabled: true,
         dashboardCardOrder: true,
+        theme: true,
         _count: { select: { passkeys: true } },
         createdAt: true,
       },

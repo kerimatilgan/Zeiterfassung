@@ -189,20 +189,20 @@ function TwoFactorAdminSection({ employeeId, employeeName }: { employeeId: strin
 
   useEffect(() => { loadStatus(); }, [employeeId]);
 
-  if (loading) return <p className="text-sm text-gray-400">Laden...</p>;
-  if (!status) return <p className="text-sm text-gray-400">Status nicht verfügbar</p>;
+  if (loading) return <p className="text-sm text-gray-400 dark:text-gray-500">Laden...</p>;
+  if (!status) return <p className="text-sm text-gray-400 dark:text-gray-500">Status nicht verfügbar</p>;
 
   const has2FA = status.totpEnabled || status.passkeys.length > 0;
 
   if (!has2FA) {
-    return <p className="text-sm text-gray-500">Keine 2FA konfiguriert.</p>;
+    return <p className="text-sm text-gray-500 dark:text-gray-400">Keine 2FA konfiguriert.</p>;
   }
 
   return (
     <div className="space-y-3">
       {status.totpEnabled && (
-        <div className="flex items-center justify-between p-2 bg-amber-50 rounded-lg">
-          <span className="text-sm text-amber-800">TOTP (Authenticator-App) aktiv</span>
+        <div className="flex items-center justify-between p-2 bg-amber-50 dark:bg-amber-950/40 rounded-lg">
+          <span className="text-sm text-amber-800 dark:text-amber-300">TOTP (Authenticator-App) aktiv</span>
           <button
             type="button"
             onClick={async () => {
@@ -215,7 +215,7 @@ function TwoFactorAdminSection({ employeeId, employeeName }: { employeeId: strin
                 toast.error(err.response?.data?.error || 'Fehler');
               }
             }}
-            className="text-xs text-red-600 hover:text-red-700 hover:underline"
+            className="text-xs text-red-600 dark:text-red-400 hover:text-red-700 hover:underline"
           >
             Deaktivieren
           </button>
@@ -224,8 +224,8 @@ function TwoFactorAdminSection({ employeeId, employeeName }: { employeeId: strin
       {status.passkeys.length > 0 && (
         <div className="space-y-1">
           {status.passkeys.map((pk: any) => (
-            <div key={pk.id} className="flex items-center justify-between p-2 bg-indigo-50 rounded-lg">
-              <span className="text-sm text-indigo-800">
+            <div key={pk.id} className="flex items-center justify-between p-2 bg-indigo-50 dark:bg-indigo-950/40 rounded-lg">
+              <span className="text-sm text-indigo-800 dark:text-indigo-300">
                 Passkey: {pk.deviceName} ({new Date(pk.createdAt).toLocaleDateString('de-DE')})
               </span>
               <button
@@ -240,7 +240,7 @@ function TwoFactorAdminSection({ employeeId, employeeName }: { employeeId: strin
                     toast.error(err.response?.data?.error || 'Fehler');
                   }
                 }}
-                className="text-xs text-red-600 hover:text-red-700 hover:underline"
+                className="text-xs text-red-600 dark:text-red-400 hover:text-red-700 hover:underline"
               >
                 Löschen
               </button>
@@ -339,21 +339,21 @@ function EmployeeDocumentList({ employeeId, formatFileSize, MONTHS, filterYear, 
     return true;
   });
 
-  if (isLoading) return <p className="text-sm text-gray-500 text-center py-4">Laden...</p>;
-  if (!allDocs.length) return <p className="text-sm text-gray-500 text-center py-4">Keine Dokumente vorhanden</p>;
-  if (!filteredDocs.length) return <p className="text-sm text-gray-500 text-center py-4">Keine Dokumente für {MONTHS[(filterMonth || 1) - 1]} {filterYear}</p>;
+  if (isLoading) return <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">Laden...</p>;
+  if (!allDocs.length) return <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">Keine Dokumente vorhanden</p>;
+  if (!filteredDocs.length) return <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">Keine Dokumente für {MONTHS[(filterMonth || 1) - 1]} {filterYear}</p>;
 
   return (
     <div className="space-y-2">
-      <h3 className="text-sm font-semibold text-gray-700">Dokumente für {MONTHS[(filterMonth || 1) - 1]} {filterYear} ({filteredDocs.length})</h3>
+      <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Dokumente für {MONTHS[(filterMonth || 1) - 1]} {filterYear} ({filteredDocs.length})</h3>
       {filteredDocs.map((doc: any) => (
-        <div key={doc.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+        <div key={doc.id} className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
           <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full text-white flex-shrink-0" style={{ backgroundColor: doc.documentType.color }}>
             {doc.documentType.shortName}
           </span>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-900 truncate">{doc.originalFilename}</p>
-            <p className="text-xs text-gray-500">
+            <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{doc.originalFilename}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
               {doc.year && doc.month ? `${MONTHS[doc.month-1]} ${doc.year}` : doc.year ? `${doc.year}` : ''}
               {doc.year ? ' • ' : ''}{!doc._isReport && doc.fileSize > 0 ? formatFileSize(doc.fileSize) + ' • ' : ''}
               {new Date(doc.createdAt).toLocaleDateString('de-DE')} {new Date(doc.createdAt).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
@@ -361,13 +361,13 @@ function EmployeeDocumentList({ employeeId, formatFileSize, MONTHS, filterYear, 
           </div>
           <button
             onClick={() => doc._isReport ? handleReportDownload(doc._reportId, doc.year, doc.month) : handleDownload(doc.id, doc.originalFilename)}
-            className="p-1.5 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
+            className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
             title="Herunterladen"
           >
             <Download size={16} />
           </button>
           {!doc._isReport && (
-            <button onClick={() => handleDelete(doc)} className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg" title="Löschen">
+            <button onClick={() => handleDelete(doc)} className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg" title="Löschen">
               <Trash2 size={16} />
             </button>
           )}
@@ -1529,8 +1529,8 @@ export default function AdminEmployees() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Mitarbeiter</h1>
-          <p className="text-gray-500">Mitarbeiter verwalten</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Mitarbeiter</h1>
+          <p className="text-gray-500 dark:text-gray-400">Mitarbeiter verwalten</p>
         </div>
         <div className="flex gap-2">
           <button
@@ -1549,7 +1549,7 @@ export default function AdminEmployees() {
 
       {/* Search */}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" size={20} />
         <input
           type="text"
           value={searchQuery}
@@ -1563,35 +1563,35 @@ export default function AdminEmployees() {
       <div className="card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50">
+            <thead className="bg-gray-50 dark:bg-gray-800">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                   Mitarbeiter
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                   Kontakt
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                   Urlaub/Woche
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                   Status
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                   Aktionen
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
               {isLoading ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan={5} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
                     Laden...
                   </td>
                 </tr>
               ) : filteredEmployees?.length ? (
                 filteredEmployees.map((employee) => (
-                  <tr key={employee.id} className={!employee.isActive ? 'bg-gray-50 opacity-60' : ''}>
+                  <tr key={employee.id} className={!employee.isActive ? 'bg-gray-50 dark:bg-gray-800 opacity-60' : ''}>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         {/* Avatar/Foto */}
@@ -1600,10 +1600,10 @@ export default function AdminEmployees() {
                             <img
                               src={photoSrc(employee.photoUrl)}
                               alt={`${employee.firstName} ${employee.lastName}`}
-                              className="w-10 h-10 rounded-full object-cover border-2 border-gray-200"
+                              className="w-10 h-10 rounded-full object-cover border-2 border-gray-200 dark:border-gray-700"
                             />
                           ) : (
-                            <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500">
+                            <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-500 dark:text-gray-400">
                               <User size={20} />
                             </div>
                           )}
@@ -1631,33 +1631,33 @@ export default function AdminEmployees() {
                         </div>
                         <div>
                           <div className="flex items-center gap-2">
-                            <p className="font-medium text-gray-900">
+                            <p className="font-medium text-gray-900 dark:text-gray-100">
                               {employee.firstName} {employee.lastName}
                             </p>
                             {complaintsByEmployee[employee.id] > 0 && (
-                              <span className="flex items-center gap-1 px-1.5 py-0.5 text-xs font-bold text-orange-700 bg-orange-100 rounded-full">
+                              <span className="flex items-center gap-1 px-1.5 py-0.5 text-xs font-bold text-orange-700 dark:text-orange-300 bg-orange-100 dark:bg-orange-900/40 rounded-full">
                                 <AlertTriangle size={12} />
                                 {complaintsByEmployee[employee.id]}
                               </span>
                             )}
                           </div>
-                          <p className="text-sm text-gray-500">#{employee.employeeNumber}</p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">#{employee.employeeNumber}</p>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <p className="text-sm text-gray-900">{employee.email || '-'}</p>
-                      <p className="text-sm text-gray-500">{employee.phone || '-'}</p>
+                      <p className="text-sm text-gray-900 dark:text-gray-100">{employee.email || '-'}</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">{employee.phone || '-'}</p>
                     </td>
                     <td className="px-6 py-4">
                       {employee.isAdmin ? (
-                        <span className="text-sm text-gray-400">—</span>
+                        <span className="text-sm text-gray-400 dark:text-gray-500">—</span>
                       ) : (
                         <>
-                          <p className="text-gray-900">{employee.vacationDaysPerYear} Tage/Jahr</p>
-                          <p className="text-sm text-gray-500">{employee.weeklyHours}h/Woche</p>
+                          <p className="text-gray-900 dark:text-gray-100">{employee.vacationDaysPerYear} Tage/Jahr</p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">{employee.weeklyHours}h/Woche</p>
                           {employee.workCategory && (
-                            <p className="text-xs text-primary-600">{employee.workCategory.name}</p>
+                            <p className="text-xs text-primary-600 dark:text-primary-400">{employee.workCategory.name}</p>
                           )}
                         </>
                       )}
@@ -1667,14 +1667,14 @@ export default function AdminEmployees() {
                         <span
                           className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
                             employee.isActive
-                              ? 'bg-green-100 text-green-700'
-                              : 'bg-gray-100 text-gray-600'
+                              ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300'
+                              : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
                           }`}
                         >
                           {employee.isActive ? 'Aktiv' : 'Inaktiv'}
                         </span>
                         {employee.isAdmin && (
-                          <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-purple-100 text-purple-700">
+                          <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300">
                             Admin
                           </span>
                         )}
@@ -1688,8 +1688,8 @@ export default function AdminEmployees() {
                           onClick={() => openRfidModal(employee)}
                           className={`p-2 rounded-lg ${
                             employee.rfidCard
-                              ? 'text-green-600 hover:text-green-700 hover:bg-green-50'
-                              : 'text-gray-500 hover:text-primary-600 hover:bg-primary-50'
+                              ? 'text-green-600 dark:text-green-400 hover:text-green-700 hover:bg-green-50'
+                              : 'text-gray-500 dark:text-gray-400 hover:text-primary-600 hover:bg-primary-50'
                           }`}
                           title={employee.rfidCard ? `RFID: ${employee.rfidCard}` : 'RFID-Karte zuweisen'}
                         >
@@ -1697,7 +1697,7 @@ export default function AdminEmployees() {
                         </button>
                         <button
                           onClick={() => navigate(`/admin/time-entries?employee=${employee.id}`)}
-                          className="p-2 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
+                          className="p-2 text-gray-500 dark:text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
                           title="Zeiteinträge"
                         >
                           <Calendar size={18} />
@@ -1707,8 +1707,8 @@ export default function AdminEmployees() {
                           disabled={generateInfoPdfMutation.isPending}
                           className={`p-2 rounded-lg disabled:opacity-50 ${
                             employee.latestInfoLetter?.signedAt
-                              ? 'text-green-600 hover:text-green-700 hover:bg-green-50'
-                              : 'text-gray-500 hover:text-amber-600 hover:bg-amber-50'
+                              ? 'text-green-600 dark:text-green-400 hover:text-green-700 hover:bg-green-50'
+                              : 'text-gray-500 dark:text-gray-400 hover:text-amber-600 hover:bg-amber-50'
                           }`}
                           title={
                             employee.latestInfoLetter?.signedAt
@@ -1722,21 +1722,21 @@ export default function AdminEmployees() {
                         )}
                         <button
                           onClick={() => { setSelectedEmployeeForDocs(employee); setShowDocumentsModal(true); }}
-                          className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"
+                          className="p-2 text-gray-500 dark:text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"
                           title="Dokumente"
                         >
                           <FolderOpen size={18} />
                         </button>
                         <button
                           onClick={() => openEditModal(employee)}
-                          className="p-2 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
+                          className="p-2 text-gray-500 dark:text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
                           title="Bearbeiten"
                         >
                           <Edit2 size={18} />
                         </button>
                         <button
                           onClick={() => handleDelete(employee)}
-                          className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                          className="p-2 text-gray-500 dark:text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
                           title="Deaktivieren"
                           disabled={!employee.isActive}
                         >
@@ -1748,7 +1748,7 @@ export default function AdminEmployees() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan={5} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
                     Keine Mitarbeiter gefunden
                   </td>
                 </tr>
@@ -1761,12 +1761,12 @@ export default function AdminEmployees() {
       {/* Create/Edit Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
               <h2 className="text-xl font-semibold">
                 {editingEmployee ? 'Mitarbeiter bearbeiten' : 'Neuer Mitarbeiter'}
               </h2>
-              <button onClick={closeModal} className="p-2 hover:bg-gray-100 rounded-lg">
+              <button onClick={closeModal} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
                 <X size={20} />
               </button>
             </div>
@@ -1791,7 +1791,7 @@ export default function AdminEmployees() {
                     className="input"
                     placeholder="z.B. max.mustermann"
                   />
-                  <p className="text-xs text-gray-400 mt-1">Für die Anmeldung im Dashboard</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Für die Anmeldung im Dashboard</p>
                 </div>
               </div>
               {!formData.isAdmin && (
@@ -1874,8 +1874,8 @@ export default function AdminEmployees() {
                         key={day.value}
                         className={`flex items-center gap-1 px-3 py-1.5 rounded-lg cursor-pointer border transition-colors ${
                           isChecked
-                            ? 'bg-primary-100 border-primary-500 text-primary-700'
-                            : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+                            ? 'bg-primary-100 dark:bg-primary-900/40 border-primary-500 text-primary-700 dark:text-primary-300'
+                            : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
                         }`}
                       >
                         <input
@@ -1944,7 +1944,7 @@ export default function AdminEmployees() {
                   onChange={(e) => setFormData({ ...formData, defaultClockOut: e.target.value })}
                   className="input"
                 />
-                <p className="text-xs text-gray-400 mt-1">Wird für Auto-Ausstempeln verwendet wenn der MA sich nicht ausstempelt</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Wird für Auto-Ausstempeln verwendet wenn der MA sich nicht ausstempelt</p>
               </div>
               {/* PWA-Stempelung */}
               <div>
@@ -1988,7 +1988,7 @@ export default function AdminEmployees() {
                   <button
                     type="button"
                     id="reset-pw-btn"
-                    className="mt-2 text-sm text-primary-600 hover:text-primary-700 inline-flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="mt-2 text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 inline-flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
                     onClick={async (e) => {
                       const btn = e.currentTarget;
                       btn.disabled = true;
@@ -2016,16 +2016,16 @@ export default function AdminEmployees() {
                   id="isAdmin"
                   checked={formData.isAdmin}
                   onChange={(e) => setFormData({ ...formData, isAdmin: e.target.checked })}
-                  className="w-4 h-4 text-primary-600 rounded border-gray-300"
+                  className="w-4 h-4 text-primary-600 dark:text-primary-400 rounded border-gray-300 dark:border-gray-700"
                 />
-                <label htmlFor="isAdmin" className="text-sm text-gray-700">
+                <label htmlFor="isAdmin" className="text-sm text-gray-700 dark:text-gray-300">
                   Administrator-Rechte
                 </label>
               </div>
               {/* 2FA Management (only in edit mode) */}
               {editingEmployee && (
                 <div className="border-t pt-4 mt-4">
-                  <h4 className="text-sm font-semibold text-gray-700 mb-3">Zwei-Faktor-Authentifizierung</h4>
+                  <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Zwei-Faktor-Authentifizierung</h4>
                   <TwoFactorAdminSection employeeId={editingEmployee.id} employeeName={`${editingEmployee.firstName} ${editingEmployee.lastName}`} />
                 </div>
               )}
@@ -2050,43 +2050,43 @@ export default function AdminEmployees() {
       {/* RFID Modal */}
       {showRfidModal && rfidEmployee && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full">
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl p-6 max-w-sm w-full">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold flex items-center gap-2">
                 <CreditCard size={20} />
                 RFID-Karte
               </h3>
-              <button onClick={closeRfidModal} className="p-2 hover:bg-gray-100 rounded-lg">
+              <button onClick={closeRfidModal} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
                 <X size={20} />
               </button>
             </div>
 
             <div className="mb-4">
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
                 Mitarbeiter: <strong>{rfidEmployee.firstName} {rfidEmployee.lastName}</strong>
               </p>
-              <p className="text-sm text-gray-500">#{rfidEmployee.employeeNumber}</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">#{rfidEmployee.employeeNumber}</p>
             </div>
 
             {rfidEmployee.rfidCard ? (
-              <div className="mb-4 p-3 bg-green-50 rounded-lg">
-                <p className="text-sm text-green-700 font-medium">Aktuelle RFID-Karte:</p>
-                <p className="font-mono text-green-800">{rfidEmployee.rfidCard}</p>
+              <div className="mb-4 p-3 bg-green-50 dark:bg-green-950/40 rounded-lg">
+                <p className="text-sm text-green-700 dark:text-green-300 font-medium">Aktuelle RFID-Karte:</p>
+                <p className="font-mono text-green-800 dark:text-green-300">{rfidEmployee.rfidCard}</p>
               </div>
             ) : (
-              <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-                <p className="text-sm text-gray-500">Keine RFID-Karte zugewiesen</p>
+              <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <p className="text-sm text-gray-500 dark:text-gray-400">Keine RFID-Karte zugewiesen</p>
               </div>
             )}
 
             {/* Scanning Status */}
             {isScanning && (
-              <div className="mb-4 p-4 bg-blue-50 rounded-lg border-2 border-blue-200 animate-pulse">
-                <div className="flex items-center justify-center gap-3 text-blue-700">
+              <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-950/40 rounded-lg border-2 border-blue-200 dark:border-blue-800 animate-pulse">
+                <div className="flex items-center justify-center gap-3 text-blue-700 dark:text-blue-300">
                   <Loader2 size={24} className="animate-spin" />
                   <div>
                     <p className="font-medium">Warte auf Karten-Scan...</p>
-                    <p className="text-sm text-blue-600">
+                    <p className="text-sm text-blue-600 dark:text-blue-400">
                       Bitte Karte am Terminal vorhalten ({scanCountdown}s)
                     </p>
                   </div>
@@ -2094,7 +2094,7 @@ export default function AdminEmployees() {
                 <button
                   type="button"
                   onClick={stopRfidScan}
-                  className="mt-3 w-full text-sm text-blue-600 hover:text-blue-800"
+                  className="mt-3 w-full text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800"
                 >
                   Abbrechen
                 </button>
@@ -2130,7 +2130,7 @@ export default function AdminEmployees() {
                     )}
                   </button>
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   {isSocketConnected ? (
                     <>ID manuell eingeben oder <strong>Wifi-Button</strong> klicken und Karte am Pi scannen</>
                   ) : (
@@ -2144,7 +2144,7 @@ export default function AdminEmployees() {
                   <button
                     type="button"
                     onClick={handleRfidRemove}
-                    className="btn btn-secondary text-red-600 hover:bg-red-50 flex-1"
+                    className="btn btn-secondary text-red-600 dark:text-red-400 hover:bg-red-50 flex-1"
                     disabled={removeRfidMutation.isPending || isScanning}
                   >
                     <Trash2 size={18} className="mr-2" />
@@ -2166,30 +2166,30 @@ export default function AdminEmployees() {
 
       {/* Time Entries Modal - Fullscreen */}
       {showTimeEntriesModal && selectedEmployeeForTime && (
-        <div className="fixed inset-0 z-50 bg-white flex flex-col">
+        <div className="fixed inset-0 z-50 bg-white dark:bg-gray-900 flex flex-col">
             {/* Header */}
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between shrink-0">
+            <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between shrink-0">
               <div>
                 <h2 className="text-xl font-semibold">
                   Zeiteinträge: {selectedEmployeeForTime.firstName} {selectedEmployeeForTime.lastName}
                 </h2>
-                <p className="text-sm text-gray-500">#{selectedEmployeeForTime.employeeNumber}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">#{selectedEmployeeForTime.employeeNumber}</p>
               </div>
-              <button onClick={closeTimeEntriesModal} className="p-2 hover:bg-gray-100 rounded-lg">
+              <button onClick={closeTimeEntriesModal} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
                 <X size={20} />
               </button>
             </div>
 
             {/* Stats */}
-            <div className="px-4 py-2 border-b border-gray-100 shrink-0">
+            <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-800 shrink-0">
               {(() => {
                 const totals = calculateTotalMinutes();
                 return (
-                  <div className="bg-primary-50 rounded-lg p-2.5 flex justify-center gap-8 text-sm">
-                    <span className="text-primary-700 font-medium">
+                  <div className="bg-primary-50 dark:bg-primary-900/30 rounded-lg p-2.5 flex justify-center gap-8 text-sm">
+                    <span className="text-primary-700 dark:text-primary-300 font-medium">
                       Arbeitszeit: {formatMinutesToHours(totals.workMinutes)} h
                     </span>
-                    <span className="text-orange-600 font-medium">
+                    <span className="text-orange-600 dark:text-orange-400 font-medium">
                       Pausen: {formatMinutesToHours(totals.breakMinutes)} h
                     </span>
                   </div>
@@ -2215,10 +2215,10 @@ export default function AdminEmployees() {
                           {/* Tages-Header */}
                           <div className="flex items-center justify-between">
                             <div>
-                              <h3 className="text-lg font-semibold text-gray-900">
+                              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                                 {format(editingDate, 'EEEE, dd. MMMM yyyy', { locale: de })}
                               </h3>
-                              <p className="text-sm text-gray-500">
+                              <p className="text-sm text-gray-500 dark:text-gray-400">
                                 {hasEntries ? `${formatMinutesToHours(summary.totalWorkMinutes)} h gearbeitet` : ''}
                                 {summary.totalBreakMinutes > 0 ? ` · ${formatMinutesToHours(summary.totalBreakMinutes)} h Pause` : ''}
                                 {summary.isActive ? ' · Aktiv' : ''}
@@ -2238,17 +2238,17 @@ export default function AdminEmployees() {
                               <Briefcase size={16} style={{ color: summary.absence!.absenceType.color }} />
                               <span className="font-medium" style={{ color: summary.absence!.absenceType.color }}>{summary.absence!.absenceType.name}</span>
                               {summary.absence!.absenceType.requiredHours > 0 && (
-                                <span className="text-sm text-gray-500">({formatHoursToTime(summary.absence!.absenceType.requiredHours)} h Pflicht)</span>
+                                <span className="text-sm text-gray-500 dark:text-gray-400">({formatHoursToTime(summary.absence!.absenceType.requiredHours)} h Pflicht)</span>
                               )}
-                              <Edit2 size={14} className="ml-auto text-gray-400" />
+                              <Edit2 size={14} className="ml-auto text-gray-400 dark:text-gray-500" />
                             </div>
                           )}
 
                           {/* Stempelungen */}
                           {hasEntries ? (
-                            <div className="bg-white border rounded-lg divide-y">
-                              <div className="px-3 py-2 bg-gray-50 rounded-t-lg">
-                                <span className="text-xs font-medium text-gray-500 uppercase">Buchungen</span>
+                            <div className="bg-white dark:bg-gray-900 border rounded-lg divide-y">
+                              <div className="px-3 py-2 bg-gray-50 dark:bg-gray-800 rounded-t-lg">
+                                <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Buchungen</span>
                               </div>
                               {summary.entries.map((entry, idx) => (
                                 <div key={entry.id}>
@@ -2259,7 +2259,7 @@ export default function AdminEmployees() {
                                     const gapMinutes = Math.round((currStart.getTime() - prevEnd.getTime()) / 60000);
                                     if (gapMinutes > 0) {
                                       return (
-                                        <div className="px-3 py-1.5 bg-orange-50 flex items-center gap-2 text-xs text-orange-600">
+                                        <div className="px-3 py-1.5 bg-orange-50 dark:bg-orange-950/40 flex items-center gap-2 text-xs text-orange-600 dark:text-orange-400">
                                           <Clock size={12} />
                                           Pause: {format(prevEnd, 'HH:mm')} - {format(currStart, 'HH:mm')} ({gapMinutes} min)
                                         </div>
@@ -2268,7 +2268,7 @@ export default function AdminEmployees() {
                                     return null;
                                   })()}
                                   <div
-                                    className={`px-3 py-2 flex items-center gap-3 cursor-pointer hover:bg-gray-50 ${entry.complaintMessage && !entry.complaintResolvedAt ? 'bg-amber-50' : ''}`}
+                                    className={`px-3 py-2 flex items-center gap-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 ${entry.complaintMessage && !entry.complaintResolvedAt ? 'bg-amber-50 dark:bg-amber-950/40' : ''}`}
                                     onClick={() => handleDayClick(editingDate, entry)}
                                   >
                                     {entry.complaintMessage && (
@@ -2287,21 +2287,21 @@ export default function AdminEmployees() {
                                       </button>
                                     )}
                                     <span className="font-mono text-sm font-medium w-28">
-                                      {format(new Date(entry.clockIn), 'HH:mm')} - {entry.clockOut ? format(new Date(entry.clockOut), 'HH:mm') : <span className="text-green-600">Aktiv</span>}
+                                      {format(new Date(entry.clockIn), 'HH:mm')} - {entry.clockOut ? format(new Date(entry.clockOut), 'HH:mm') : <span className="text-green-600 dark:text-green-400">Aktiv</span>}
                                     </span>
                                     {entry.clockOut && (
-                                      <span className="text-sm text-gray-500">
+                                      <span className="text-sm text-gray-500 dark:text-gray-400">
                                         {formatMinutesToHours(Math.floor((new Date(entry.clockOut).getTime() - new Date(entry.clockIn).getTime()) / 60000))} h
                                       </span>
                                     )}
-                                    {entry.note && <span className="text-xs text-gray-400 truncate ml-auto max-w-[150px]">{entry.note}</span>}
-                                    <Edit2 size={14} className="text-gray-400 flex-shrink-0 ml-auto" />
+                                    {entry.note && <span className="text-xs text-gray-400 dark:text-gray-500 truncate ml-auto max-w-[150px]">{entry.note}</span>}
+                                    <Edit2 size={14} className="text-gray-400 dark:text-gray-500 flex-shrink-0 ml-auto" />
                                   </div>
                                 </div>
                               ))}
                             </div>
                           ) : !hasAbsence && !isHolidayOnWorkDay && !isNonWorkDay ? (
-                            <div className="text-center text-gray-400 py-8 border rounded-lg border-dashed">
+                            <div className="text-center text-gray-400 dark:text-gray-500 py-8 border rounded-lg border-dashed">
                               Keine Einträge für diesen Tag
                             </div>
                           ) : null}
@@ -2310,14 +2310,14 @@ export default function AdminEmployees() {
                           <div className="flex items-center gap-2 flex-wrap">
                             <button
                               onClick={() => handleDayClick(editingDate)}
-                              className="text-sm text-primary-600 hover:bg-primary-50 border border-primary-200 rounded px-3 py-1.5 flex items-center gap-1.5"
+                              className="text-sm text-primary-600 dark:text-primary-400 hover:bg-primary-50 border border-primary-200 dark:border-primary-800 rounded px-3 py-1.5 flex items-center gap-1.5"
                             >
                               <Plus size={14} /> Eintrag hinzufügen
                             </button>
                             {!hasAbsence && absenceTypes && absenceTypes.length > 0 && (
                               <button
                                 onClick={() => openAbsencePopup(editingDate)}
-                                className="text-sm text-purple-600 hover:bg-purple-50 border border-purple-200 rounded px-3 py-1.5 flex items-center gap-1.5"
+                                className="text-sm text-purple-600 dark:text-purple-400 hover:bg-purple-50 border border-purple-200 dark:border-purple-800 rounded px-3 py-1.5 flex items-center gap-1.5"
                               >
                                 <Briefcase size={14} /> Abwesenheit
                               </button>
@@ -2328,7 +2328,7 @@ export default function AdminEmployees() {
                                   const completedEntry = summary.entries.find((e: TimeEntry) => e.clockOut);
                                   if (completedEntry) openPausePopup(editingDate, completedEntry.id);
                                 }}
-                                className="text-sm text-orange-600 hover:bg-orange-50 border border-orange-200 rounded px-3 py-1.5 flex items-center gap-1.5"
+                                className="text-sm text-orange-600 dark:text-orange-400 hover:bg-orange-50 border border-orange-200 dark:border-orange-800 rounded px-3 py-1.5 flex items-center gap-1.5"
                               >
                                 <Clock size={14} /> Pause
                               </button>
@@ -2337,7 +2337,7 @@ export default function AdminEmployees() {
                         </div>
                       );
                     })() : (
-                      <div className="flex items-center justify-center h-full text-gray-400">
+                      <div className="flex items-center justify-center h-full text-gray-400 dark:text-gray-500">
                         <div className="text-center">
                           <Calendar size={48} className="mx-auto mb-3 opacity-30" />
                           <p>Wähle einen Tag im Kalender</p>
@@ -2347,7 +2347,7 @@ export default function AdminEmployees() {
                   </div>
 
                   {/* RECHTE SEITE: Kompakter Monatskalender */}
-                  <div className="w-72 shrink-0 bg-white border rounded-lg p-3 self-start">
+                  <div className="w-72 shrink-0 bg-white dark:bg-gray-900 border rounded-lg p-3 self-start">
                     {(() => {
                       const monthStart = startOfMonth(selectedMonth);
                       const monthEnd = endOfMonth(selectedMonth);
@@ -2378,7 +2378,7 @@ export default function AdminEmployees() {
                         <>
                           {/* Monat/Jahr Navigation */}
                           <div className="flex items-center gap-1 mb-3">
-                            <button onClick={() => handleMonthChange('prev')} className="p-1 hover:bg-gray-100 rounded">
+                            <button onClick={() => handleMonthChange('prev')} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
                               <ChevronLeft size={16} />
                             </button>
                             <select
@@ -2407,7 +2407,7 @@ export default function AdminEmployees() {
                                 <option key={y} value={y}>{y}</option>
                               ))}
                             </select>
-                            <button onClick={() => handleMonthChange('next')} className="p-1 hover:bg-gray-100 rounded">
+                            <button onClick={() => handleMonthChange('next')} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
                               <ChevronRight size={16} />
                             </button>
                           </div>
@@ -2415,7 +2415,7 @@ export default function AdminEmployees() {
                           {/* Wochentag-Header */}
                           <div className="grid grid-cols-7 gap-0.5 mb-2">
                             {['Mo','Di','Mi','Do','Fr','Sa','So'].map(d => (
-                              <div key={d} className="text-center text-[10px] font-medium text-gray-400 py-1">{d}</div>
+                              <div key={d} className="text-center text-[10px] font-medium text-gray-400 dark:text-gray-500 py-1">{d}</div>
                             ))}
                           </div>
                           <div className="grid grid-cols-7 gap-0.5">
@@ -2433,23 +2433,23 @@ export default function AdminEmployees() {
 
                               // Farbcode
                               let bgColor = '';
-                              let textColor = 'text-gray-900';
+                              let textColor = 'text-gray-900 dark:text-gray-100';
                               if (isSelected) {
                                 bgColor = 'bg-primary-600'; textColor = 'text-white';
                               } else if (isNonWork) {
-                                bgColor = 'bg-gray-100'; textColor = 'text-gray-400';
+                                bgColor = 'bg-gray-100 dark:bg-gray-800'; textColor = 'text-gray-400 dark:text-gray-500';
                               } else if (isHoliday) {
-                                bgColor = 'bg-red-100'; textColor = 'text-red-700';
+                                bgColor = 'bg-red-100 dark:bg-red-900/40'; textColor = 'text-red-700 dark:text-red-300';
                               } else if (hasAbsence) {
-                                bgColor = 'bg-blue-100'; textColor = 'text-blue-700';
+                                bgColor = 'bg-blue-100 dark:bg-blue-900/40'; textColor = 'text-blue-700 dark:text-blue-300';
                               } else if (hasEntries && summary.totalWorkMinutes > 0) {
-                                bgColor = 'bg-green-100'; textColor = 'text-green-800';
+                                bgColor = 'bg-green-100 dark:bg-green-900/40'; textColor = 'text-green-800 dark:text-green-300';
                               } else if (summary.isActive) {
-                                bgColor = 'bg-green-200'; textColor = 'text-green-900';
+                                bgColor = 'bg-green-200'; textColor = 'text-green-900 dark:text-green-200';
                               } else if (!isFuture && !isNonWork) {
-                                bgColor = 'bg-orange-100'; textColor = 'text-orange-700';
+                                bgColor = 'bg-orange-100 dark:bg-orange-900/40'; textColor = 'text-orange-700 dark:text-orange-300';
                               } else {
-                                bgColor = 'bg-gray-50';
+                                bgColor = 'bg-gray-50 dark:bg-gray-800';
                               }
 
                               const inSelection = isDateInSelection(day);
@@ -2461,7 +2461,7 @@ export default function AdminEmployees() {
                                   onMouseDown={(e) => { e.preventDefault(); handleSelectionStart(day, e); }}
                                   onMouseEnter={() => handleSelectionMove(day)}
                                   onMouseUp={() => handleSelectionEnd()}
-                                  className={`aspect-square rounded flex flex-col items-center justify-center text-xs font-medium transition-all hover:ring-2 hover:ring-primary-300 select-none cursor-pointer ${inSelection ? 'bg-purple-200 text-purple-900 ring-2 ring-purple-400' : `${bgColor} ${textColor}`} ${isToday && !inSelection ? 'ring-2 ring-primary-500' : ''}`}
+                                  className={`aspect-square rounded flex flex-col items-center justify-center text-xs font-medium transition-all hover:ring-2 hover:ring-primary-300 select-none cursor-pointer ${inSelection ? 'bg-purple-200 text-purple-900 dark:text-purple-200 ring-2 ring-purple-400' : `${bgColor} ${textColor}`} ${isToday && !inSelection ? 'ring-2 ring-primary-500' : ''}`}
                                   title={`${format(day, 'dd.MM.')} - ${hasEntries ? formatMinutesToHours(summary.totalWorkMinutes) + 'h' : hasAbsence ? summary.absence!.absenceType.shortName : isHoliday ? 'Feiertag' : isNonWork ? 'Frei' : isFuture ? '' : 'Kein Eintrag'}`}
                                 >
                                   <span className={`${isSelected ? 'font-bold' : ''}`}>{format(day, 'd')}</span>
@@ -2475,11 +2475,11 @@ export default function AdminEmployees() {
 
                           {/* Legende */}
                           <div className="mt-3 pt-3 border-t flex flex-wrap gap-x-3 gap-y-1">
-                            <div className="flex items-center gap-1 text-[10px] text-gray-500"><div className="w-2.5 h-2.5 rounded bg-green-100" /> Gearbeitet</div>
-                            <div className="flex items-center gap-1 text-[10px] text-gray-500"><div className="w-2.5 h-2.5 rounded bg-orange-100" /> Fehlt</div>
-                            <div className="flex items-center gap-1 text-[10px] text-gray-500"><div className="w-2.5 h-2.5 rounded bg-blue-100" /> Abwesend</div>
-                            <div className="flex items-center gap-1 text-[10px] text-gray-500"><div className="w-2.5 h-2.5 rounded bg-red-100" /> Feiertag</div>
-                            <div className="flex items-center gap-1 text-[10px] text-gray-500"><div className="w-2.5 h-2.5 rounded bg-gray-100" /> Frei</div>
+                            <div className="flex items-center gap-1 text-[10px] text-gray-500 dark:text-gray-400"><div className="w-2.5 h-2.5 rounded bg-green-100 dark:bg-green-900/40" /> Gearbeitet</div>
+                            <div className="flex items-center gap-1 text-[10px] text-gray-500 dark:text-gray-400"><div className="w-2.5 h-2.5 rounded bg-orange-100 dark:bg-orange-900/40" /> Fehlt</div>
+                            <div className="flex items-center gap-1 text-[10px] text-gray-500 dark:text-gray-400"><div className="w-2.5 h-2.5 rounded bg-blue-100 dark:bg-blue-900/40" /> Abwesend</div>
+                            <div className="flex items-center gap-1 text-[10px] text-gray-500 dark:text-gray-400"><div className="w-2.5 h-2.5 rounded bg-red-100 dark:bg-red-900/40" /> Feiertag</div>
+                            <div className="flex items-center gap-1 text-[10px] text-gray-500 dark:text-gray-400"><div className="w-2.5 h-2.5 rounded bg-gray-100 dark:bg-gray-800" /> Frei</div>
                           </div>
                         </>
                       );
@@ -2534,9 +2534,9 @@ export default function AdminEmployees() {
                               }
                             }}
                             className={`transition-colors select-none ${
-                              isNonWorkDay ? 'bg-gray-50 text-gray-400' : ''
-                            } ${isHolidayOnWorkDay && !isNonWorkDay ? 'bg-red-50' : ''} ${isEditing ? 'bg-primary-100' : ''} ${
-                              inSelection ? 'bg-blue-100' : ''
+                              isNonWorkDay ? 'bg-gray-50 dark:bg-gray-800 text-gray-400 dark:text-gray-500' : ''
+                            } ${isHolidayOnWorkDay && !isNonWorkDay ? 'bg-red-50 dark:bg-red-950/40' : ''} ${isEditing ? 'bg-primary-100 dark:bg-primary-900/40' : ''} ${
+                              inSelection ? 'bg-blue-100 dark:bg-blue-900/40' : ''
                             } ${
                               hasAbsence ? '' : 'cursor-pointer hover:bg-primary-50'
                             }`}
@@ -2552,10 +2552,10 @@ export default function AdminEmployees() {
                               {/* Feiertag anzeigen (auf Arbeitstagen) */}
                               {isHolidayOnWorkDay && (
                                 <div
-                                  className="holiday-item flex items-center gap-2 rounded px-2 py-1 -mx-1 mb-2 bg-red-100"
+                                  className="holiday-item flex items-center gap-2 rounded px-2 py-1 -mx-1 mb-2 bg-red-100 dark:bg-red-900/40"
                                 >
-                                  <Star size={14} className="text-red-600" fill="currentColor" />
-                                  <span className="font-medium text-red-700">
+                                  <Star size={14} className="text-red-600 dark:text-red-400" fill="currentColor" />
+                                  <span className="font-medium text-red-700 dark:text-red-300">
                                     {summary.holiday!.name}
                                   </span>
                                   <span className="text-xs text-red-500 ml-auto">
@@ -2584,11 +2584,11 @@ export default function AdminEmployees() {
                                     {summary.absence!.absenceType.name}
                                   </span>
                                   {summary.absence!.absenceType.requiredHours > 0 && (
-                                    <span className="text-xs text-gray-500">
+                                    <span className="text-xs text-gray-500 dark:text-gray-400">
                                       ({formatHoursToTime(summary.absence!.absenceType.requiredHours)}h Pflicht)
                                     </span>
                                   )}
-                                  <Edit2 size={14} className="text-gray-400 ml-auto" />
+                                  <Edit2 size={14} className="text-gray-400 dark:text-gray-500 ml-auto" />
                                 </div>
                               )}
 
@@ -2598,7 +2598,7 @@ export default function AdminEmployees() {
                                   {summary.entries.map((entry) => (
                                     <div
                                       key={entry.id}
-                                      className={`entry-item flex items-center gap-2 cursor-pointer hover:bg-gray-100 rounded px-1 -mx-1 ${entry.complaintMessage && !entry.complaintResolvedAt ? 'bg-amber-50' : ''}`}
+                                      className={`entry-item flex items-center gap-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 rounded px-1 -mx-1 ${entry.complaintMessage && !entry.complaintResolvedAt ? 'bg-amber-50 dark:bg-amber-950/40' : ''}`}
                                       onClick={() => handleDayClick(date, entry)}
                                     >
                                       {/* Reklamations-Icon */}
@@ -2618,19 +2618,19 @@ export default function AdminEmployees() {
                                           <MapPin size={14} className="text-blue-500" />
                                         </button>
                                       )}
-                                      <span className="text-gray-900">
+                                      <span className="text-gray-900 dark:text-gray-100">
                                         {format(new Date(entry.clockIn), 'HH:mm')} -{' '}
                                         {entry.clockOut ? (
                                           format(new Date(entry.clockOut), 'HH:mm')
                                         ) : (
-                                          <span className="text-green-600 font-medium">Aktiv</span>
+                                          <span className="text-green-600 dark:text-green-400 font-medium">Aktiv</span>
                                         )}
                                       </span>
-                                      <Edit2 size={14} className="text-gray-400" />
+                                      <Edit2 size={14} className="text-gray-400 dark:text-gray-500" />
                                     </div>
                                   ))}
                                   {summary.totalBreakMinutes > 0 && (
-                                    <div className="text-xs text-orange-600 mt-1">
+                                    <div className="text-xs text-orange-600 dark:text-orange-400 mt-1">
                                       Pause: {formatMinutesToHours(summary.totalBreakMinutes)}
                                     </div>
                                   )}
@@ -2639,14 +2639,14 @@ export default function AdminEmployees() {
                                       e.stopPropagation();
                                       handleDayClick(date);
                                     }}
-                                    className="text-xs text-primary-600 hover:bg-primary-50 border border-primary-200 rounded px-2 py-1 mt-1 flex items-center gap-1"
+                                    className="text-xs text-primary-600 dark:text-primary-400 hover:bg-primary-50 border border-primary-200 dark:border-primary-800 rounded px-2 py-1 mt-1 flex items-center gap-1"
                                   >
                                     <Plus size={12} />
                                     Eintrag
                                   </button>
                                 </div>
                               ) : !hasAbsence ? (
-                                <span className="text-gray-400">-</span>
+                                <span className="text-gray-400 dark:text-gray-500">-</span>
                               ) : null}
 
                               {/* Buttons: Abwesenheit + Pause */}
@@ -2657,7 +2657,7 @@ export default function AdminEmployees() {
                                       e.stopPropagation();
                                       openAbsencePopup(date);
                                     }}
-                                    className="text-xs text-purple-600 hover:bg-purple-50 border border-purple-200 rounded px-2 py-1 flex items-center gap-1"
+                                    className="text-xs text-purple-600 dark:text-purple-400 hover:bg-purple-50 border border-purple-200 dark:border-purple-800 rounded px-2 py-1 flex items-center gap-1"
                                   >
                                     <Briefcase size={12} />
                                     Abwesenheit
@@ -2670,7 +2670,7 @@ export default function AdminEmployees() {
                                       const completedEntry = summary.entries.find((e: TimeEntry) => e.clockOut);
                                       if (completedEntry) openPausePopup(date, completedEntry.id);
                                     }}
-                                    className="text-xs text-orange-600 hover:bg-orange-50 border border-orange-200 rounded px-2 py-1 flex items-center gap-1"
+                                    className="text-xs text-orange-600 dark:text-orange-400 hover:bg-orange-50 border border-orange-200 dark:border-orange-800 rounded px-2 py-1 flex items-center gap-1"
                                   >
                                     <Clock size={12} />
                                     Pause
@@ -2680,11 +2680,11 @@ export default function AdminEmployees() {
                             </td>
                             <td className="px-4 py-3 text-right font-medium align-top">
                               {hasEntries ? (
-                                <span className={summary.isActive ? 'text-green-600' : 'text-gray-900'}>
+                                <span className={summary.isActive ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-gray-100'}>
                                   {formatMinutesToHours(summary.totalWorkMinutes)} h
                                 </span>
                               ) : isHolidayOnWorkDay ? (
-                                <span className="text-red-600">Feiertag</span>
+                                <span className="text-red-600 dark:text-red-400">Feiertag</span>
                               ) : hasAbsence ? (
                                 <span style={{ color: summary.absence!.absenceType.color }}>
                                   {summary.absence!.absenceType.requiredHours === 0
@@ -2692,7 +2692,7 @@ export default function AdminEmployees() {
                                     : `${formatHoursToTime(summary.absence!.absenceType.requiredHours)} h Pflicht`}
                                 </span>
                               ) : (
-                                <span className="text-gray-400">-</span>
+                                <span className="text-gray-400 dark:text-gray-500">-</span>
                               )}
                             </td>
                           </tr>
@@ -2705,20 +2705,20 @@ export default function AdminEmployees() {
                   {(editingTimeEntry || showCreateEntry) && editingDate && (
                     <div
                       ref={popupRef}
-                      className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-xl shadow-2xl border border-gray-200 p-4 w-80 z-50"
+                      className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 p-4 w-80 z-50"
                     >
                       <div className="flex items-center justify-between mb-4">
                         <h4 className="font-semibold">
                           {format(editingDate, 'dd.MM.yyyy - EEEE', { locale: de })}
                         </h4>
-                        <button onClick={closeQuickEdit} className="p-1 hover:bg-gray-100 rounded">
+                        <button onClick={closeQuickEdit} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
                           <X size={16} />
                         </button>
                       </div>
                       <form onSubmit={(e) => handleTimeEntrySubmit(e, !editingTimeEntry)} className="space-y-3">
                         <div className="grid grid-cols-2 gap-3">
                           <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-1">
+                            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
                               Einstempeln
                             </label>
                             <input
@@ -2737,7 +2737,7 @@ export default function AdminEmployees() {
                             />
                           </div>
                           <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-1">
+                            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
                               Ausstempeln
                             </label>
                             <input
@@ -2752,7 +2752,7 @@ export default function AdminEmployees() {
                           </div>
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-gray-500 mb-1">
+                          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
                             Notiz (optional)
                           </label>
                           <input
@@ -2765,26 +2765,26 @@ export default function AdminEmployees() {
                             placeholder="z.B. Homeoffice, Außendienst..."
                           />
                         </div>
-                        <p className="text-xs text-gray-400">
+                        <p className="text-xs text-gray-400 dark:text-gray-500">
                           Pausen werden automatisch berechnet (Zeit zwischen Aus- und Einstempeln)
                         </p>
 
                         {/* Reklamations-Anzeige */}
                         {editingTimeEntry?.complaintMessage && (
-                          <div className={`p-3 rounded-lg border ${editingTimeEntry.complaintResolvedAt ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
+                          <div className={`p-3 rounded-lg border ${editingTimeEntry.complaintResolvedAt ? 'bg-green-50 dark:bg-green-950/40 border-green-200 dark:border-green-800' : 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800'}`}>
                             <div className="flex items-start gap-2">
                               {editingTimeEntry.complaintResolvedAt ? (
-                                <CheckCircle size={16} className="text-green-600 flex-shrink-0 mt-0.5" />
+                                <CheckCircle size={16} className="text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
                               ) : (
-                                <AlertTriangle size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
+                                <AlertTriangle size={16} className="text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
                               )}
                               <div className="flex-1 min-w-0">
-                                <p className="text-xs font-medium text-gray-700">
+                                <p className="text-xs font-medium text-gray-700 dark:text-gray-300">
                                   {editingTimeEntry.complaintResolvedAt ? 'Reklamation bearbeitet' : 'Offene Reklamation'}
                                 </p>
-                                <p className="text-sm text-gray-600 mt-1">{editingTimeEntry.complaintMessage}</p>
+                                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{editingTimeEntry.complaintMessage}</p>
                                 {editingTimeEntry.complaintResponse && (
-                                  <p className="text-xs text-gray-500 mt-2 border-t border-gray-200 pt-2">
+                                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 border-t border-gray-200 dark:border-gray-700 pt-2">
                                     <span className="font-medium">Antwort:</span> {editingTimeEntry.complaintResponse}
                                   </p>
                                 )}
@@ -2792,7 +2792,7 @@ export default function AdminEmployees() {
                                   <button
                                     type="button"
                                     onClick={() => setShowComplaintModal(true)}
-                                    className="text-xs text-amber-700 hover:text-amber-800 font-medium mt-2"
+                                    className="text-xs text-amber-700 dark:text-amber-300 hover:text-amber-800 font-medium mt-2"
                                   >
                                     Als bearbeitet markieren →
                                   </button>
@@ -2807,7 +2807,7 @@ export default function AdminEmployees() {
                             <button
                               type="button"
                               onClick={handleTimeEntryDelete}
-                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                              className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 rounded-lg"
                               title="Löschen"
                             >
                               <Trash2 size={18} />
@@ -2817,7 +2817,7 @@ export default function AdminEmployees() {
                             <button
                               type="button"
                               onClick={closeQuickEdit}
-                              className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
+                              className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
                             >
                               Abbrechen
                             </button>
@@ -2826,7 +2826,7 @@ export default function AdminEmployees() {
                               <>
                                 <button
                                   type="submit"
-                                  className="px-3 py-1.5 text-sm bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                                  className="px-3 py-1.5 text-sm bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
                                   disabled={!timeEntryFormData.clockOut}
                                   title={!timeEntryFormData.clockOut ? 'Ausstempeln-Zeit benötigt' : 'Enter = Speichern & Weiter'}
                                 >
@@ -2857,23 +2857,23 @@ export default function AdminEmployees() {
                   {/* Reklamation bearbeiten Modal */}
                   {showComplaintModal && editingTimeEntry?.complaintMessage && (
                     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                      <div ref={complaintModalRef} className="bg-white rounded-xl shadow-2xl p-6 w-96 max-w-[90vw]">
+                      <div ref={complaintModalRef} className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl p-6 w-96 max-w-[90vw]">
                         <div className="flex items-center gap-3 mb-4">
-                          <div className="p-2 bg-amber-100 rounded-lg">
-                            <MessageSquare size={20} className="text-amber-600" />
+                          <div className="p-2 bg-amber-100 dark:bg-amber-900/40 rounded-lg">
+                            <MessageSquare size={20} className="text-amber-600 dark:text-amber-400" />
                           </div>
                           <div>
-                            <h3 className="font-semibold text-gray-900">Reklamation bearbeiten</h3>
-                            <p className="text-sm text-gray-500">Mitarbeiter-Nachricht beantworten</p>
+                            <h3 className="font-semibold text-gray-900 dark:text-gray-100">Reklamation bearbeiten</h3>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">Mitarbeiter-Nachricht beantworten</p>
                           </div>
                         </div>
 
-                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
-                          <p className="text-sm text-gray-700">{editingTimeEntry.complaintMessage}</p>
+                        <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-lg p-3 mb-4">
+                          <p className="text-sm text-gray-700 dark:text-gray-300">{editingTimeEntry.complaintMessage}</p>
                         </div>
 
                         <div className="mb-4">
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                             Antwort (optional)
                           </label>
                           <textarea
@@ -2922,7 +2922,7 @@ export default function AdminEmployees() {
                   {showAbsencePopup && editingDate && (
                     <div
                       ref={absencePopupRef}
-                      className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-xl shadow-2xl border border-gray-200 p-4 w-80 z-50"
+                      className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 p-4 w-80 z-50"
                     >
                       <div className="flex items-center justify-between mb-4">
                         <div>
@@ -2937,18 +2937,18 @@ export default function AdminEmployees() {
                             )}
                           </h4>
                           {selectedDates.length > 1 && (
-                            <p className="text-sm text-gray-500 mt-1">
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                               {selectedDates.length} Tage ausgewählt
                             </p>
                           )}
                         </div>
-                        <button onClick={closeAbsencePopup} className="p-1 hover:bg-gray-100 rounded">
+                        <button onClick={closeAbsencePopup} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
                           <X size={16} />
                         </button>
                       </div>
                       <form onSubmit={handleAbsenceSubmit} className="space-y-3">
                         <div>
-                          <label className="block text-xs font-medium text-gray-500 mb-1">
+                          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
                             Abwesenheitstyp
                           </label>
                           <select
@@ -2968,7 +2968,7 @@ export default function AdminEmployees() {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-gray-500 mb-1">
+                          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
                             Notiz (optional)
                           </label>
                           <input
@@ -2986,7 +2986,7 @@ export default function AdminEmployees() {
                             <button
                               type="button"
                               onClick={handleAbsenceDelete}
-                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                              className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 rounded-lg"
                               title="Löschen"
                             >
                               <Trash2 size={18} />
@@ -2996,7 +2996,7 @@ export default function AdminEmployees() {
                             <button
                               type="button"
                               onClick={closeAbsencePopup}
-                              className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
+                              className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
                             >
                               Abbrechen
                             </button>
@@ -3016,23 +3016,23 @@ export default function AdminEmployees() {
                   {showPausePopup && pauseDate && (
                     <div
                       ref={pausePopupRef}
-                      className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-xl shadow-2xl border border-gray-200 p-4 w-80 z-50"
+                      className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 p-4 w-80 z-50"
                     >
                       <div className="flex items-center justify-between mb-4">
                         <h4 className="font-semibold flex items-center gap-2">
                           <Clock size={18} className="text-orange-500" />
                           Pause einfügen
                         </h4>
-                        <button onClick={() => setShowPausePopup(false)} className="p-1 hover:bg-gray-100 rounded">
+                        <button onClick={() => setShowPausePopup(false)} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
                           <X size={16} />
                         </button>
                       </div>
-                      <p className="text-sm text-gray-500 mb-3">
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
                         {format(pauseDate, 'EEEE, dd. MMMM yyyy', { locale: de })}
                       </p>
                       <div className="space-y-3">
                         <div>
-                          <label className="block text-xs font-medium text-gray-500 mb-1">Pause von</label>
+                          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Pause von</label>
                           <input
                             type="time"
                             value={pauseStart}
@@ -3041,7 +3041,7 @@ export default function AdminEmployees() {
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-gray-500 mb-1">Pause bis</label>
+                          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Pause bis</label>
                           <input
                             type="time"
                             value={pauseEnd}
@@ -3049,13 +3049,13 @@ export default function AdminEmployees() {
                             className="input text-sm py-1.5"
                           />
                         </div>
-                        <p className="text-xs text-gray-400">
+                        <p className="text-xs text-gray-400 dark:text-gray-500">
                           Der Zeiteintrag wird aufgeteilt: Ausstempeln um {pauseStart}, Einstempeln um {pauseEnd}.
                         </p>
                         <div className="flex justify-end gap-2 pt-2">
                           <button
                             onClick={() => setShowPausePopup(false)}
-                            className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
+                            className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
                           >
                             Abbrechen
                           </button>
@@ -3077,7 +3077,7 @@ export default function AdminEmployees() {
       {/* Auswärtsstempelung Detail-Popup (Admin) */}
       {pwaDetailEntry && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setPwaDetailEntry(null)}>
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
             <div className="bg-blue-600 text-white p-5 rounded-t-xl">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold flex items-center gap-2">
@@ -3093,13 +3093,13 @@ export default function AdminEmployees() {
             </div>
             <div className="p-5 space-y-4">
               {pwaDetailEntry.clockInViaPwa && (
-                <div className="p-3 bg-green-50 rounded-lg">
-                  <p className="text-green-600 font-semibold text-sm mb-2">Eingestempelt um {format(new Date(pwaDetailEntry.clockIn), 'HH:mm')} Uhr</p>
+                <div className="p-3 bg-green-50 dark:bg-green-950/40 rounded-lg">
+                  <p className="text-green-600 dark:text-green-400 font-semibold text-sm mb-2">Eingestempelt um {format(new Date(pwaDetailEntry.clockIn), 'HH:mm')} Uhr</p>
                   <div className="space-y-1 text-sm">
-                    <p className="text-gray-600"><span className="text-gray-500">Grund:</span> <span className="font-medium">{pwaDetailEntry.pwaClockInReasonText || 'Nicht angegeben'}</span></p>
+                    <p className="text-gray-600 dark:text-gray-400"><span className="text-gray-500 dark:text-gray-400">Grund:</span> <span className="font-medium">{pwaDetailEntry.pwaClockInReasonText || 'Nicht angegeben'}</span></p>
                     {pwaDetailEntry.clockInLatitude && pwaDetailEntry.clockInLongitude && (
                       <a href={`https://www.openstreetmap.org/?mlat=${pwaDetailEntry.clockInLatitude}&mlon=${pwaDetailEntry.clockInLongitude}#map=17/${pwaDetailEntry.clockInLatitude}/${pwaDetailEntry.clockInLongitude}`}
-                        target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-blue-600 hover:underline">
+                        target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400 hover:underline">
                         <MapPin size={12} /> Standort auf Karte anzeigen
                       </a>
                     )}
@@ -3107,13 +3107,13 @@ export default function AdminEmployees() {
                 </div>
               )}
               {pwaDetailEntry.clockOutViaPwa && pwaDetailEntry.clockOut && (
-                <div className="p-3 bg-red-50 rounded-lg">
-                  <p className="text-red-600 font-semibold text-sm mb-2">Ausgestempelt um {format(new Date(pwaDetailEntry.clockOut), 'HH:mm')} Uhr</p>
+                <div className="p-3 bg-red-50 dark:bg-red-950/40 rounded-lg">
+                  <p className="text-red-600 dark:text-red-400 font-semibold text-sm mb-2">Ausgestempelt um {format(new Date(pwaDetailEntry.clockOut), 'HH:mm')} Uhr</p>
                   <div className="space-y-1 text-sm">
-                    <p className="text-gray-600"><span className="text-gray-500">Grund:</span> <span className="font-medium">{pwaDetailEntry.pwaClockOutReasonText || 'Nicht angegeben'}</span></p>
+                    <p className="text-gray-600 dark:text-gray-400"><span className="text-gray-500 dark:text-gray-400">Grund:</span> <span className="font-medium">{pwaDetailEntry.pwaClockOutReasonText || 'Nicht angegeben'}</span></p>
                     {pwaDetailEntry.clockOutLatitude && pwaDetailEntry.clockOutLongitude && (
                       <a href={`https://www.openstreetmap.org/?mlat=${pwaDetailEntry.clockOutLatitude}&mlon=${pwaDetailEntry.clockOutLongitude}#map=17/${pwaDetailEntry.clockOutLatitude}/${pwaDetailEntry.clockOutLongitude}`}
-                        target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-blue-600 hover:underline">
+                        target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400 hover:underline">
                         <MapPin size={12} /> Standort auf Karte anzeigen
                       </a>
                     )}
@@ -3121,13 +3121,13 @@ export default function AdminEmployees() {
                 </div>
               )}
               {pwaDetailEntry.note && (
-                <div className="p-3 bg-gray-50 rounded-lg text-sm text-gray-600">
-                  <span className="text-gray-500">Notiz:</span> {pwaDetailEntry.note}
+                <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg text-sm text-gray-600 dark:text-gray-400">
+                  <span className="text-gray-500 dark:text-gray-400">Notiz:</span> {pwaDetailEntry.note}
                 </div>
               )}
             </div>
             <div className="p-4 border-t flex justify-end">
-              <button onClick={() => setPwaDetailEntry(null)} className="px-4 py-2 border rounded-lg hover:bg-gray-50 text-sm">Schließen</button>
+              <button onClick={() => setPwaDetailEntry(null)} className="px-4 py-2 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 text-sm">Schließen</button>
             </div>
           </div>
         </div>
@@ -3139,21 +3139,21 @@ export default function AdminEmployees() {
         const formatFileSize = (bytes: number) => bytes < 1024*1024 ? `${(bytes/1024).toFixed(1)} KB` : `${(bytes/(1024*1024)).toFixed(1)} MB`;
         return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowDocumentsModal(false)}>
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
               <div>
                 <h2 className="text-xl font-semibold flex items-center gap-2">
                   <FolderOpen size={20} />
                   Dokumente
                 </h2>
-                <p className="text-sm text-gray-500">{selectedEmployeeForDocs.firstName} {selectedEmployeeForDocs.lastName}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{selectedEmployeeForDocs.firstName} {selectedEmployeeForDocs.lastName}</p>
               </div>
-              <button onClick={() => setShowDocumentsModal(false)} className="p-2 hover:bg-gray-100 rounded-lg"><X size={20} /></button>
+              <button onClick={() => setShowDocumentsModal(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"><X size={20} /></button>
             </div>
             <div className="overflow-y-auto flex-1 p-6 space-y-6">
               {/* Upload Section */}
-              <div className="p-4 bg-gray-50 rounded-lg space-y-3">
-                <h3 className="text-sm font-semibold text-gray-700">Dokument hochladen</h3>
+              <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg space-y-3">
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Dokument hochladen</h3>
                 <DocumentTypeQuery>
                   {(documentTypes: any[]) => (
                     <>
@@ -3189,10 +3189,10 @@ export default function AdminEmployees() {
                       <label
                         className={`flex flex-col items-center justify-center w-full py-4 rounded-lg border-2 border-dashed cursor-pointer transition-colors ${
                           docDragging
-                            ? 'border-primary-500 bg-primary-50'
+                            ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30'
                             : docUploadFile
-                            ? 'border-green-400 bg-green-50'
-                            : 'border-gray-300 hover:border-gray-400 hover:bg-gray-100'
+                            ? 'border-green-400 bg-green-50 dark:bg-green-950/40'
+                            : 'border-gray-300 dark:border-gray-700 hover:border-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
                         }`}
                         onDragOver={(e) => { e.preventDefault(); setDocDragging(true); }}
                         onDragLeave={() => setDocDragging(false)}
@@ -3203,15 +3203,15 @@ export default function AdminEmployees() {
                           if (file) setDocUploadFile(file);
                         }}
                       >
-                        <Upload size={20} className={docDragging ? 'text-primary-500' : docUploadFile ? 'text-green-600' : 'text-gray-400'} />
-                        <p className="mt-1 text-sm text-gray-600">
+                        <Upload size={20} className={docDragging ? 'text-primary-500' : docUploadFile ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-gray-500'} />
+                        <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
                           {docUploading ? 'Wird hochgeladen...' : docUploadFile ? docUploadFile.name : docDragging ? 'Hier ablegen' : 'Datei hierhin ziehen oder klicken'}
                         </p>
                         <input type="file" className="hidden" onChange={(e) => setDocUploadFile(e.target.files?.[0] || null)} />
                       </label>
                       <div className="flex items-center gap-3">
                         {docUploadFile && (
-                          <button onClick={() => setDocUploadFile(null)} className="text-sm text-gray-500 hover:text-gray-700">Datei entfernen</button>
+                          <button onClick={() => setDocUploadFile(null)} className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">Datei entfernen</button>
                         )}
                         <button
                           onClick={async () => {
@@ -3265,28 +3265,28 @@ export default function AdminEmployees() {
       {/* RFID Lookup Modal */}
       {showLookupModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => { if (!lookupScanning) { setShowLookupModal(false); } }}>
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
               <h2 className="text-xl font-semibold flex items-center gap-2">
                 <CreditCard size={20} />
                 Karte abfragen
               </h2>
               <button
                 onClick={() => { if (lookupScanning) stopLookupScan(); setShowLookupModal(false); }}
-                className="p-2 hover:bg-gray-100 rounded-lg"
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
               >
                 <X size={20} />
               </button>
             </div>
             <div className="p-6 space-y-4">
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
                 Scanne eine RFID-Karte am Terminal, um herauszufinden, welchem Mitarbeiter sie zugeordnet ist.
               </p>
 
               {/* Connection Status */}
               <div className="flex items-center gap-2 text-sm">
                 <div className={`w-2 h-2 rounded-full ${lookupSocketConnected ? 'bg-green-500' : 'bg-red-500'}`} />
-                <span className="text-gray-500">
+                <span className="text-gray-500 dark:text-gray-400">
                   {lookupSocketConnected ? 'Terminal verbunden' : 'Verbinde...'}
                 </span>
               </div>
@@ -3315,32 +3315,32 @@ export default function AdminEmployees() {
 
               {/* Result */}
               {lookupResult && (
-                <div className={`p-4 rounded-lg ${lookupResult.found ? 'bg-green-50 border border-green-200' : 'bg-yellow-50 border border-yellow-200'}`}>
+                <div className={`p-4 rounded-lg ${lookupResult.found ? 'bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800' : 'bg-yellow-50 dark:bg-yellow-950/40 border border-yellow-200 dark:border-yellow-800'}`}>
                   {lookupResult.found ? (
                     <div className="flex items-center gap-3">
                       {lookupResult.employee.photoUrl ? (
                         <img src={photoSrc(lookupResult.employee.photoUrl)} alt="" className="w-12 h-12 rounded-full object-cover" />
                       ) : (
-                        <div className="w-12 h-12 rounded-full bg-green-200 flex items-center justify-center text-green-700 font-medium text-lg">
+                        <div className="w-12 h-12 rounded-full bg-green-200 flex items-center justify-center text-green-700 dark:text-green-300 font-medium text-lg">
                           {lookupResult.employee.firstName[0]}{lookupResult.employee.lastName[0]}
                         </div>
                       )}
                       <div>
-                        <p className="font-semibold text-gray-900">
+                        <p className="font-semibold text-gray-900 dark:text-gray-100">
                           {lookupResult.employee.firstName} {lookupResult.employee.lastName}
                         </p>
-                        <p className="text-sm text-gray-500">#{lookupResult.employee.employeeNumber}</p>
-                        <p className="text-xs text-gray-400 mt-1">RFID: {lookupResult.rfidCard}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">#{lookupResult.employee.employeeNumber}</p>
+                        <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">RFID: {lookupResult.rfidCard}</p>
                         {!lookupResult.employee.isActive && (
-                          <span className="text-xs text-red-600 font-medium">Inaktiv</span>
+                          <span className="text-xs text-red-600 dark:text-red-400 font-medium">Inaktiv</span>
                         )}
                       </div>
                     </div>
                   ) : (
                     <div>
-                      <p className="font-medium text-yellow-800">Karte nicht zugeordnet</p>
-                      <p className="text-sm text-yellow-600 mt-1">RFID: {lookupResult.rfidCard}</p>
-                      <p className="text-sm text-yellow-600">Diese Karte ist keinem Mitarbeiter zugewiesen.</p>
+                      <p className="font-medium text-yellow-800 dark:text-yellow-300">Karte nicht zugeordnet</p>
+                      <p className="text-sm text-yellow-600 dark:text-yellow-400 mt-1">RFID: {lookupResult.rfidCard}</p>
+                      <p className="text-sm text-yellow-600 dark:text-yellow-400">Diese Karte ist keinem Mitarbeiter zugewiesen.</p>
                     </div>
                   )}
                 </div>
@@ -3353,39 +3353,39 @@ export default function AdminEmployees() {
       {/* Info-Schreiben Status-Modal (wenn Button grün ist = bereits signiert) */}
       {infoLetterModalEmployee && infoLetterModalEmployee.latestInfoLetter?.signedAt && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-            <div className="flex items-center justify-between p-5 border-b border-gray-100">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl max-w-md w-full">
+            <div className="flex items-center justify-between p-5 border-b border-gray-100 dark:border-gray-800">
               <div className="flex items-center gap-2">
-                <FileText size={20} className="text-green-600" />
+                <FileText size={20} className="text-green-600 dark:text-green-400" />
                 <h3 className="text-lg font-semibold">Info-Schreiben bestätigt</h3>
               </div>
               <button
                 onClick={() => setInfoLetterModalEmployee(null)}
-                className="p-1 hover:bg-gray-100 rounded"
+                className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
               >
                 <X size={20} />
               </button>
             </div>
             <div className="p-5 space-y-3">
-              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                <p className="text-sm text-green-700 font-medium">
+              <div className="bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800 rounded-lg p-3">
+                <p className="text-sm text-green-700 dark:text-green-300 font-medium">
                   {infoLetterModalEmployee.firstName} {infoLetterModalEmployee.lastName} hat das Info-Schreiben digital bestätigt.
                 </p>
-                <p className="text-xs text-green-600 mt-2">
+                <p className="text-xs text-green-600 dark:text-green-400 mt-2">
                   Bestätigt am {new Date(infoLetterModalEmployee.latestInfoLetter.signedAt).toLocaleDateString('de-DE')}
                   {' '}um {new Date(infoLetterModalEmployee.latestInfoLetter.signedAt).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr
                 </p>
               </div>
-              <div className="bg-gray-50 rounded-lg p-3 text-sm">
-                <p className="text-gray-500 text-xs">Dokument</p>
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 text-sm">
+                <p className="text-gray-500 dark:text-gray-400 text-xs">Dokument</p>
                 <p className="font-medium truncate">{infoLetterModalEmployee.latestInfoLetter.originalFilename}</p>
               </div>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gray-500 dark:text-gray-400">
                 Falls ein neues Info-Schreiben nötig ist (z.B. nach Änderung der Stammdaten), kannst du es hier neu
                 erstellen. Das bisherige Dokument bleibt mit der Signatur im Archiv erhalten.
               </p>
             </div>
-            <div className="p-5 border-t border-gray-100 flex justify-between gap-2">
+            <div className="p-5 border-t border-gray-100 dark:border-gray-800 flex justify-between gap-2">
               <button
                 onClick={() => setInfoLetterModalEmployee(null)}
                 className="btn btn-secondary"

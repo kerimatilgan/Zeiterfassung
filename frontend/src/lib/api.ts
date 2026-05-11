@@ -90,6 +90,9 @@ export const employeesApi = {
   // Persönliche Reihenfolge der Stats-Karten im Dashboard speichern
   saveDashboardOrder: (order: string[]) =>
     api.put('/employees/me/dashboard-order', { order }),
+  // Persönliche Theme-Präferenz speichern
+  setTheme: (theme: 'light' | 'dark' | 'system') =>
+    api.put('/employees/me/theme', { theme }),
 };
 
 // Terminal (RFID Registration)

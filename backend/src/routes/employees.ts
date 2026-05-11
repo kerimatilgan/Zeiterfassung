@@ -741,6 +741,28 @@ router.put('/me/dashboard-order', authMiddleware, async (req: AuthRequest, res: 
   }
 });
 
+// Theme-Präferenz speichern (persönlich, folgt dem User über alle Geräte).
+// Body: { theme: "light" | "dark" | "system" }
+router.put('/me/theme', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const schema = z.object({ theme: z.enum(['light', 'dark', 'system']) });
+    const { theme } = schema.parse(req.body);
+
+    await prisma.employee.update({
+      where: { id: req.employee!.id },
+      data: { theme },
+    });
+
+    res.json({ ok: true, theme });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: error.errors[0].message });
+    }
+    console.error('Theme save error:', error);
+    res.status(500).json({ error: 'Fehler beim Speichern' });
+  }
+});
+
 router.post('/:id/generate-info-pdf', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;

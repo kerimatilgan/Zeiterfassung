@@ -13,7 +13,10 @@ interface Employee {
   workDays: string;
   isAdmin: boolean;
   dashboardCardOrder?: string | null;
+  theme?: 'light' | 'dark' | 'system' | null;
 }
+
+export type ThemePref = 'light' | 'dark' | 'system';
 
 interface AuthState {
   token: string | null;

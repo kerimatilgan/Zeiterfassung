@@ -124,7 +124,7 @@ export default function SetupWizard({ onComplete }: { onComplete: () => void }) 
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-950 dark:to-gray-900 flex items-center justify-center p-4">
       <Toaster position="top-right" />
       <div className="w-full max-w-lg">
         {/* Header */}
@@ -135,8 +135,8 @@ export default function SetupWizard({ onComplete }: { onComplete: () => void }) 
               <polyline points="12 6 12 12 16 14"/>
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Zeiterfassung</h1>
-          <p className="text-gray-500 mt-1">Ersteinrichtung</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Zeiterfassung</h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">Ersteinrichtung</p>
         </div>
 
         {/* Progress */}
@@ -146,28 +146,28 @@ export default function SetupWizard({ onComplete }: { onComplete: () => void }) 
               <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium transition-all ${
                 i < step ? 'bg-green-500 text-white' :
                 i === step ? 'bg-blue-600 text-white' :
-                'bg-gray-200 text-gray-500'
+                'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
               }`}>
                 {i < step ? <Check size={14} /> : i + 1}
               </div>
               {i < STEPS.length - 1 && (
-                <div className={`w-6 h-0.5 ${i < step ? 'bg-green-500' : 'bg-gray-200'}`} />
+                <div className={`w-6 h-0.5 ${i < step ? 'bg-green-500' : 'bg-gray-200 dark:bg-gray-700'}`} />
               )}
             </div>
           ))}
         </div>
 
         {/* Card */}
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+        <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-800 overflow-hidden">
           {/* Step 0: Willkommen */}
           {step === 0 && (
             <div className="p-8 text-center">
-              <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Building2 className="w-10 h-10 text-blue-600" />
+              <div className="w-20 h-20 bg-blue-100 dark:bg-blue-900/40 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Building2 className="w-10 h-10 text-blue-600 dark:text-blue-400" />
               </div>
-              <h2 className="text-xl font-bold text-gray-900 mb-3">Willkommen!</h2>
-              <p className="text-gray-600 mb-2">Richte deine Zeiterfassung in wenigen Schritten ein.</p>
-              <p className="text-sm text-gray-500">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-3">Willkommen!</h2>
+              <p className="text-gray-600 dark:text-gray-400 mb-2">Richte deine Zeiterfassung in wenigen Schritten ein.</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
                 Unternehmen, E-Mail-Server, Administrator und Terminal – alles wird automatisch konfiguriert.
                 Feiertage und Abwesenheitstypen werden ebenfalls eingerichtet.
               </p>
@@ -178,37 +178,37 @@ export default function SetupWizard({ onComplete }: { onComplete: () => void }) 
           {step === 1 && (
             <div className="p-8">
               <div className="flex items-center gap-3 mb-6">
-                <div className="p-2.5 bg-blue-100 rounded-lg"><Building2 className="w-5 h-5 text-blue-600" /></div>
+                <div className="p-2.5 bg-blue-100 dark:bg-blue-900/40 rounded-lg"><Building2 className="w-5 h-5 text-blue-600 dark:text-blue-400" /></div>
                 <div>
-                  <h2 className="text-lg font-bold text-gray-900">Unternehmen</h2>
-                  <p className="text-sm text-gray-500">Feiertage werden anhand der PLZ automatisch ermittelt</p>
+                  <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Unternehmen</h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Feiertage werden anhand der PLZ automatisch ermittelt</p>
                 </div>
               </div>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Firmenname <span className="text-red-500">*</span></label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Firmenname <span className="text-red-500">*</span></label>
                   <input type="text" value={formData.companyName} onChange={e => update('companyName', e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="z.B. Handy-Insel GmbH" autoFocus />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Adresse <span className="text-xs text-gray-400">(mit PLZ für automatische Feiertage)</span>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Adresse <span className="text-xs text-gray-400 dark:text-gray-500">(mit PLZ für automatische Feiertage)</span>
                   </label>
                   <input type="text" value={formData.companyAddress} onChange={e => update('companyAddress', e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Musterstraße 1, 83714 Miesbach" />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Telefon</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Telefon</label>
                     <input type="tel" value={formData.companyPhone} onChange={e => update('companyPhone', e.target.value)}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">E-Mail</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">E-Mail</label>
                     <input type="email" value={formData.companyEmail} onChange={e => update('companyEmail', e.target.value)}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
                   </div>
                 </div>
               </div>
@@ -219,57 +219,57 @@ export default function SetupWizard({ onComplete }: { onComplete: () => void }) 
           {step === 2 && (
             <div className="p-8">
               <div className="flex items-center gap-3 mb-6">
-                <div className="p-2.5 bg-blue-100 rounded-lg"><Mail className="w-5 h-5 text-blue-600" /></div>
+                <div className="p-2.5 bg-blue-100 dark:bg-blue-900/40 rounded-lg"><Mail className="w-5 h-5 text-blue-600 dark:text-blue-400" /></div>
                 <div>
-                  <h2 className="text-lg font-bold text-gray-900">E-Mail-Server</h2>
-                  <p className="text-sm text-gray-500">Optional – für Benachrichtigungen und Passwort-Reset</p>
+                  <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">E-Mail-Server</h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Optional – für Benachrichtigungen und Passwort-Reset</p>
                 </div>
               </div>
               <div className="space-y-4">
                 <div className="grid grid-cols-3 gap-4">
                   <div className="col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">SMTP-Server</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">SMTP-Server</label>
                     <input type="text" value={formData.smtpHost} onChange={e => update('smtpHost', e.target.value)}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="smtp.gmail.com" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Port</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Port</label>
                     <input type="number" value={formData.smtpPort} onChange={e => update('smtpPort', parseInt(e.target.value) || 587)}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Benutzername</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Benutzername</label>
                     <input type="text" value={formData.smtpUser} onChange={e => update('smtpUser', e.target.value)}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Passwort</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Passwort</label>
                     <input type="password" value={formData.smtpPassword} onChange={e => update('smtpPassword', e.target.value)}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Absender-Adresse</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Absender-Adresse</label>
                     <input type="email" value={formData.smtpFromAddress} onChange={e => update('smtpFromAddress', e.target.value)}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="noreply@firma.de" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Absender-Name</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Absender-Name</label>
                     <input type="text" value={formData.smtpFromName} onChange={e => update('smtpFromName', e.target.value)}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
                   </div>
                 </div>
                 <label className="flex items-center gap-2">
                   <input type="checkbox" checked={formData.smtpSecure} onChange={e => update('smtpSecure', e.target.checked)} className="rounded" />
-                  <span className="text-sm text-gray-700">SSL/TLS verwenden (Port 465)</span>
+                  <span className="text-sm text-gray-700 dark:text-gray-300">SSL/TLS verwenden (Port 465)</span>
                 </label>
                 {!formData.smtpHost && (
-                  <p className="text-sm text-gray-400 bg-gray-50 p-3 rounded-lg">
+                  <p className="text-sm text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
                     Du kannst diesen Schritt überspringen und den E-Mail-Server später in den Einstellungen konfigurieren.
                   </p>
                 )}
@@ -281,53 +281,53 @@ export default function SetupWizard({ onComplete }: { onComplete: () => void }) 
           {step === 3 && (
             <div className="p-8">
               <div className="flex items-center gap-3 mb-6">
-                <div className="p-2.5 bg-blue-100 rounded-lg"><User className="w-5 h-5 text-blue-600" /></div>
+                <div className="p-2.5 bg-blue-100 dark:bg-blue-900/40 rounded-lg"><User className="w-5 h-5 text-blue-600 dark:text-blue-400" /></div>
                 <div>
-                  <h2 className="text-lg font-bold text-gray-900">Administrator</h2>
-                  <p className="text-sm text-gray-500">Dein Admin-Zugang</p>
+                  <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Administrator</h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Dein Admin-Zugang</p>
                 </div>
               </div>
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Vorname <span className="text-red-500">*</span></label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Vorname <span className="text-red-500">*</span></label>
                     <input type="text" value={formData.firstName} onChange={e => update('firstName', e.target.value)}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" autoFocus />
+                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" autoFocus />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Nachname <span className="text-red-500">*</span></label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nachname <span className="text-red-500">*</span></label>
                     <input type="text" value={formData.lastName} onChange={e => update('lastName', e.target.value)}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Benutzername <span className="text-red-500">*</span></label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Benutzername <span className="text-red-500">*</span></label>
                   <input type="text" value={formData.username} onChange={e => update('username', e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="z.B. admin.firma" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">E-Mail</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">E-Mail</label>
                   <input type="email" value={formData.email} onChange={e => update('email', e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                    className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Passwort <span className="text-red-500">*</span></label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Passwort <span className="text-red-500">*</span></label>
                     <input type="password" value={formData.password} onChange={e => update('password', e.target.value)}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="Mindestens 10 Zeichen" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Bestätigen <span className="text-red-500">*</span></label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Bestätigen <span className="text-red-500">*</span></label>
                     <input type="password" value={formData.passwordConfirm} onChange={e => update('passwordConfirm', e.target.value)}
                       className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                        formData.passwordConfirm && formData.password !== formData.passwordConfirm ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                        formData.passwordConfirm && formData.password !== formData.passwordConfirm ? 'border-red-300 bg-red-50 dark:bg-red-950/40' : 'border-gray-300 dark:border-gray-700'
                       }`} />
                   </div>
                 </div>
                 {formData.passwordConfirm && formData.password !== formData.passwordConfirm && (
-                  <p className="text-sm text-red-600">Passwörter stimmen nicht überein</p>
+                  <p className="text-sm text-red-600 dark:text-red-400">Passwörter stimmen nicht überein</p>
                 )}
               </div>
             </div>
@@ -337,34 +337,34 @@ export default function SetupWizard({ onComplete }: { onComplete: () => void }) 
           {step === 4 && (
             <div className="p-8">
               <div className="flex items-center gap-3 mb-6">
-                <div className="p-2.5 bg-blue-100 rounded-lg"><Monitor className="w-5 h-5 text-blue-600" /></div>
+                <div className="p-2.5 bg-blue-100 dark:bg-blue-900/40 rounded-lg"><Monitor className="w-5 h-5 text-blue-600 dark:text-blue-400" /></div>
                 <div>
-                  <h2 className="text-lg font-bold text-gray-900">Stempelterminal</h2>
-                  <p className="text-sm text-gray-500">Raspberry Pi Terminal einrichten (optional)</p>
+                  <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Stempelterminal</h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Raspberry Pi Terminal einrichten (optional)</p>
                 </div>
               </div>
               <div className="space-y-4">
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
                   Ein Stempelterminal wurde automatisch erstellt. Führe folgenden Befehl auf dem Raspberry Pi aus um das Terminal zu installieren:
                 </p>
                 {terminalId ? (
                   <>
                     <div className="bg-gray-900 text-gray-100 rounded-lg p-4 font-mono text-sm overflow-x-auto">
-                      <span className="text-gray-400">$</span> curl -sL {backendUrl}/api/setup/terminal-install/{terminalId} | bash
+                      <span className="text-gray-400 dark:text-gray-500">$</span> curl -sL {backendUrl}/api/setup/terminal-install/{terminalId} | bash
                     </div>
                     <button onClick={() => {
                       navigator.clipboard.writeText(`curl -sL ${backendUrl}/api/setup/terminal-install/${terminalId} | bash`);
                       toast.success('Befehl kopiert!');
-                    }} className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                    }} className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 font-medium">
                       Befehl in Zwischenablage kopieren
                     </button>
                   </>
                 ) : (
-                  <div className="bg-gray-50 p-3 rounded-lg text-sm text-gray-500">
+                  <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg text-sm text-gray-500 dark:text-gray-400">
                     Terminal wird erstellt...
                   </div>
                 )}
-                <p className="text-xs text-gray-400 bg-gray-50 p-3 rounded-lg">
+                <p className="text-xs text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
                   Das Script installiert alle Abhängigkeiten, lädt die Software herunter und richtet den Autostart ein.
                   Du kannst weitere Terminals später in den Einstellungen hinzufügen.
                 </p>
@@ -375,14 +375,14 @@ export default function SetupWizard({ onComplete }: { onComplete: () => void }) 
           {/* Step 5: Fertig */}
           {step === 5 && (
             <div className="p-8 text-center">
-              <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Check className="w-10 h-10 text-green-600" />
+              <div className="w-20 h-20 bg-green-100 dark:bg-green-900/40 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Check className="w-10 h-10 text-green-600 dark:text-green-400" />
               </div>
-              <h2 className="text-xl font-bold text-gray-900 mb-3">Einrichtung abgeschlossen!</h2>
-              <p className="text-gray-600 mb-4">Deine Zeiterfassung ist bereit.</p>
-              <div className="bg-gray-50 rounded-lg p-4 text-left text-sm space-y-2">
-                <p className="font-medium text-gray-900">Was wurde eingerichtet:</p>
-                <ul className="space-y-1 text-gray-600">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-3">Einrichtung abgeschlossen!</h2>
+              <p className="text-gray-600 dark:text-gray-400 mb-4">Deine Zeiterfassung ist bereit.</p>
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 text-left text-sm space-y-2">
+                <p className="font-medium text-gray-900 dark:text-gray-100">Was wurde eingerichtet:</p>
+                <ul className="space-y-1 text-gray-600 dark:text-gray-400">
                   <li className="flex items-center gap-2"><Check size={14} className="text-green-500" /> Administrator-Account</li>
                   <li className="flex items-center gap-2"><Check size={14} className="text-green-500" /> Abwesenheitstypen (Urlaub, Krank, etc.)</li>
                   <li className="flex items-center gap-2"><Check size={14} className="text-green-500" /> Feiertage (automatisch erkannt)</li>
@@ -393,9 +393,9 @@ export default function SetupWizard({ onComplete }: { onComplete: () => void }) 
                   )}
                 </ul>
               </div>
-              <div className="bg-blue-50 rounded-lg p-4 text-left text-sm mt-4">
-                <p className="text-gray-500">Anmeldedaten:</p>
-                <p className="font-medium text-gray-900 mt-1">Benutzername: {formData.username}</p>
+              <div className="bg-blue-50 dark:bg-blue-950/40 rounded-lg p-4 text-left text-sm mt-4">
+                <p className="text-gray-500 dark:text-gray-400">Anmeldedaten:</p>
+                <p className="font-medium text-gray-900 dark:text-gray-100 mt-1">Benutzername: {formData.username}</p>
               </div>
             </div>
           )}
@@ -404,7 +404,7 @@ export default function SetupWizard({ onComplete }: { onComplete: () => void }) 
           <div className="px-8 pb-8 flex items-center justify-between">
             {step > 0 && step < 5 ? (
               <button onClick={() => setStep(step - 1)} disabled={step === 4}
-                className="flex items-center gap-2 px-4 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition disabled:opacity-30">
+                className="flex items-center gap-2 px-4 py-2.5 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition disabled:opacity-30">
                 <ArrowLeft size={16} /> Zurück
               </button>
             ) : <div />}

@@ -27,11 +27,11 @@ export default function PushNotificationSettings() {
     return (
       <div className="card">
         <div className="p-6">
-          <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
             <Bell size={20} />
             Push-Benachrichtigungen
           </h2>
-          <p className="text-sm text-gray-500 mt-2">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
             Dein Browser unterstützt keine Push-Benachrichtigungen.
           </p>
         </div>
@@ -73,12 +73,12 @@ export default function PushNotificationSettings() {
 
   return (
     <div className="card">
-      <div className="p-6 border-b border-gray-100">
-        <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+      <div className="p-6 border-b border-gray-100 dark:border-gray-800">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
           <Bell size={20} />
           Push-Benachrichtigungen
         </h2>
-        <p className="text-sm text-gray-500 mt-1">
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
           Erhalte direkte Benachrichtigungen wenn neue Dokumente oder Abrechnungen für dich
           bereitgestellt werden, oder wenn du das Ausstempeln vergessen hast.
         </p>
@@ -87,11 +87,11 @@ export default function PushNotificationSettings() {
         <div className="flex-1">
           <p className="text-sm">
             Status: {subscribed === null ? '—' : subscribed
-              ? <span className="text-green-700 font-medium">Aktiv</span>
-              : <span className="text-gray-500">Inaktiv</span>}
+              ? <span className="text-green-700 dark:text-green-300 font-medium">Aktiv</span>
+              : <span className="text-gray-500 dark:text-gray-400">Inaktiv</span>}
           </p>
           {permission === 'denied' && (
-            <p className="text-xs text-amber-700 mt-1">
+            <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
               Dein Browser hat Benachrichtigungen blockiert. Aktivierung nur über die Browser-Einstellungen möglich.
             </p>
           )}

@@ -138,38 +138,38 @@ export default function EmployeeSettings() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Einstellungen</h1>
-        <p className="text-gray-500">Persönliche Einstellungen verwalten</p>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Einstellungen</h1>
+        <p className="text-gray-500 dark:text-gray-400">Persönliche Einstellungen verwalten</p>
       </div>
 
       {/* Profile Info (Read-only) */}
       <div className="card p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Profil</h2>
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Profil</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="label">Mitarbeiternummer</label>
-            <p className="text-gray-900 font-medium">#{employee?.employeeNumber}</p>
+            <p className="text-gray-900 dark:text-gray-100 font-medium">#{employee?.employeeNumber}</p>
           </div>
           <div>
             <label className="label">Name</label>
-            <p className="text-gray-900 font-medium">
+            <p className="text-gray-900 dark:text-gray-100 font-medium">
               {employee?.firstName} {employee?.lastName}
             </p>
           </div>
           {employee?.email && (
             <div>
               <label className="label">E-Mail</label>
-              <p className="text-gray-900">{employee.email}</p>
+              <p className="text-gray-900 dark:text-gray-100">{employee.email}</p>
             </div>
           )}
           {!employee?.isAdmin && (
             <div>
               <label className="label">Wochenstunden</label>
-              <p className="text-gray-900">{employee?.weeklyHours} h</p>
+              <p className="text-gray-900 dark:text-gray-100">{employee?.weeklyHours} h</p>
             </div>
           )}
         </div>
-        <p className="text-sm text-gray-500 mt-4">
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-4">
           Um deine persönlichen Daten zu ändern, wende dich bitte an einen Administrator.
         </p>
       </div>
@@ -177,10 +177,10 @@ export default function EmployeeSettings() {
       {/* Change Password */}
       <div className="card p-6">
         <div className="flex items-center gap-3 mb-6">
-          <div className="p-2 rounded-lg bg-primary-100">
-            <Lock className="w-5 h-5 text-primary-600" />
+          <div className="p-2 rounded-lg bg-primary-100 dark:bg-primary-900/40">
+            <Lock className="w-5 h-5 text-primary-600 dark:text-primary-400" />
           </div>
-          <h2 className="text-lg font-semibold text-gray-900">Passwort ändern</h2>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Passwort ändern</h2>
         </div>
 
         <form onSubmit={handlePasswordSubmit} className="space-y-4 max-w-md">
@@ -197,7 +197,7 @@ export default function EmployeeSettings() {
               <button
                 type="button"
                 onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
               >
                 {showCurrentPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
@@ -218,12 +218,12 @@ export default function EmployeeSettings() {
               <button
                 type="button"
                 onClick={() => setShowNewPassword(!showNewPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
               >
                 {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
-            <p className="text-xs text-gray-500 mt-1">Mindestens 6 Zeichen</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Mindestens 6 Zeichen</p>
           </div>
 
           <div>
@@ -240,7 +240,7 @@ export default function EmployeeSettings() {
               <button
                 type="button"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
               >
                 {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
@@ -261,12 +261,12 @@ export default function EmployeeSettings() {
       {/* 2FA / TOTP */}
       <div className="card p-6">
         <div className="flex items-center gap-3 mb-6">
-          <div className="p-2 rounded-lg bg-amber-100">
-            <ShieldCheck className="w-5 h-5 text-amber-600" />
+          <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-900/40">
+            <ShieldCheck className="w-5 h-5 text-amber-600 dark:text-amber-400" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">Zwei-Faktor-Authentifizierung (2FA)</h2>
-            <p className="text-sm text-gray-500">Zusätzliche Sicherheit beim Login mit Authenticator-App</p>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Zwei-Faktor-Authentifizierung (2FA)</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Zusätzliche Sicherheit beim Login mit Authenticator-App</p>
           </div>
         </div>
 
@@ -274,11 +274,11 @@ export default function EmployeeSettings() {
           <div>
             <div className="flex items-center gap-2 mb-4">
               <CheckCircle className="w-5 h-5 text-green-500" />
-              <span className="text-green-700 font-medium">2FA ist aktiviert</span>
+              <span className="text-green-700 dark:text-green-300 font-medium">2FA ist aktiviert</span>
             </div>
             {showTotpDisable ? (
               <form onSubmit={handleTotpDisable} className="max-w-sm space-y-3">
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
                   Geben Sie Ihren aktuellen 2FA-Code ein, um die Zwei-Faktor-Authentifizierung zu deaktivieren.
                 </p>
                 <input
@@ -303,7 +303,7 @@ export default function EmployeeSettings() {
             ) : (
               <button
                 onClick={() => setShowTotpDisable(true)}
-                className="text-sm text-red-600 hover:text-red-700 hover:underline"
+                className="text-sm text-red-600 dark:text-red-400 hover:text-red-700 hover:underline"
               >
                 2FA deaktivieren
               </button>
@@ -311,20 +311,20 @@ export default function EmployeeSettings() {
           </div>
         ) : totpSetupData ? (
           <div className="max-w-sm">
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
               Scannen Sie den QR-Code mit Ihrer Authenticator-App (z.B. Google Authenticator, Authy).
             </p>
             <div className="flex justify-center mb-4">
               <img src={totpSetupData.qrCodeDataUrl} alt="TOTP QR Code" className="w-48 h-48" />
             </div>
             <div className="mb-4">
-              <p className="text-xs text-gray-500 mb-1">Oder manuell eingeben:</p>
-              <code className="block bg-gray-100 p-2 rounded text-xs text-center break-all font-mono select-all">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Oder manuell eingeben:</p>
+              <code className="block bg-gray-100 dark:bg-gray-800 p-2 rounded text-xs text-center break-all font-mono select-all">
                 {totpSetupData.secret}
               </code>
             </div>
             <form onSubmit={handleTotpVerifySetup} className="space-y-3">
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
                 Geben Sie den 6-stelligen Code aus der App ein, um die Einrichtung abzuschließen.
               </p>
               <input
@@ -350,7 +350,7 @@ export default function EmployeeSettings() {
           </div>
         ) : (
           <div>
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
               Schützen Sie Ihr Konto mit einem zusätzlichen Code aus einer Authenticator-App.
             </p>
             <button onClick={handleTotpSetup} className="btn btn-primary text-sm flex items-center gap-2">
@@ -364,12 +364,12 @@ export default function EmployeeSettings() {
       {/* Passkeys - only in secure context */}
       {window.isSecureContext && <div className="card p-6">
         <div className="flex items-center gap-3 mb-6">
-          <div className="p-2 rounded-lg bg-indigo-100">
-            <Fingerprint className="w-5 h-5 text-indigo-600" />
+          <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900/40">
+            <Fingerprint className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">Passkeys</h2>
-            <p className="text-sm text-gray-500">Anmelden ohne Passwort mit Fingerabdruck, Face ID oder Sicherheitsschlüssel</p>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Passkeys</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Anmelden ohne Passwort mit Fingerabdruck, Face ID oder Sicherheitsschlüssel</p>
           </div>
         </div>
 
@@ -377,12 +377,12 @@ export default function EmployeeSettings() {
         {passkeys.length > 0 && (
           <div className="space-y-2 mb-4">
             {passkeys.map((pk: any) => (
-              <div key={pk.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div key={pk.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                 <div className="flex items-center gap-3">
                   <Fingerprint size={18} className="text-indigo-500" />
                   <div>
-                    <p className="text-sm font-medium text-gray-900">{pk.deviceName}</p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{pk.deviceName}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
                       Registriert am {new Date(pk.createdAt).toLocaleDateString('de-DE')}
                     </p>
                   </div>

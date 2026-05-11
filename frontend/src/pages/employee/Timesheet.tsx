@@ -213,15 +213,15 @@ export default function EmployeeTimesheet() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Meine Zeiten</h1>
-          <p className="text-gray-500">Übersicht deiner Arbeitsstunden</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Meine Zeiten</h1>
+          <p className="text-gray-500 dark:text-gray-400">Übersicht deiner Arbeitsstunden</p>
         </div>
 
         {/* Month Navigation */}
         <div className="flex items-center gap-4">
           <button
             onClick={prevMonth}
-            className="p-2 hover:bg-gray-100 rounded-lg"
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
           >
             <ChevronLeft size={20} />
           </button>
@@ -230,7 +230,7 @@ export default function EmployeeTimesheet() {
           </span>
           <button
             onClick={nextMonth}
-            className="p-2 hover:bg-gray-100 rounded-lg"
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
           >
             <ChevronRight size={20} />
           </button>
@@ -255,23 +255,23 @@ export default function EmployeeTimesheet() {
         {/* Desktop Tabellen-Ansicht */}
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50">
+            <thead className="bg-gray-50 dark:bg-gray-800">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-32">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase w-32">
                   Datum
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                   Tag
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                   Zeiten
                 </th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase w-24">
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase w-24">
                   Stunden
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
               {daysInMonth.map((day) => {
                 const dayEntries = getEntriesForDay(day);
                 const dayHours = calculateDayHours(dayEntries);
@@ -283,12 +283,12 @@ export default function EmployeeTimesheet() {
                   <tr
                     key={day.toISOString()}
                     className={`
-                      ${holidayName ? 'bg-red-50 text-red-700' : weekend ? 'bg-gray-50 text-gray-400' : ''}
-                      ${isToday ? 'bg-primary-50' : ''}
+                      ${holidayName ? 'bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300' : weekend ? 'bg-gray-50 dark:bg-gray-800 text-gray-400 dark:text-gray-500' : ''}
+                      ${isToday ? 'bg-primary-50 dark:bg-primary-900/30' : ''}
                     `}
                   >
                     <td className="px-4 py-3">
-                      <span className={`font-medium ${isToday ? 'text-primary-600' : ''}`}>
+                      <span className={`font-medium ${isToday ? 'text-primary-600 dark:text-primary-400' : ''}`}>
                         {format(day, 'dd.MM.yyyy')}
                       </span>
                     </td>
@@ -318,8 +318,8 @@ export default function EmployeeTimesheet() {
                                         className={`ml-auto text-xs px-2 py-0.5 rounded ${
                                           prevEntry.complaintMessage
                                             ? prevEntry.complaintResolvedAt
-                                              ? 'text-green-700 bg-green-100 hover:bg-green-200'
-                                              : 'text-amber-700 bg-amber-100 hover:bg-amber-200'
+                                              ? 'text-green-700 dark:text-green-300 bg-green-100 dark:bg-green-900/40 hover:bg-green-200'
+                                              : 'text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/40 hover:bg-amber-200'
                                             : 'text-orange-500 hover:text-orange-700 hover:bg-orange-50'
                                         }`}
                                         title="Pause reklamieren"
@@ -355,10 +355,10 @@ export default function EmployeeTimesheet() {
                                   {entry.clockOut ? (
                                     <span> - {format(new Date(entry.clockOut), 'HH:mm')}</span>
                                   ) : (
-                                    <span className="text-green-600 ml-2">(aktiv)</span>
+                                    <span className="text-green-600 dark:text-green-400 ml-2">(aktiv)</span>
                                   )}
                                   {entry.breakMinutes > 0 && (
-                                    <span className="text-gray-400 ml-2">
+                                    <span className="text-gray-400 dark:text-gray-500 ml-2">
                                       ({entry.breakMinutes >= 60 ? `${Math.floor(entry.breakMinutes / 60)}:${String(entry.breakMinutes % 60).padStart(2, '0')}h` : `${entry.breakMinutes} min`} Pause)
                                     </span>
                                   )}
@@ -367,9 +367,9 @@ export default function EmployeeTimesheet() {
                                     className={`ml-auto text-xs px-2 py-0.5 rounded ${
                                       entry.complaintMessage
                                         ? entry.complaintResolvedAt
-                                          ? 'text-green-700 bg-green-100 hover:bg-green-200'
-                                          : 'text-amber-700 bg-amber-100 hover:bg-amber-200'
-                                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                                          ? 'text-green-700 dark:text-green-300 bg-green-100 dark:bg-green-900/40 hover:bg-green-200'
+                                          : 'text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/40 hover:bg-amber-200'
+                                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
                                     }`}
                                     title={entry.complaintMessage ? 'Reklamation anzeigen' : 'Eintrag reklamieren'}
                                   >
@@ -385,14 +385,14 @@ export default function EmployeeTimesheet() {
                           ))}
                         </div>
                       ) : weekend || holidayName ? (
-                        <span className="text-gray-400">{holidayName ? '' : '-'}</span>
+                        <span className="text-gray-400 dark:text-gray-500">{holidayName ? '' : '-'}</span>
                       ) : (
                         <div className="flex items-center justify-between">
-                          <span className="text-gray-400">Kein Eintrag</span>
+                          <span className="text-gray-400 dark:text-gray-500">Kein Eintrag</span>
                           {day <= new Date() && (
                             <button
                               onClick={() => openStandaloneComplaint(day)}
-                              className="text-xs px-2 py-0.5 rounded text-gray-400 hover:text-amber-600 hover:bg-amber-50 flex items-center gap-1 ml-auto"
+                              className="text-xs px-2 py-0.5 rounded text-gray-400 dark:text-gray-500 hover:text-amber-600 hover:bg-amber-50 flex items-center gap-1 ml-auto"
                               title="Tag reklamieren (z.B. Karte vergessen)"
                             >
                               <MessageSquare size={12} />
@@ -404,23 +404,23 @@ export default function EmployeeTimesheet() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       {dayHours > 0 ? (
-                        <span className="font-medium text-gray-900">
+                        <span className="font-medium text-gray-900 dark:text-gray-100">
                           {formatHoursToTime(dayHours)} h
                         </span>
                       ) : (
-                        <span className="text-gray-400">-</span>
+                        <span className="text-gray-400 dark:text-gray-500">-</span>
                       )}
                     </td>
                   </tr>
                 );
               })}
             </tbody>
-            <tfoot className="bg-gray-50">
+            <tfoot className="bg-gray-50 dark:bg-gray-800">
               <tr>
-                <td colSpan={3} className="px-4 py-3 font-medium text-gray-900">
+                <td colSpan={3} className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100">
                   Gesamt
                 </td>
-                <td className="px-4 py-3 text-right font-bold text-gray-900">
+                <td className="px-4 py-3 text-right font-bold text-gray-900 dark:text-gray-100">
                   {formatHoursToTime(totalMonthHours)} h
                 </td>
               </tr>
@@ -429,7 +429,7 @@ export default function EmployeeTimesheet() {
         </div>
 
         {/* Mobile Karten-Ansicht */}
-        <div className="md:hidden divide-y divide-gray-100">
+        <div className="md:hidden divide-y divide-gray-100 dark:divide-gray-800">
           {daysInMonth.map((day) => {
             const dayEntries = getEntriesForDay(day);
             const dayHours = calculateDayHours(dayEntries);
@@ -443,17 +443,17 @@ export default function EmployeeTimesheet() {
             return (
               <div
                 key={day.toISOString()}
-                className={`p-4 ${isToday ? 'bg-primary-50' : holidayNameMobile ? 'bg-red-50' : weekend ? 'bg-gray-50' : ''}`}
+                className={`p-4 ${isToday ? 'bg-primary-50 dark:bg-primary-900/30' : holidayNameMobile ? 'bg-red-50 dark:bg-red-950/40' : weekend ? 'bg-gray-50 dark:bg-gray-800' : ''}`}
               >
                 {/* Datum-Header */}
                 <div className="flex items-center justify-between mb-2">
                   <div>
-                    <span className={`font-medium ${isToday ? 'text-primary-600' : holidayNameMobile ? 'text-red-700' : weekend ? 'text-gray-400' : 'text-gray-900'}`}>
+                    <span className={`font-medium ${isToday ? 'text-primary-600 dark:text-primary-400' : holidayNameMobile ? 'text-red-700 dark:text-red-300' : weekend ? 'text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-gray-100'}`}>
                       {format(day, 'EEE, dd.MM.', { locale: de })}
                     </span>
                     {holidayNameMobile && <span className="ml-1.5 text-xs text-red-500">({holidayNameMobile})</span>}
                   </div>
-                  <span className={`font-medium ${dayHours > 0 ? 'text-gray-900' : 'text-gray-400'}`}>
+                  <span className={`font-medium ${dayHours > 0 ? 'text-gray-900 dark:text-gray-100' : 'text-gray-400 dark:text-gray-500'}`}>
                     {dayHours > 0 ? `${formatHoursToTime(dayHours)} h` : '-'}
                   </span>
                 </div>
@@ -487,7 +487,7 @@ export default function EmployeeTimesheet() {
                           return null;
                         })()}
                       <div
-                        className="flex items-center justify-between bg-white rounded-lg border border-gray-100 p-2"
+                        className="flex items-center justify-between bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 p-2"
                       >
                         <div className="flex items-center gap-2 text-sm">
                           {entry.complaintMessage && (
@@ -509,12 +509,12 @@ export default function EmployeeTimesheet() {
                             {format(new Date(entry.clockIn), 'HH:mm')}
                           </span>
                           {entry.clockOut ? (
-                            <span className="text-gray-600">- {format(new Date(entry.clockOut), 'HH:mm')}</span>
+                            <span className="text-gray-600 dark:text-gray-400">- {format(new Date(entry.clockOut), 'HH:mm')}</span>
                           ) : (
-                            <span className="text-green-600">(aktiv)</span>
+                            <span className="text-green-600 dark:text-green-400">(aktiv)</span>
                           )}
                           {entry.breakMinutes > 0 && (
-                            <span className="text-gray-400 text-xs">
+                            <span className="text-gray-400 dark:text-gray-500 text-xs">
                               ({entry.breakMinutes >= 60 ? `${Math.floor(entry.breakMinutes / 60)}:${String(entry.breakMinutes % 60).padStart(2, '0')}h` : `${entry.breakMinutes}m`})
                             </span>
                           )}
@@ -525,9 +525,9 @@ export default function EmployeeTimesheet() {
                           className={`text-xs px-2 py-1 rounded whitespace-nowrap ${
                             entry.complaintMessage
                               ? entry.complaintResolvedAt
-                                ? 'text-green-700 bg-green-100'
-                                : 'text-amber-700 bg-amber-100'
-                              : 'text-gray-500 bg-gray-100'
+                                ? 'text-green-700 dark:text-green-300 bg-green-100 dark:bg-green-900/40'
+                                : 'text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/40'
+                              : 'text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800'
                           }`}
                         >
                           {entry.complaintMessage ? (
@@ -542,11 +542,11 @@ export default function EmployeeTimesheet() {
                   </div>
                 ) : !weekend && (
                   <div className="flex items-center justify-between">
-                    <p className="text-sm text-gray-400">Kein Eintrag</p>
+                    <p className="text-sm text-gray-400 dark:text-gray-500">Kein Eintrag</p>
                     {day <= new Date() && (
                       <button
                         onClick={() => openStandaloneComplaint(day)}
-                        className="text-xs px-2 py-1 rounded text-gray-400 bg-gray-100 hover:text-amber-600 hover:bg-amber-50"
+                        className="text-xs px-2 py-1 rounded text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-800 hover:text-amber-600 hover:bg-amber-50"
                         title="Tag reklamieren"
                       >
                         <MessageSquare size={14} />
@@ -559,9 +559,9 @@ export default function EmployeeTimesheet() {
           })}
 
           {/* Mobile Footer mit Gesamt */}
-          <div className="p-4 bg-gray-50 flex justify-between items-center">
-            <span className="font-medium text-gray-900">Gesamt</span>
-            <span className="font-bold text-gray-900">{formatHoursToTime(totalMonthHours)} h</span>
+          <div className="p-4 bg-gray-50 dark:bg-gray-800 flex justify-between items-center">
+            <span className="font-medium text-gray-900 dark:text-gray-100">Gesamt</span>
+            <span className="font-bold text-gray-900 dark:text-gray-100">{formatHoursToTime(totalMonthHours)} h</span>
           </div>
         </div>
       </div>
@@ -569,7 +569,7 @@ export default function EmployeeTimesheet() {
       {/* Auswärtsstempelung Detail-Popup */}
       {pwaDetailEntry && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setPwaDetailEntry(null)}>
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
             <div className="bg-blue-600 text-white p-5 rounded-t-xl">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold flex items-center gap-2">
@@ -586,13 +586,13 @@ export default function EmployeeTimesheet() {
             <div className="p-5 space-y-4">
               {/* Einstempeln */}
               {pwaDetailEntry.clockInViaPwa && (
-                <div className="p-3 bg-green-50 rounded-lg">
+                <div className="p-3 bg-green-50 dark:bg-green-950/40 rounded-lg">
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="text-green-600 font-semibold text-sm">Eingestempelt um {format(new Date(pwaDetailEntry.clockIn), 'HH:mm')} Uhr</span>
+                    <span className="text-green-600 dark:text-green-400 font-semibold text-sm">Eingestempelt um {format(new Date(pwaDetailEntry.clockIn), 'HH:mm')} Uhr</span>
                   </div>
                   <div className="space-y-1 text-sm">
-                    <p className="text-gray-600">
-                      <span className="text-gray-500">Grund:</span>{' '}
+                    <p className="text-gray-600 dark:text-gray-400">
+                      <span className="text-gray-500 dark:text-gray-400">Grund:</span>{' '}
                       <span className="font-medium">{getReasonName(pwaDetailEntry.pwaClockInReasonId, pwaDetailEntry.pwaClockInReasonText) || '-'}</span>
                     </p>
                     {pwaDetailEntry.clockInLatitude && pwaDetailEntry.clockInLongitude && (
@@ -600,7 +600,7 @@ export default function EmployeeTimesheet() {
                         href={`https://www.openstreetmap.org/?mlat=${pwaDetailEntry.clockInLatitude}&mlon=${pwaDetailEntry.clockInLongitude}#map=17/${pwaDetailEntry.clockInLatitude}/${pwaDetailEntry.clockInLongitude}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-blue-600 hover:underline"
+                        className="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400 hover:underline"
                       >
                         <MapPin size={12} /> Standort auf Karte anzeigen
                       </a>
@@ -611,13 +611,13 @@ export default function EmployeeTimesheet() {
 
               {/* Ausstempeln */}
               {pwaDetailEntry.clockOutViaPwa && pwaDetailEntry.clockOut && (
-                <div className="p-3 bg-red-50 rounded-lg">
+                <div className="p-3 bg-red-50 dark:bg-red-950/40 rounded-lg">
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="text-red-600 font-semibold text-sm">Ausgestempelt um {format(new Date(pwaDetailEntry.clockOut), 'HH:mm')} Uhr</span>
+                    <span className="text-red-600 dark:text-red-400 font-semibold text-sm">Ausgestempelt um {format(new Date(pwaDetailEntry.clockOut), 'HH:mm')} Uhr</span>
                   </div>
                   <div className="space-y-1 text-sm">
-                    <p className="text-gray-600">
-                      <span className="text-gray-500">Grund:</span>{' '}
+                    <p className="text-gray-600 dark:text-gray-400">
+                      <span className="text-gray-500 dark:text-gray-400">Grund:</span>{' '}
                       <span className="font-medium">{getReasonName(pwaDetailEntry.pwaClockOutReasonId, pwaDetailEntry.pwaClockOutReasonText) || '-'}</span>
                     </p>
                     {pwaDetailEntry.clockOutLatitude && pwaDetailEntry.clockOutLongitude && (
@@ -625,7 +625,7 @@ export default function EmployeeTimesheet() {
                         href={`https://www.openstreetmap.org/?mlat=${pwaDetailEntry.clockOutLatitude}&mlon=${pwaDetailEntry.clockOutLongitude}#map=17/${pwaDetailEntry.clockOutLatitude}/${pwaDetailEntry.clockOutLongitude}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-blue-600 hover:underline"
+                        className="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400 hover:underline"
                       >
                         <MapPin size={12} /> Standort auf Karte anzeigen
                       </a>
@@ -636,13 +636,13 @@ export default function EmployeeTimesheet() {
 
               {/* Notiz */}
               {pwaDetailEntry.note && (
-                <div className="p-3 bg-gray-50 rounded-lg text-sm text-gray-600">
-                  <span className="text-gray-500">Notiz:</span> {pwaDetailEntry.note}
+                <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg text-sm text-gray-600 dark:text-gray-400">
+                  <span className="text-gray-500 dark:text-gray-400">Notiz:</span> {pwaDetailEntry.note}
                 </div>
               )}
             </div>
             <div className="p-4 border-t flex justify-end">
-              <button onClick={() => setPwaDetailEntry(null)} className="px-4 py-2 border rounded-lg hover:bg-gray-50 text-sm">
+              <button onClick={() => setPwaDetailEntry(null)} className="px-4 py-2 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 text-sm">
                 Schließen
               </button>
             </div>
@@ -653,18 +653,18 @@ export default function EmployeeTimesheet() {
       {/* Reklamation Modal */}
       {showComplaintModal && (selectedEntry || standaloneDate) && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
-            <div className="p-6 border-b border-gray-100">
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl w-full max-w-md">
+            <div className="p-6 border-b border-gray-100 dark:border-gray-800">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-lg ${selectedEntry?.complaintResolvedAt ? 'bg-green-100' : 'bg-amber-100'}`}>
-                    <MessageSquare size={20} className={selectedEntry?.complaintResolvedAt ? 'text-green-600' : 'text-amber-600'} />
+                  <div className={`p-2 rounded-lg ${selectedEntry?.complaintResolvedAt ? 'bg-green-100 dark:bg-green-900/40' : 'bg-amber-100 dark:bg-amber-900/40'}`}>
+                    <MessageSquare size={20} className={selectedEntry?.complaintResolvedAt ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'} />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-900">
+                    <h3 className="font-semibold text-gray-900 dark:text-gray-100">
                       {standaloneDate ? 'Tag reklamieren' : selectedEntry?.complaintMessage ? 'Reklamation' : 'Eintrag reklamieren'}
                     </h3>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
                       {standaloneDate
                         ? format(new Date(standaloneDate + 'T12:00:00'), 'EEEE, dd.MM.yyyy', { locale: de })
                         : selectedEntry && (
@@ -684,7 +684,7 @@ export default function EmployeeTimesheet() {
                     setStandaloneDate(null);
                     setComplaintMessage('');
                   }}
-                  className="p-1 hover:bg-gray-100 rounded"
+                  className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
                 >
                   <X size={20} />
                 </button>
@@ -695,17 +695,17 @@ export default function EmployeeTimesheet() {
               {/* Wenn bereits bearbeitet, nur Anzeige */}
               {selectedEntry?.complaintResolvedAt ? (
                 <>
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <p className="text-sm font-medium text-gray-500 mb-1">Ihre Nachricht:</p>
-                    <p className="text-gray-700">{selectedEntry.complaintMessage}</p>
+                  <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Ihre Nachricht:</p>
+                    <p className="text-gray-700 dark:text-gray-300">{selectedEntry.complaintMessage}</p>
                   </div>
                   {selectedEntry.complaintResponse && (
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                      <p className="text-sm font-medium text-green-700 mb-1">Antwort vom Admin:</p>
-                      <p className="text-gray-700">{selectedEntry.complaintResponse}</p>
+                    <div className="bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                      <p className="text-sm font-medium text-green-700 dark:text-green-300 mb-1">Antwort vom Admin:</p>
+                      <p className="text-gray-700 dark:text-gray-300">{selectedEntry.complaintResponse}</p>
                     </div>
                   )}
-                  <div className="flex items-center gap-2 text-sm text-green-600">
+                  <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
                     <CheckCircle size={16} />
                     <span>Diese Reklamation wurde bearbeitet</span>
                   </div>
@@ -713,7 +713,7 @@ export default function EmployeeTimesheet() {
               ) : (
                 <>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       {standaloneDate ? 'Was ist an diesem Tag passiert?' : 'Was stimmt nicht mit diesem Eintrag?'}
                     </label>
                     <textarea
@@ -726,7 +726,7 @@ export default function EmployeeTimesheet() {
                     />
                   </div>
 
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
                     Ihre Nachricht wird an die Administratoren gesendet, die den Eintrag korrigieren können.
                   </p>
                 </>
@@ -735,12 +735,12 @@ export default function EmployeeTimesheet() {
 
             {/* Buttons - nur anzeigen wenn nicht bearbeitet */}
             {!selectedEntry?.complaintResolvedAt && (
-              <div className="p-6 border-t border-gray-100 flex justify-between">
+              <div className="p-6 border-t border-gray-100 dark:border-gray-800 flex justify-between">
                 {selectedEntry?.complaintMessage ? (
                   <button
                     onClick={handleDeleteComplaint}
                     disabled={isSubmitting}
-                    className="text-red-600 hover:text-red-700 text-sm font-medium"
+                    className="text-red-600 dark:text-red-400 hover:text-red-700 text-sm font-medium"
                   >
                     Reklamation zurückziehen
                   </button>
@@ -780,7 +780,7 @@ export default function EmployeeTimesheet() {
 
             {/* Schließen Button wenn bearbeitet */}
             {selectedEntry?.complaintResolvedAt && (
-              <div className="p-6 border-t border-gray-100 flex justify-end">
+              <div className="p-6 border-t border-gray-100 dark:border-gray-800 flex justify-end">
                 <button
                   onClick={() => {
                     setShowComplaintModal(false);

@@ -61,6 +61,8 @@ model Employee {
   // Reihenfolge der Stats-Karten im Dashboard, als JSON-Array von Karten-IDs.
   // null/leer = Default-Reihenfolge.
   dashboardCardOrder      String?
+  // Theme-Präferenz: "light" | "dark" | "system" (Default: System-Einstellung des Browsers)
+  theme                   String   @default("system")
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

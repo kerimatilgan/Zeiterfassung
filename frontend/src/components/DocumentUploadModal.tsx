@@ -128,13 +128,13 @@ export default function DocumentUploadModal({
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-        <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-md max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+        <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
           <h2 className="text-xl font-semibold flex items-center gap-2">
             <FileText size={20} />
             Dokument hochladen
           </h2>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg" disabled={uploading}>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg" disabled={uploading}>
             <X size={20} />
           </button>
         </div>
@@ -145,7 +145,7 @@ export default function DocumentUploadModal({
             <div>
               <label className="label text-xs">Mitarbeiter *</label>
               {lockEmployee && lockedEmployee ? (
-                <div className="input py-2 text-sm bg-gray-50 text-gray-700">
+                <div className="input py-2 text-sm bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
                   {lockedEmployee.lastName}, {lockedEmployee.firstName}
                 </div>
               ) : (
@@ -230,20 +230,20 @@ export default function DocumentUploadModal({
           {/* Sichtbarkeit (nur im Self-Upload-Modus) */}
           {selfUpload && (
             <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-              visibleToAdmin ? 'border-amber-300 bg-amber-50' : 'border-gray-200 bg-gray-50 hover:bg-gray-100'
+              visibleToAdmin ? 'border-amber-300 bg-amber-50 dark:bg-amber-950/40' : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'
             }`}>
               <input
                 type="checkbox"
                 checked={visibleToAdmin}
                 onChange={(e) => setVisibleToAdmin(e.target.checked)}
-                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+                className="mt-0.5 h-4 w-4 rounded border-gray-300 dark:border-gray-700 text-amber-600 dark:text-amber-400 focus:ring-amber-500"
               />
               <div className="flex-1 text-sm">
-                <div className="flex items-center gap-1.5 font-medium text-gray-900">
-                  {visibleToAdmin ? <Eye size={14} className="text-amber-600" /> : <Lock size={14} className="text-gray-500" />}
+                <div className="flex items-center gap-1.5 font-medium text-gray-900 dark:text-gray-100">
+                  {visibleToAdmin ? <Eye size={14} className="text-amber-600 dark:text-amber-400" /> : <Lock size={14} className="text-gray-500 dark:text-gray-400" />}
                   {visibleToAdmin ? 'Admin darf dieses Dokument sehen' : 'Privates Dokument'}
                 </div>
-                <p className="text-xs text-gray-500 mt-0.5">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                   {visibleToAdmin
                     ? 'Erscheint auch in der Admin-Ansicht deiner Dokumente.'
                     : 'Nur du siehst dieses Dokument. Admin sieht weder Datei noch Existenz.'}
@@ -256,10 +256,10 @@ export default function DocumentUploadModal({
           <label
             className={`flex flex-col items-center justify-center w-full py-6 rounded-lg border-2 border-dashed cursor-pointer transition-colors ${
               dragging
-                ? 'border-primary-500 bg-primary-50'
+                ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30'
                 : file
-                ? 'border-green-400 bg-green-50'
-                : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
+                ? 'border-green-400 bg-green-50 dark:bg-green-950/40'
+                : 'border-gray-300 dark:border-gray-700 hover:border-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
             }`}
             onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
             onDragLeave={() => setDragging(false)}
@@ -270,8 +270,8 @@ export default function DocumentUploadModal({
               if (f) setFile(f);
             }}
           >
-            <Upload size={28} className={dragging ? 'text-primary-500' : file ? 'text-green-600' : 'text-gray-400'} />
-            <p className="mt-2 text-sm text-gray-600 text-center px-3">
+            <Upload size={28} className={dragging ? 'text-primary-500' : file ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-gray-500'} />
+            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400 text-center px-3">
               {uploading
                 ? 'Wird hochgeladen...'
                 : file
@@ -281,7 +281,7 @@ export default function DocumentUploadModal({
                 : 'Datei hierhin ziehen oder klicken'}
             </p>
             {file && !uploading && (
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                 {file.size < 1024 * 1024
                   ? `${(file.size / 1024).toFixed(1)} KB`
                   : `${(file.size / (1024 * 1024)).toFixed(1)} MB`}
@@ -290,13 +290,13 @@ export default function DocumentUploadModal({
             <input type="file" className="hidden" onChange={(e) => setFile(e.target.files?.[0] || null)} />
           </label>
           {file && !uploading && (
-            <button onClick={() => setFile(null)} className="text-xs text-gray-500 hover:text-gray-700">
+            <button onClick={() => setFile(null)} className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
               Datei entfernen
             </button>
           )}
         </div>
 
-        <div className="p-6 border-t border-gray-100 flex justify-end gap-3">
+        <div className="p-6 border-t border-gray-100 dark:border-gray-800 flex justify-end gap-3">
           <button onClick={onClose} className="btn btn-secondary" disabled={uploading}>
             Abbrechen
           </button>

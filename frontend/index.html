@@ -10,7 +10,28 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Zeiterfassung" />
     <link rel="apple-touch-icon" href="/icon-192.svg" />
-    <title>Zeiterfassung - Handy-Insel</title>
+    <title>Zeiterfassung</title>
+    <script>
+      // Dark-Mode vor dem ersten Paint setzen, damit es keinen hellen Flash gibt.
+      (function () {
+        try {
+          var pref = localStorage.getItem('theme-pref');
+          if (pref !== 'light' && pref !== 'dark' && pref !== 'system') {
+            // Fallback: aus dem persistierten Auth-Store lesen (employee.theme)
+            var raw = localStorage.getItem('auth-storage');
+            if (raw) {
+              var t = JSON.parse(raw)?.state?.employee?.theme;
+              if (t === 'light' || t === 'dark' || t === 'system') pref = t;
+            }
+          }
+          if (!pref) pref = 'system';
+          var dark = pref === 'dark' ||
+            (pref === 'system' && window.matchMedia &&
+             window.matchMedia('(prefers-color-scheme: dark)').matches);
+          if (dark) document.documentElement.classList.add('dark');
+        } catch (e) { /* ignore */ }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

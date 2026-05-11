@@ -287,20 +287,20 @@ function TargetModal({ target, onClose, onSave }: {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="p-6 border-b">
           <h3 className="text-lg font-semibold">{target ? 'Backup-Ziel bearbeiten' : 'Neues Backup-Ziel'}</h3>
         </div>
 
         <div className="p-6 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
             <input type="text" value={name} onChange={e => setName(e.target.value)}
               className="w-full px-3 py-2 border rounded-lg" placeholder="z.B. Office NAS" />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Typ</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Typ</label>
             <select value={type} onChange={e => handleTypeChange(e.target.value)}
               className="w-full px-3 py-2 border rounded-lg" disabled={!!target}>
               {Object.entries(PROVIDER_TYPES).map(([key, val]) => (
@@ -310,11 +310,11 @@ function TargetModal({ target, onClose, onSave }: {
           </div>
 
           <div className="border-t pt-4">
-            <h4 className="text-sm font-medium text-gray-700 mb-3">Konfiguration</h4>
+            <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Konfiguration</h4>
             <div className="space-y-3">
               {providerDef?.fields.filter(shouldShow).map(field => (
                 <div key={field.name}>
-                  <label className="block text-sm text-gray-600 mb-1">
+                  <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">
                     {field.label} {field.required && <span className="text-red-500">*</span>}
                   </label>
                   {field.type === 'select' ? (
@@ -335,7 +335,7 @@ function TargetModal({ target, onClose, onSave }: {
                       <input type="checkbox" checked={!!config[field.name]}
                         onChange={e => updateConfig(field.name, e.target.checked)}
                         className="rounded" />
-                      <span className="text-sm text-gray-600">Aktiviert</span>
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Aktiviert</span>
                     </label>
                   ) : (
                     <input type={field.type} value={config[field.name] || ''}
@@ -351,9 +351,9 @@ function TargetModal({ target, onClose, onSave }: {
           {/* OAuth Login Button */}
           {isOAuthProvider && (
             <div className="border-t pt-4">
-              <h4 className="text-sm font-medium text-gray-700 mb-3">Kontoverknüpfung</h4>
+              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Kontoverknüpfung</h4>
               {hasOAuthTokens && oauthStatus !== 'pending' ? (
-                <div className="flex items-center gap-2 p-3 bg-green-50 rounded-lg text-sm text-green-700 mb-3">
+                <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-950/40 rounded-lg text-sm text-green-700 dark:text-green-300 mb-3">
                   <Check size={16} /> Konto verknüpft
                 </div>
               ) : null}
@@ -366,12 +366,12 @@ function TargetModal({ target, onClose, onSave }: {
                 )}
               </button>
               {oauthStatus === 'success' && (
-                <div className="mt-2 p-3 bg-green-50 text-green-700 rounded-lg text-sm flex items-center gap-2">
+                <div className="mt-2 p-3 bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-300 rounded-lg text-sm flex items-center gap-2">
                   <Check size={14} /> Anmeldung erfolgreich! Tokens wurden übernommen.
                 </div>
               )}
               {oauthStatus === 'error' && oauthError && (
-                <div className="mt-2 p-3 bg-red-50 text-red-700 rounded-lg text-sm flex items-center gap-2">
+                <div className="mt-2 p-3 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 rounded-lg text-sm flex items-center gap-2">
                   <X size={14} /> {oauthError}
                 </div>
               )}
@@ -381,12 +381,12 @@ function TargetModal({ target, onClose, onSave }: {
           {/* Test */}
           <div className="border-t pt-4">
             <button onClick={handleTest} disabled={testing}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm disabled:opacity-50">
+              className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg text-sm disabled:opacity-50">
               {testing ? <RefreshCw size={16} className="animate-spin" /> : <TestTube size={16} />}
               {testing ? 'Teste...' : 'Verbindung testen'}
             </button>
             {testResult && (
-              <div className={`mt-2 p-3 rounded-lg text-sm ${testResult.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+              <div className={`mt-2 p-3 rounded-lg text-sm ${testResult.success ? 'bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-300' : 'bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300'}`}>
                 {testResult.success ? <Check size={14} className="inline mr-1" /> : <X size={14} className="inline mr-1" />}
                 {testResult.message}
               </div>
@@ -395,7 +395,7 @@ function TargetModal({ target, onClose, onSave }: {
         </div>
 
         <div className="p-6 border-t flex justify-end gap-3">
-          <button onClick={onClose} className="px-4 py-2 border rounded-lg hover:bg-gray-50">Abbrechen</button>
+          <button onClick={onClose} className="px-4 py-2 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">Abbrechen</button>
           <button onClick={handleSave} disabled={!name || saving}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
             {saving ? 'Speichern...' : 'Speichern'}
@@ -533,12 +533,12 @@ export default function BackupSettings() {
       <div className="card p-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className="p-3 rounded-lg bg-blue-100">
-              <Database className="w-6 h-6 text-blue-600" />
+            <div className="p-3 rounded-lg bg-blue-100 dark:bg-blue-900/40">
+              <Database className="w-6 h-6 text-blue-600 dark:text-blue-400" />
             </div>
             <div>
-              <h3 className="font-semibold text-gray-900">Backup-Status</h3>
-              <p className="text-sm text-gray-500">
+              <h3 className="font-semibold text-gray-900 dark:text-gray-100">Backup-Status</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
                 {status?.activeTargets || 0} aktive Ziele | Nächstes Backup: {status?.nextScheduled || '02:00 Uhr'}
               </p>
             </div>
@@ -556,22 +556,22 @@ export default function BackupSettings() {
           </button>
         </div>
         {status?.lastBackup && (
-          <div className="bg-gray-50 rounded-lg p-3 text-sm">
-            <span className="text-gray-500">Letztes Backup:</span>{' '}
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 text-sm">
+            <span className="text-gray-500 dark:text-gray-400">Letztes Backup:</span>{' '}
             <span className="font-medium">{formatDateTime(status.lastBackup.completedAt)}</span>
-            <span className="text-gray-400 mx-2">|</span>
-            <span className="text-gray-500">{formatFileSize(status.lastBackup.fileSize)}</span>
-            <span className="text-gray-400 mx-2">|</span>
-            <span className="text-gray-500">{status.lastBackup.targetName}</span>
+            <span className="text-gray-400 dark:text-gray-500 mx-2">|</span>
+            <span className="text-gray-500 dark:text-gray-400">{formatFileSize(status.lastBackup.fileSize)}</span>
+            <span className="text-gray-400 dark:text-gray-500 mx-2">|</span>
+            <span className="text-gray-500 dark:text-gray-400">{status.lastBackup.targetName}</span>
           </div>
         )}
         {runBackupMut.isSuccess && (
-          <div className="mt-3 p-3 bg-green-50 text-green-700 rounded-lg text-sm flex items-center gap-2">
+          <div className="mt-3 p-3 bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-300 rounded-lg text-sm flex items-center gap-2">
             <Check size={16} /> Backup erfolgreich erstellt
           </div>
         )}
         {runBackupMut.isError && (
-          <div className="mt-3 p-3 bg-red-50 text-red-700 rounded-lg text-sm flex items-center gap-2">
+          <div className="mt-3 p-3 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 rounded-lg text-sm flex items-center gap-2">
             <X size={16} /> {(runBackupMut.error as any)?.response?.data?.error || 'Backup fehlgeschlagen'}
           </div>
         )}
@@ -580,12 +580,12 @@ export default function BackupSettings() {
       {/* Backup-Einstellungen */}
       {bsFrequency && (
         <div className="card p-6">
-          <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
             <Clock size={18} /> Zeitplan & Aufbewahrung
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Häufigkeit</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Häufigkeit</label>
               <select value={bsFrequency} onChange={e => setBsFrequency(e.target.value)}
                 className="w-full px-3 py-2 border rounded-lg text-sm">
                 <option value="hourly">Stündlich</option>
@@ -595,14 +595,14 @@ export default function BackupSettings() {
             </div>
             {bsFrequency !== 'hourly' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Uhrzeit</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Uhrzeit</label>
                 <input type="time" value={bsTime} onChange={e => setBsTime(e.target.value)}
                   className="w-full px-3 py-2 border rounded-lg text-sm" />
               </div>
             )}
             {bsFrequency === 'weekly' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Wochentag</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Wochentag</label>
                 <select value={bsWeekday} onChange={e => setBsWeekday(parseInt(e.target.value))}
                   className="w-full px-3 py-2 border rounded-lg text-sm">
                   <option value={1}>Montag</option>
@@ -616,7 +616,7 @@ export default function BackupSettings() {
               </div>
             )}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Aufbewahrung (Tage)</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Aufbewahrung (Tage)</label>
               <input type="number" min={1} max={365} value={bsRetention}
                 onChange={e => setBsRetention(parseInt(e.target.value) || 30)}
                 className="w-full px-3 py-2 border rounded-lg text-sm" />
@@ -634,7 +634,7 @@ export default function BackupSettings() {
       {/* Backup-Ziele */}
       <div className="card">
         <div className="p-6 border-b flex items-center justify-between">
-          <h3 className="font-semibold text-gray-900">Backup-Ziele</h3>
+          <h3 className="font-semibold text-gray-900 dark:text-gray-100">Backup-Ziele</h3>
           <button onClick={() => { setEditTarget(null); setShowModal(true); }}
             className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">
             <Plus size={16} /> Neues Ziel
@@ -645,26 +645,26 @@ export default function BackupSettings() {
             {targets.map((target: any) => (
               <div key={target.id} className="p-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-lg ${target.isActive ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'}`}>
+                  <div className={`p-2 rounded-lg ${target.isActive ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400' : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500'}`}>
                     {getProviderIcon(target.type)}
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <p className="font-medium text-gray-900">{target.name}</p>
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                      <p className="font-medium text-gray-900 dark:text-gray-100">{target.name}</p>
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
                         {PROVIDER_TYPES[target.type]?.label || target.type}
                       </span>
                       {!target.isActive && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">Inaktiv</span>
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300">Inaktiv</span>
                       )}
                     </div>
                     {target.lastTestAt && (
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
                         Letzter Test: {formatDateTime(target.lastTestAt)}
                         {target.lastTestOk ? (
-                          <span className="ml-1 text-green-600">OK</span>
+                          <span className="ml-1 text-green-600 dark:text-green-400">OK</span>
                         ) : (
-                          <span className="ml-1 text-red-600">Fehler</span>
+                          <span className="ml-1 text-red-600 dark:text-red-400">Fehler</span>
                         )}
                       </p>
                     )}
@@ -672,16 +672,16 @@ export default function BackupSettings() {
                 </div>
                 <div className="flex items-center gap-1">
                   <button onClick={() => testTargetMut.mutate(target.id)} title="Verbindung testen"
-                    className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg">
+                    className="p-2 text-gray-400 dark:text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg">
                     <TestTube size={16} />
                   </button>
                   <button onClick={() => handleEditTarget(target)} title="Bearbeiten"
-                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg">
+                    className="p-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg">
                     <Clock size={16} />
                   </button>
                   <button onClick={() => { if (confirm('Backup-Ziel wirklich löschen?')) deleteTargetMut.mutate(target.id); }}
                     title="Löschen"
-                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg">
+                    className="p-2 text-gray-400 dark:text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg">
                     <Trash2 size={16} />
                   </button>
                 </div>
@@ -689,7 +689,7 @@ export default function BackupSettings() {
             ))}
           </div>
         ) : (
-          <div className="p-8 text-center text-gray-500">
+          <div className="p-8 text-center text-gray-500 dark:text-gray-400">
             Keine Backup-Ziele konfiguriert. Backups werden nur lokal gespeichert.
           </div>
         )}
@@ -698,7 +698,7 @@ export default function BackupSettings() {
       {/* Backup-Verlauf */}
       <div className="card">
         <div className="p-6 border-b">
-          <h3 className="font-semibold text-gray-900">Backup-Verlauf</h3>
+          <h3 className="font-semibold text-gray-900 dark:text-gray-100">Backup-Verlauf</h3>
         </div>
         {history?.records?.length ? (
           <>
@@ -707,17 +707,17 @@ export default function BackupSettings() {
                 <div key={record.id} className="p-4 flex items-center justify-between">
                   <div className="flex items-center gap-3 min-w-0">
                     <div className={`p-2 rounded-lg shrink-0 ${
-                      record.status === 'success' ? 'bg-green-100 text-green-600' :
-                      record.status === 'failed' ? 'bg-red-100 text-red-600' :
-                      'bg-yellow-100 text-yellow-600'
+                      record.status === 'success' ? 'bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400' :
+                      record.status === 'failed' ? 'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400' :
+                      'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-600 dark:text-yellow-400'
                     }`}>
                       {record.status === 'success' ? <Check size={16} /> :
                        record.status === 'failed' ? <X size={16} /> :
                        <RefreshCw size={16} className="animate-spin" />}
                     </div>
                     <div className="min-w-0">
-                      <p className="font-medium text-gray-900 text-sm truncate">{record.filename}</p>
-                      <p className="text-xs text-gray-500">
+                      <p className="font-medium text-gray-900 dark:text-gray-100 text-sm truncate">{record.filename}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
                         {formatDateTime(record.startedAt)}
                         <span className="mx-1">|</span>
                         {formatFileSize(record.fileSize)}
@@ -728,7 +728,7 @@ export default function BackupSettings() {
                         )}
                       </p>
                       {record.status === 'failed' && record.errorMessage && (
-                        <p className="text-xs text-red-600 mt-0.5 flex items-center gap-1">
+                        <p className="text-xs text-red-600 dark:text-red-400 mt-0.5 flex items-center gap-1">
                           <AlertTriangle size={12} /> {record.errorMessage}
                         </p>
                       )}
@@ -737,13 +737,13 @@ export default function BackupSettings() {
                   <div className="flex items-center gap-1 shrink-0">
                     {record.status === 'success' && (
                       <button onClick={() => handleDownload(record.id, record.filename)} title="Herunterladen"
-                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg">
+                        className="p-2 text-gray-400 dark:text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg">
                         <Download size={16} />
                       </button>
                     )}
                     <button onClick={() => { if (confirm('Backup-Eintrag löschen?')) deleteRecordMut.mutate(record.id); }}
                       title="Löschen"
-                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg">
+                      className="p-2 text-gray-400 dark:text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg">
                       <Trash2 size={16} />
                     </button>
                   </div>
@@ -753,18 +753,18 @@ export default function BackupSettings() {
             {/* Pagination */}
             {history.totalPages > 1 && (
               <div className="p-4 border-t flex items-center justify-between text-sm">
-                <span className="text-gray-500">
+                <span className="text-gray-500 dark:text-gray-400">
                   Seite {history.page} von {history.totalPages} ({history.total} Einträge)
                 </span>
                 <div className="flex gap-2">
                   <button onClick={() => setHistoryPage(p => Math.max(1, p - 1))}
                     disabled={historyPage <= 1}
-                    className="p-1 rounded hover:bg-gray-100 disabled:opacity-30">
+                    className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30">
                     <ChevronLeft size={20} />
                   </button>
                   <button onClick={() => setHistoryPage(p => Math.min(history.totalPages, p + 1))}
                     disabled={historyPage >= history.totalPages}
-                    className="p-1 rounded hover:bg-gray-100 disabled:opacity-30">
+                    className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30">
                     <ChevronRight size={20} />
                   </button>
                 </div>
@@ -772,7 +772,7 @@ export default function BackupSettings() {
             )}
           </>
         ) : (
-          <div className="p-8 text-center text-gray-500">Noch keine Backups vorhanden</div>
+          <div className="p-8 text-center text-gray-500 dark:text-gray-400">Noch keine Backups vorhanden</div>
         )}
       </div>
 

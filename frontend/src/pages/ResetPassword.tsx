@@ -59,8 +59,8 @@ export default function ResetPassword() {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-500 to-primary-700 p-4">
         <div className="w-full max-w-md">
           <div className="card p-8 text-center">
-            <h1 className="text-xl font-bold text-gray-900 mb-4">Ungültiger Link</h1>
-            <p className="text-gray-600 mb-6">
+            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">Ungültiger Link</h1>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
               Dieser Reset-Link ist ungültig oder abgelaufen.
             </p>
             <Link to="/login" className="btn btn-primary inline-flex items-center gap-2">
@@ -78,12 +78,12 @@ export default function ResetPassword() {
       <div className="w-full max-w-md">
         <div className="card p-8">
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-100 rounded-full mb-4">
-              <Clock className="w-8 h-8 text-primary-600" />
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-100 dark:bg-primary-900/40 rounded-full mb-4">
+              <Clock className="w-8 h-8 text-primary-600 dark:text-primary-400" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900">Neues Passwort setzen</h1>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Neues Passwort setzen</h1>
             {userFullName && (
-              <p className="text-gray-500 mt-2 flex items-center justify-center gap-2">
+              <p className="text-gray-500 dark:text-gray-400 mt-2 flex items-center justify-center gap-2">
                 <User size={16} />
                 {userFullName}{userName ? ` (${userName})` : ''}
               </p>
@@ -92,13 +92,13 @@ export default function ResetPassword() {
 
           {success ? (
             <div className="text-center space-y-4">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full">
-                <CheckCircle className="w-8 h-8 text-green-600" />
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 dark:bg-green-900/40 rounded-full">
+                <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />
               </div>
-              <p className="text-gray-700">
+              <p className="text-gray-700 dark:text-gray-300">
                 Ihr Passwort wurde erfolgreich zurückgesetzt.
               </p>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
                 Sie werden zum Login weitergeleitet...
               </p>
             </div>
@@ -158,7 +158,7 @@ export default function ResetPassword() {
           <div className="mt-6 text-center">
             <Link
               to="/login"
-              className="inline-flex items-center gap-1 text-sm text-primary-600 hover:text-primary-700 hover:underline"
+              className="inline-flex items-center gap-1 text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 hover:underline"
             >
               <ArrowLeft size={16} />
               Zurück zum Login

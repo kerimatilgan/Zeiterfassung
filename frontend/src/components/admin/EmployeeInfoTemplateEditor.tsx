@@ -108,14 +108,14 @@ export default function EmployeeInfoTemplateEditor({ value, onSave, saving }: Pr
 
   return (
     <div className="card">
-      <div className="p-6 border-b border-gray-100">
-        <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+      <div className="p-6 border-b border-gray-100 dark:border-gray-800">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
           <FileText size={20} />
           Info-Schreiben-Vorlage
         </h2>
-        <p className="text-sm text-gray-500 mt-1">
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
           Diese Vorlage wird für das Info-Schreiben neuer Mitarbeiter genutzt. Platzhalter in doppelten
-          geschweiften Klammern (z.B. <code className="text-xs bg-gray-100 rounded px-1">{'{{firstName}}'}</code>)
+          geschweiften Klammern (z.B. <code className="text-xs bg-gray-100 dark:bg-gray-800 rounded px-1">{'{{firstName}}'}</code>)
           werden beim Generieren automatisch ersetzt.
         </p>
       </div>
@@ -128,33 +128,33 @@ export default function EmployeeInfoTemplateEditor({ value, onSave, saving }: Pr
             onChange={setHtml}
             modules={QUILL_MODULES}
             formats={QUILL_FORMATS}
-            className="bg-white"
+            className="bg-white dark:bg-gray-900"
             style={{ minHeight: '400px' }}
           />
         </div>
         <div className="space-y-2">
-          <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Variablen einfügen</p>
+          <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">Variablen einfügen</p>
           <div className="flex flex-col gap-1 max-h-[500px] overflow-y-auto pr-1">
             {VARIABLES.map((v) => (
               <button
                 key={v.key}
                 type="button"
                 onClick={() => insertVariable(v.key)}
-                className="text-left text-xs px-3 py-2 rounded-md bg-gray-50 hover:bg-primary-50 hover:text-primary-700 border border-gray-200 transition-colors"
+                className="text-left text-xs px-3 py-2 rounded-md bg-gray-50 dark:bg-gray-800 hover:bg-primary-50 hover:text-primary-700 border border-gray-200 dark:border-gray-700 transition-colors"
                 title={`Fügt {{${v.key}}} ein`}
               >
                 <div className="font-medium">{v.label}</div>
-                <code className="text-[10px] text-gray-500">{`{{${v.key}}}`}</code>
+                <code className="text-[10px] text-gray-500 dark:text-gray-400">{`{{${v.key}}}`}</code>
               </button>
             ))}
           </div>
         </div>
       </div>
-      <div className="p-6 border-t border-gray-100 flex justify-between items-center">
+      <div className="p-6 border-t border-gray-100 dark:border-gray-800 flex justify-between items-center">
         <button
           type="button"
           onClick={resetToDefault}
-          className="text-sm text-gray-500 hover:text-gray-700"
+          className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
         >
           Auf Standardvorlage zurücksetzen
         </button>

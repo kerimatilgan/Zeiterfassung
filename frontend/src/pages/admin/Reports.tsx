@@ -250,11 +250,11 @@ export default function AdminReports() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'draft':
-        return <span className="px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-700">Entwurf</span>;
+        return <span className="px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300">Entwurf</span>;
       case 'finalized':
-        return <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700">Finalisiert</span>;
+        return <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300">Finalisiert</span>;
       case 'paid':
-        return <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-700">Bezahlt</span>;
+        return <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300">Bezahlt</span>;
       default:
         return null;
     }
@@ -264,8 +264,8 @@ export default function AdminReports() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Abrechnungen</h1>
-          <p className="text-gray-500">Monatsabrechnungen verwalten</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Abrechnungen</h1>
+          <p className="text-gray-500 dark:text-gray-400">Monatsabrechnungen verwalten</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -289,7 +289,7 @@ export default function AdminReports() {
       {/* Filters */}
       <div className="card p-4">
         <div className="flex flex-wrap items-end gap-4">
-          <div className="flex items-center gap-2 text-gray-500">
+          <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
             <Filter size={18} />
             <span className="text-sm font-medium">Filter:</span>
           </div>
@@ -349,7 +349,7 @@ export default function AdminReports() {
           {(filterEmployee || filterYear || filterMonth || filterStatus) && (
             <button
               onClick={() => { setFilterEmployee(''); setFilterYear(''); setFilterMonth(''); setFilterStatus(''); }}
-              className="text-sm text-primary-600 hover:text-primary-700 hover:underline pb-1"
+              className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 hover:underline pb-1"
             >
               Zurücksetzen
             </button>
@@ -361,26 +361,26 @@ export default function AdminReports() {
       <div className="card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50">
+            <thead className="bg-gray-50 dark:bg-gray-800">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                   Mitarbeiter
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                   Zeitraum
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                   Stunden
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                   Status
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                   Aktionen
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
               {(() => {
                 const filteredReports = reports?.filter((r: any) => {
                   if (filterEmployee && r.employeeId !== filterEmployee) return false;
@@ -391,7 +391,7 @@ export default function AdminReports() {
                 });
                 return isLoading ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan={5} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
                     Laden...
                   </td>
                 </tr>
@@ -399,23 +399,23 @@ export default function AdminReports() {
                 filteredReports.map((report: any) => (
                   <tr key={report.id}>
                     <td className="px-6 py-4">
-                      <p className="font-medium text-gray-900">
+                      <p className="font-medium text-gray-900 dark:text-gray-100">
                         {report.employee.firstName} {report.employee.lastName}
                       </p>
-                      <p className="text-sm text-gray-500">#{report.employee.employeeNumber}</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">#{report.employee.employeeNumber}</p>
                     </td>
-                    <td className="px-6 py-4 text-gray-900">
+                    <td className="px-6 py-4 text-gray-900 dark:text-gray-100">
                       {MONTHS[report.month - 1]} {report.year}
                     </td>
                     <td className="px-6 py-4">
-                      <p className="text-gray-900">{formatHoursToTime(report.totalHours)} h</p>
+                      <p className="text-gray-900 dark:text-gray-100">{formatHoursToTime(report.totalHours)} h</p>
                       {report.overtimeHours !== 0 && (
-                        <p className={`text-sm ${report.overtimeHours >= 0 ? 'text-orange-600' : 'text-red-600'}`}>
+                        <p className={`text-sm ${report.overtimeHours >= 0 ? 'text-orange-600 dark:text-orange-400' : 'text-red-600 dark:text-red-400'}`}>
                           {report.overtimeHours >= 0 ? '+' : ''}{formatHoursToTime(report.overtimeHours)} h Differenz
                         </p>
                       )}
                       {report.cumulativeOvertimeBalance != null && (
-                        <p className={`text-xs font-medium ${report.cumulativeOvertimeBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        <p className={`text-xs font-medium ${report.cumulativeOvertimeBalance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                           Saldo: {report.cumulativeOvertimeBalance >= 0 ? '+' : ''}{formatHoursToTime(report.cumulativeOvertimeBalance)} h
                         </p>
                       )}
@@ -426,7 +426,7 @@ export default function AdminReports() {
                         {/* Bearbeiten - immer verfügbar */}
                         <button
                           onClick={() => openEditModal(report)}
-                          className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
+                          className="p-2 text-gray-500 dark:text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
                           title="Bearbeiten"
                         >
                           <Edit2 size={18} />
@@ -434,7 +434,7 @@ export default function AdminReports() {
                         {/* PDF-Vorschau - immer verfügbar */}
                         <button
                           onClick={() => handlePreviewPdf(report)}
-                          className="p-2 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
+                          className="p-2 text-gray-500 dark:text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
                           title="PDF-Vorschau"
                         >
                           <Eye size={18} />
@@ -443,7 +443,7 @@ export default function AdminReports() {
                         {report.status === 'draft' && (
                           <button
                             onClick={() => finalizeMutation.mutate(report.id)}
-                            className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-lg"
+                            className="p-2 text-gray-500 dark:text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg"
                             title="Finalisieren"
                           >
                             <Check size={18} />
@@ -455,7 +455,7 @@ export default function AdminReports() {
                             onClick={() =>
                               handleDownload(report.id, `${report.employee.lastName}_${report.employee.firstName}_${String(report.month).padStart(2, '0')}_${report.year}.pdf`)
                             }
-                            className="p-2 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
+                            className="p-2 text-gray-500 dark:text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
                             title="PDF herunterladen"
                           >
                             <Download size={18} />
@@ -476,7 +476,7 @@ export default function AdminReports() {
                               deleteMutation.mutate(report.id);
                             }
                           }}
-                          className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                          className="p-2 text-gray-500 dark:text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
                           title="Löschen"
                         >
                           <Trash2 size={18} />
@@ -487,7 +487,7 @@ export default function AdminReports() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan={5} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
                     {reports?.length ? 'Keine Abrechnungen für diesen Filter' : 'Keine Abrechnungen vorhanden'}
                   </td>
                 </tr>
@@ -516,12 +516,12 @@ export default function AdminReports() {
           : '';
         return createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
-            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-md">
+            <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
               <h2 className="text-xl font-semibold">Neue Abrechnung</h2>
               <button
                 onClick={() => setShowCreateModal(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg"
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
               >
                 <X size={20} />
               </button>
@@ -574,8 +574,8 @@ export default function AdminReports() {
                 </div>
               </div>
               {blockedByDuplicate && (
-                <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
-                  <AlertTriangle size={16} className="text-amber-600 shrink-0 mt-0.5" />
+                <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-lg text-sm text-amber-800 dark:text-amber-300">
+                  <AlertTriangle size={16} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                   <span>{blockReason}</span>
                 </div>
               )}
@@ -606,13 +606,13 @@ export default function AdminReports() {
       {/* Preview Modal — siehe Kommentar oben am Create Modal */}
       {showPreviewModal && previewData && !batchDone && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
               {isBatchMode && (
                 <button
                   onClick={() => navigateBatchTo(batchIndex - 1)}
                   disabled={batchIndex === 0 || previewMutation.isPending}
-                  className="p-2 hover:bg-gray-100 rounded-lg disabled:opacity-30"
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg disabled:opacity-30"
                 >
                   <ChevronLeft size={20} />
                 </button>
@@ -622,75 +622,75 @@ export default function AdminReports() {
                   Vorschau: {previewData.period.monthName} {previewData.period.year}
                 </h2>
                 {isBatchMode && (
-                  <p className="text-sm text-gray-500">{batchIndex + 1} / {batchEmployees.length} Mitarbeiter</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{batchIndex + 1} / {batchEmployees.length} Mitarbeiter</p>
                 )}
               </div>
               {isBatchMode && (
                 <button
                   onClick={() => navigateBatchTo(batchIndex + 1)}
                   disabled={batchIndex >= batchEmployees.length - 1 || previewMutation.isPending}
-                  className="p-2 hover:bg-gray-100 rounded-lg disabled:opacity-30"
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg disabled:opacity-30"
                 >
                   <ChevronRight size={20} />
                 </button>
               )}
               <button
                 onClick={() => isBatchMode ? closeBatch() : setShowPreviewModal(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg ml-2"
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg ml-2"
               >
                 <X size={20} />
               </button>
             </div>
             <div className="px-6 pt-4 pb-6 space-y-4">
               {/* Employee Info */}
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <h3 className="font-medium text-gray-900">{previewData.employee.name}</h3>
-                <p className="text-sm text-gray-500">
+              <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <h3 className="font-medium text-gray-900 dark:text-gray-100">{previewData.employee.name}</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   #{previewData.employee.employeeNumber} | {previewData.employee.weeklyHours} h/Woche
                 </p>
               </div>
 
               {/* Summary */}
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <div className="p-4 bg-blue-50 rounded-lg">
-                  <p className="text-sm text-blue-600">Gesamtstunden</p>
-                  <p className="text-2xl font-bold text-blue-700">
+                <div className="p-4 bg-blue-50 dark:bg-blue-950/40 rounded-lg">
+                  <p className="text-sm text-blue-600 dark:text-blue-400">Gesamtstunden</p>
+                  <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">
                     {formatHoursToTime(previewData.summary.totalHours)} h
                   </p>
                 </div>
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <p className="text-sm text-gray-600">Soll-Stunden</p>
-                  <p className="text-2xl font-bold text-gray-700">
+                <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Soll-Stunden</p>
+                  <p className="text-2xl font-bold text-gray-700 dark:text-gray-300">
                     {formatHoursToTime(previewData.summary.targetHours)} h
                   </p>
                 </div>
-                <div className={`p-4 rounded-lg ${previewData.summary.overtimeHours >= 0 ? 'bg-orange-50' : 'bg-red-50'}`}>
-                  <p className={`text-sm ${previewData.summary.overtimeHours >= 0 ? 'text-orange-600' : 'text-red-600'}`}>Differenz Monat</p>
-                  <p className={`text-2xl font-bold ${previewData.summary.overtimeHours >= 0 ? 'text-orange-700' : 'text-red-700'}`}>
+                <div className={`p-4 rounded-lg ${previewData.summary.overtimeHours >= 0 ? 'bg-orange-50 dark:bg-orange-950/40' : 'bg-red-50 dark:bg-red-950/40'}`}>
+                  <p className={`text-sm ${previewData.summary.overtimeHours >= 0 ? 'text-orange-600 dark:text-orange-400' : 'text-red-600 dark:text-red-400'}`}>Differenz Monat</p>
+                  <p className={`text-2xl font-bold ${previewData.summary.overtimeHours >= 0 ? 'text-orange-700 dark:text-orange-300' : 'text-red-700 dark:text-red-300'}`}>
                     {previewData.summary.overtimeHours >= 0 ? '+' : ''}{formatHoursToTime(previewData.summary.overtimeHours)} h
                   </p>
                 </div>
-                <div className="p-4 bg-purple-50 rounded-lg">
-                  <p className="text-sm text-purple-600">Übertrag Vormonat</p>
-                  <p className={`text-2xl font-bold ${(previewData.summary.previousOvertimeBalance || 0) >= 0 ? 'text-purple-700' : 'text-red-700'}`}>
+                <div className="p-4 bg-purple-50 dark:bg-purple-950/40 rounded-lg">
+                  <p className="text-sm text-purple-600 dark:text-purple-400">Übertrag Vormonat</p>
+                  <p className={`text-2xl font-bold ${(previewData.summary.previousOvertimeBalance || 0) >= 0 ? 'text-purple-700 dark:text-purple-300' : 'text-red-700 dark:text-red-300'}`}>
                     {(previewData.summary.previousOvertimeBalance || 0) >= 0 ? '+' : ''}{formatHoursToTime(previewData.summary.previousOvertimeBalance || 0)} h
                   </p>
                 </div>
-                <div className={`p-4 rounded-lg ${(previewData.summary.cumulativeOvertimeBalance || 0) >= 0 ? 'bg-indigo-50' : 'bg-red-50'}`}>
-                  <p className={`text-sm font-medium ${(previewData.summary.cumulativeOvertimeBalance || 0) >= 0 ? 'text-indigo-600' : 'text-red-600'}`}>Überstunden-Saldo</p>
-                  <p className={`text-2xl font-bold ${(previewData.summary.cumulativeOvertimeBalance || 0) >= 0 ? 'text-indigo-700' : 'text-red-700'}`}>
+                <div className={`p-4 rounded-lg ${(previewData.summary.cumulativeOvertimeBalance || 0) >= 0 ? 'bg-indigo-50 dark:bg-indigo-950/40' : 'bg-red-50 dark:bg-red-950/40'}`}>
+                  <p className={`text-sm font-medium ${(previewData.summary.cumulativeOvertimeBalance || 0) >= 0 ? 'text-indigo-600 dark:text-indigo-400' : 'text-red-600 dark:text-red-400'}`}>Überstunden-Saldo</p>
+                  <p className={`text-2xl font-bold ${(previewData.summary.cumulativeOvertimeBalance || 0) >= 0 ? 'text-indigo-700 dark:text-indigo-300' : 'text-red-700 dark:text-red-300'}`}>
                     {(previewData.summary.cumulativeOvertimeBalance || 0) >= 0 ? '+' : ''}{formatHoursToTime(previewData.summary.cumulativeOvertimeBalance || 0)} h
                   </p>
                 </div>
-                <div className="p-4 bg-green-50 rounded-lg">
-                  <p className="text-sm text-green-600">Urlaubstage ({previewData.period.year})</p>
-                  <p className="text-2xl font-bold text-green-700">
+                <div className="p-4 bg-green-50 dark:bg-green-950/40 rounded-lg">
+                  <p className="text-sm text-green-600 dark:text-green-400">Urlaubstage ({previewData.period.year})</p>
+                  <p className="text-2xl font-bold text-green-700 dark:text-green-300">
                     {previewData.summary.vacationDaysUsed} / {previewData.employee.vacationDaysTotal ?? previewData.employee.vacationDaysPerYear}
                   </p>
                   {previewData.summary.vacationAdjustments?.length > 0 && (
                     <div className="mt-1.5 space-y-0.5">
                       {previewData.summary.vacationAdjustments.map((a: any, i: number) => (
-                        <p key={i} className={`text-xs ${a.days > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        <p key={i} className={`text-xs ${a.days > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                           {a.days > 0 ? '+' : ''}{a.days} Tag(e): {a.reason}
                         </p>
                       ))}
@@ -698,9 +698,9 @@ export default function AdminReports() {
                   )}
                 </div>
                 {(previewData.summary.sickDaysThisMonth > 0 || previewData.summary.sickDaysTotal > 0) && (
-                  <div className="p-4 bg-red-50 rounded-lg">
-                    <p className="text-sm text-red-600">Krankheitstage</p>
-                    <p className="text-2xl font-bold text-red-700">
+                  <div className="p-4 bg-red-50 dark:bg-red-950/40 rounded-lg">
+                    <p className="text-sm text-red-600 dark:text-red-400">Krankheitstage</p>
+                    <p className="text-2xl font-bold text-red-700 dark:text-red-300">
                       {previewData.summary.sickDaysThisMonth || 0}
                     </p>
                     <p className="text-xs text-red-500">Jahr: {previewData.summary.sickDaysTotal || 0} Tage</p>
@@ -711,10 +711,10 @@ export default function AdminReports() {
               {/* Daily Hours */}
               {previewData.dailyHours.length > 0 && (
                 <div>
-                  <h3 className="font-medium text-gray-900 mb-3">Tägliche Aufstellung</h3>
+                  <h3 className="font-medium text-gray-900 dark:text-gray-100 mb-3">Tägliche Aufstellung</h3>
                   <div className="max-h-48 overflow-y-auto border rounded-lg">
                     <table className="w-full text-sm">
-                      <thead className="bg-gray-50 sticky top-0">
+                      <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0">
                         <tr>
                           <th className="px-4 py-2 text-left">Datum</th>
                           <th className="px-4 py-2 text-right">Stunden</th>
@@ -746,14 +746,14 @@ export default function AdminReports() {
                 // customDeductionDays beim ersten Anzeigen setzen
                 if (customDeductionDays === 0) setCustomDeductionDays(previewData.summary.suggestedDeductionDays);
                 return (
-                <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                <div className="p-4 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-lg">
                   <div className="flex items-start gap-3">
-                    <div className="p-1.5 bg-amber-100 rounded-lg shrink-0 mt-0.5">
-                      <AlertTriangle size={18} className="text-amber-600" />
+                    <div className="p-1.5 bg-amber-100 dark:bg-amber-900/40 rounded-lg shrink-0 mt-0.5">
+                      <AlertTriangle size={18} className="text-amber-600 dark:text-amber-400" />
                     </div>
                     <div className="flex-1">
-                      <h4 className="font-semibold text-amber-800">Minusstunden-Ausgleich</h4>
-                      <p className="text-sm text-amber-700 mt-1">
+                      <h4 className="font-semibold text-amber-800 dark:text-amber-300">Minusstunden-Ausgleich</h4>
+                      <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
                         Der Überstunden-Saldo beträgt <strong>{formatHoursToTime(previewData.summary.cumulativeOvertimeBalance)} h</strong>.
                         Vorschlag: {previewData.summary.suggestedDeductionDays} Tag(e) abziehen.
                         {' '}Resturlaub: <strong>{remaining}</strong> Tag(e).
@@ -761,21 +761,21 @@ export default function AdminReports() {
                       <div className="flex items-center gap-3 mt-3">
                         <label className="flex items-center gap-2">
                           <input type="checkbox" checked={applyDeduction} onChange={e => setApplyDeduction(e.target.checked)} className="rounded" />
-                          <span className="text-sm text-amber-800 font-medium">Urlaubsabzug</span>
+                          <span className="text-sm text-amber-800 dark:text-amber-300 font-medium">Urlaubsabzug</span>
                         </label>
                         {applyDeduction && (
                           <div className="flex items-center gap-2">
                             <input type="number" min={1} max={previewData.summary.suggestedDeductionDays} value={customDeductionDays}
                               onChange={e => setCustomDeductionDays(Math.max(1, Math.min(previewData.summary.suggestedDeductionDays, parseInt(e.target.value) || 1)))}
                               className="w-16 px-2 py-1 border border-amber-300 rounded text-sm text-center" />
-                            <span className="text-sm text-amber-700">Tag(e) = {hours}h Gutschrift</span>
+                            <span className="text-sm text-amber-700 dark:text-amber-300">Tag(e) = {hours}h Gutschrift</span>
                           </div>
                         )}
                       </div>
                       {overdraw > 0 && (
-                        <div className="mt-3 p-3 bg-red-50 border border-red-300 rounded-lg flex items-start gap-2">
-                          <AlertTriangle size={16} className="text-red-600 shrink-0 mt-0.5" />
-                          <p className="text-sm text-red-800">
+                        <div className="mt-3 p-3 bg-red-50 dark:bg-red-950/40 border border-red-300 rounded-lg flex items-start gap-2">
+                          <AlertTriangle size={16} className="text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+                          <p className="text-sm text-red-800 dark:text-red-300">
                             <strong>Achtung:</strong> Der Mitarbeiter hat nur noch <strong>{remaining}</strong> Resturlaubstag(e),
                             du ziehst aber <strong>{days}</strong> ab. Das ergibt einen Urlaubssaldo von <strong>-{overdraw}</strong> Tag(en),
                             der ins nächste Jahr übernommen wird.
@@ -840,7 +840,7 @@ export default function AdminReports() {
                           message: (
                             <div className="space-y-2">
                               <p><strong>{name}</strong> hat nur noch <strong>{remaining}</strong> Resturlaubstag(e), du ziehst aber <strong>{customDeductionDays}</strong> ab.</p>
-                              <p>Das ergibt einen Urlaubssaldo von <strong className="text-red-600">−{overdraw} Tag(en)</strong>, der ins nächste Jahr übernommen wird.</p>
+                              <p>Das ergibt einen Urlaubssaldo von <strong className="text-red-600 dark:text-red-400">−{overdraw} Tag(en)</strong>, der ins nächste Jahr übernommen wird.</p>
                             </div>
                           ),
                         });
@@ -871,22 +871,22 @@ export default function AdminReports() {
       {/* Batch-Zusammenfassung */}
       {batchDone && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 text-center">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <FileText size={32} className="text-green-600" />
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-md p-6 text-center">
+            <div className="w-16 h-16 bg-green-100 dark:bg-green-900/40 rounded-full flex items-center justify-center mx-auto mb-4">
+              <FileText size={32} className="text-green-600 dark:text-green-400" />
             </div>
             <h2 className="text-xl font-semibold mb-2">Sammelabrechnung abgeschlossen</h2>
-            <p className="text-gray-600 mb-4">
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
               {MONTHS[selectedMonth - 1]} {selectedYear}
             </p>
             <div className="grid grid-cols-2 gap-4 mb-6">
-              <div className="p-3 bg-green-50 rounded-lg">
-                <p className="text-2xl font-bold text-green-600">{batchCreated.size}</p>
-                <p className="text-sm text-gray-500">Erstellt</p>
+              <div className="p-3 bg-green-50 dark:bg-green-950/40 rounded-lg">
+                <p className="text-2xl font-bold text-green-600 dark:text-green-400">{batchCreated.size}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Erstellt</p>
               </div>
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <p className="text-2xl font-bold text-gray-600">{batchSkipped.size}</p>
-                <p className="text-sm text-gray-500">Übersprungen</p>
+              <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <p className="text-2xl font-bold text-gray-600 dark:text-gray-400">{batchSkipped.size}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Übersprungen</p>
               </div>
             </div>
             <button onClick={closeBatch} className="btn btn-primary w-full">
@@ -900,8 +900,8 @@ export default function AdminReports() {
       {/* Edit Modal */}
       {showEditModal && editingReport && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg">
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-lg">
+            <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
               <h2 className="text-xl font-semibold">
                 Abrechnung bearbeiten
               </h2>
@@ -910,20 +910,20 @@ export default function AdminReports() {
                   setShowEditModal(false);
                   setEditingReport(null);
                 }}
-                className="p-2 hover:bg-gray-100 rounded-lg"
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
               >
                 <X size={20} />
               </button>
             </div>
             <div className="p-6 space-y-4">
               {/* Report Info */}
-              <div className="p-4 bg-gray-50 rounded-lg">
+              <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="font-medium text-gray-900">
+                    <h3 className="font-medium text-gray-900 dark:text-gray-100">
                       {editingReport.employee.firstName} {editingReport.employee.lastName}
                     </h3>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
                       #{editingReport.employee.employeeNumber} | {MONTHS[editingReport.month - 1]} {editingReport.year}
                     </p>
                   </div>
@@ -933,46 +933,46 @@ export default function AdminReports() {
 
               {/* Current Values */}
               <div className="grid grid-cols-2 gap-4">
-                <div className="p-3 bg-blue-50 rounded-lg">
-                  <p className="text-xs text-blue-600">Gesamtstunden</p>
-                  <p className="text-xl font-bold text-blue-700">
+                <div className="p-3 bg-blue-50 dark:bg-blue-950/40 rounded-lg">
+                  <p className="text-xs text-blue-600 dark:text-blue-400">Gesamtstunden</p>
+                  <p className="text-xl font-bold text-blue-700 dark:text-blue-300">
                     {formatHoursToTime(editingReport.totalHours)} h
                   </p>
                 </div>
-                <div className="p-3 bg-gray-50 rounded-lg">
-                  <p className="text-xs text-gray-600">Soll-Stunden</p>
-                  <p className="text-xl font-bold text-gray-700">
+                <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <p className="text-xs text-gray-600 dark:text-gray-400">Soll-Stunden</p>
+                  <p className="text-xl font-bold text-gray-700 dark:text-gray-300">
                     {formatHoursToTime(editingReport.targetHours)} h
                   </p>
                 </div>
-                <div className={`p-3 rounded-lg ${editingReport.overtimeHours >= 0 ? 'bg-orange-50' : 'bg-red-50'}`}>
-                  <p className={`text-xs ${editingReport.overtimeHours >= 0 ? 'text-orange-600' : 'text-red-600'}`}>Differenz Monat</p>
-                  <p className={`text-xl font-bold ${editingReport.overtimeHours >= 0 ? 'text-orange-700' : 'text-red-700'}`}>
+                <div className={`p-3 rounded-lg ${editingReport.overtimeHours >= 0 ? 'bg-orange-50 dark:bg-orange-950/40' : 'bg-red-50 dark:bg-red-950/40'}`}>
+                  <p className={`text-xs ${editingReport.overtimeHours >= 0 ? 'text-orange-600 dark:text-orange-400' : 'text-red-600 dark:text-red-400'}`}>Differenz Monat</p>
+                  <p className={`text-xl font-bold ${editingReport.overtimeHours >= 0 ? 'text-orange-700 dark:text-orange-300' : 'text-red-700 dark:text-red-300'}`}>
                     {editingReport.overtimeHours >= 0 ? '+' : ''}{formatHoursToTime(editingReport.overtimeHours)} h
                   </p>
                 </div>
-                <div className="p-3 bg-purple-50 rounded-lg">
-                  <p className="text-xs text-purple-600">Übertrag Vormonat</p>
-                  <p className={`text-xl font-bold ${(editingReport.previousOvertimeBalance || 0) >= 0 ? 'text-purple-700' : 'text-red-700'}`}>
+                <div className="p-3 bg-purple-50 dark:bg-purple-950/40 rounded-lg">
+                  <p className="text-xs text-purple-600 dark:text-purple-400">Übertrag Vormonat</p>
+                  <p className={`text-xl font-bold ${(editingReport.previousOvertimeBalance || 0) >= 0 ? 'text-purple-700 dark:text-purple-300' : 'text-red-700 dark:text-red-300'}`}>
                     {(editingReport.previousOvertimeBalance || 0) >= 0 ? '+' : ''}{formatHoursToTime(editingReport.previousOvertimeBalance || 0)} h
                   </p>
                 </div>
-                <div className={`p-3 rounded-lg ${(editingReport.cumulativeOvertimeBalance || 0) >= 0 ? 'bg-indigo-50' : 'bg-red-50'}`}>
-                  <p className={`text-xs font-medium ${(editingReport.cumulativeOvertimeBalance || 0) >= 0 ? 'text-indigo-600' : 'text-red-600'}`}>Überstunden-Saldo</p>
-                  <p className={`text-xl font-bold ${(editingReport.cumulativeOvertimeBalance || 0) >= 0 ? 'text-indigo-700' : 'text-red-700'}`}>
+                <div className={`p-3 rounded-lg ${(editingReport.cumulativeOvertimeBalance || 0) >= 0 ? 'bg-indigo-50 dark:bg-indigo-950/40' : 'bg-red-50 dark:bg-red-950/40'}`}>
+                  <p className={`text-xs font-medium ${(editingReport.cumulativeOvertimeBalance || 0) >= 0 ? 'text-indigo-600 dark:text-indigo-400' : 'text-red-600 dark:text-red-400'}`}>Überstunden-Saldo</p>
+                  <p className={`text-xl font-bold ${(editingReport.cumulativeOvertimeBalance || 0) >= 0 ? 'text-indigo-700 dark:text-indigo-300' : 'text-red-700 dark:text-red-300'}`}>
                     {(editingReport.cumulativeOvertimeBalance || 0) >= 0 ? '+' : ''}{formatHoursToTime(editingReport.cumulativeOvertimeBalance || 0)} h
                   </p>
                 </div>
-                <div className="p-3 bg-green-50 rounded-lg">
-                  <p className="text-xs text-green-600">Urlaubstage</p>
-                  <p className="text-xl font-bold text-green-700">
+                <div className="p-3 bg-green-50 dark:bg-green-950/40 rounded-lg">
+                  <p className="text-xs text-green-600 dark:text-green-400">Urlaubstage</p>
+                  <p className="text-xl font-bold text-green-700 dark:text-green-300">
                     {editingReport.vacationDaysUsed ?? 0} genommen
                   </p>
                 </div>
                 {(editingReport.sickDaysThisMonth > 0 || editingReport.sickDaysTotal > 0) && (
-                  <div className="p-3 bg-red-50 rounded-lg">
-                    <p className="text-xs text-red-600">Krankheitstage</p>
-                    <p className="text-xl font-bold text-red-700">
+                  <div className="p-3 bg-red-50 dark:bg-red-950/40 rounded-lg">
+                    <p className="text-xs text-red-600 dark:text-red-400">Krankheitstage</p>
+                    <p className="text-xl font-bold text-red-700 dark:text-red-300">
                       {editingReport.sickDaysThisMonth || 0} <span className="text-sm font-normal">(Jahr: {editingReport.sickDaysTotal || 0})</span>
                     </p>
                   </div>
@@ -980,7 +980,7 @@ export default function AdminReports() {
               </div>
 
               {/* Instructions */}
-              <div className={`p-4 rounded-lg text-sm ${editingReport.status === 'finalized' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'}`}>
+              <div className={`p-4 rounded-lg text-sm ${editingReport.status === 'finalized' ? 'bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300' : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300'}`}>
                 <p className="font-medium mb-1">
                   {editingReport.status === 'finalized' ? 'Achtung - Finalisierte Abrechnung:' : 'Hinweis:'}
                 </p>

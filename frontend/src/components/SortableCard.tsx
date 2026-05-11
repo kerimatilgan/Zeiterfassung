@@ -35,7 +35,7 @@ export default function SortableCard({ id, className = '', order, children }: So
         {...attributes}
         {...listeners}
         aria-label="Karte verschieben"
-        className="absolute top-2 right-2 z-10 p-1.5 rounded-md text-gray-300 hover:text-gray-600 hover:bg-gray-100 active:bg-gray-200 cursor-grab active:cursor-grabbing touch-none"
+        className="absolute top-2 right-2 z-10 p-1.5 rounded-md text-gray-300 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 active:bg-gray-200 dark:active:bg-gray-600 cursor-grab active:cursor-grabbing touch-none"
       >
         <GripVertical size={16} />
       </button>

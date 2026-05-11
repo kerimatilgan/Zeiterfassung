@@ -188,8 +188,8 @@ export default function EmployeeComplaints() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Meine Reklamationen</h1>
-          <p className="text-gray-500">Übersicht deiner Reklamationen mit Historie</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Meine Reklamationen</h1>
+          <p className="text-gray-500 dark:text-gray-400">Übersicht deiner Reklamationen mit Historie</p>
         </div>
         <button onClick={() => setShowNewForm(true)} className="btn btn-primary flex items-center gap-2">
           <Plus size={18} />
@@ -199,15 +199,15 @@ export default function EmployeeComplaints() {
 
       {/* Neue Reklamation - integriertes Formular */}
       {showNewForm && (
-        <div className="card p-5 border-2 border-amber-200 bg-amber-50/30">
+        <div className="card p-5 border-2 border-amber-200 dark:border-amber-800 bg-amber-50/30">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-              <MessageSquare size={18} className="text-amber-600" />
+            <h3 className="font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+              <MessageSquare size={18} className="text-amber-600 dark:text-amber-400" />
               Neue Reklamation
             </h3>
             <button
               onClick={() => { setShowNewForm(false); setLookupDate(''); setActiveEntryId(null); setNewMessage(''); }}
-              className="p-1 hover:bg-gray-200 rounded"
+              className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
             >
               <X size={18} />
             </button>
@@ -215,7 +215,7 @@ export default function EmployeeComplaints() {
 
           <div className="space-y-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 <CalendarIcon size={14} className="inline mr-1" />
                 1. Tag wählen
               </label>
@@ -230,13 +230,13 @@ export default function EmployeeComplaints() {
 
             {lookupDate && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   2. {dayEntries && dayEntries.length > 0 ? 'Stempelung wählen oder Tag reklamieren' : 'Nachricht eingeben'}
                 </label>
 
                 {!dayEntries || dayEntries.length === 0 ? (
-                  <div className="border border-amber-200 bg-amber-50 rounded p-3 space-y-2">
-                    <p className="text-sm text-amber-800">Keine Stempelungen an diesem Tag - du kannst den ganzen Tag reklamieren.</p>
+                  <div className="border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 rounded p-3 space-y-2">
+                    <p className="text-sm text-amber-800 dark:text-amber-300">Keine Stempelungen an diesem Tag - du kannst den ganzen Tag reklamieren.</p>
                     <textarea
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
@@ -268,7 +268,7 @@ export default function EmployeeComplaints() {
                             const gap = Math.round((currStart.getTime() - prevEnd.getTime()) / 60000);
                             if (gap <= 0) return null;
                             return (
-                              <div className="text-xs text-orange-600 bg-orange-50 rounded px-3 py-1 mb-1 flex items-center gap-2">
+                              <div className="text-xs text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-950/40 rounded px-3 py-1 mb-1 flex items-center gap-2">
                                 <Coffee size={12} />
                                 <span>Pause: {format(prevEnd, 'HH:mm')} - {format(currStart, 'HH:mm')} ({gap >= 60 ? `${Math.floor(gap / 60)}:${String(gap % 60).padStart(2, '0')}h` : `${gap} min`})</span>
                               </div>
@@ -279,10 +279,10 @@ export default function EmployeeComplaints() {
                               {(entry.clockInViaPwa || entry.clockOutViaPwa) && <MapPin size={14} className="text-blue-500" />}
                               <span className="font-mono font-medium">
                                 {format(new Date(entry.clockIn), 'HH:mm')} -{' '}
-                                {entry.clockOut ? format(new Date(entry.clockOut), 'HH:mm') : <span className="text-green-600">Aktiv</span>}
+                                {entry.clockOut ? format(new Date(entry.clockOut), 'HH:mm') : <span className="text-green-600 dark:text-green-400">Aktiv</span>}
                               </span>
                               {entry.breakMinutes > 0 && (
-                                <span className="text-xs text-gray-400">
+                                <span className="text-xs text-gray-400 dark:text-gray-500">
                                   ({entry.breakMinutes >= 60 ? `${Math.floor(entry.breakMinutes / 60)}:${String(entry.breakMinutes % 60).padStart(2, '0')}h` : `${entry.breakMinutes} min`} Pause)
                                 </span>
                               )}
@@ -292,7 +292,7 @@ export default function EmployeeComplaints() {
                                   else { setActiveEntryId(entry.id); setNewMessage(''); }
                                 }}
                                 className={`ml-auto text-xs px-2 py-1 rounded ${
-                                  isActive ? 'bg-primary-200 text-primary-800' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                  isActive ? 'bg-primary-200 text-primary-800 dark:text-primary-300' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
                                 }`}
                               >
                                 {isActive ? 'Schließen' : 'Reklamieren'}
@@ -335,36 +335,36 @@ export default function EmployeeComplaints() {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
         <div className="card p-4 text-center">
-          <p className="text-2xl font-bold text-gray-900">{(complaints || []).length}</p>
-          <p className="text-xs text-gray-500">Gesamt</p>
+          <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{(complaints || []).length}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Gesamt</p>
         </div>
         <div className="card p-4 text-center">
-          <p className="text-2xl font-bold text-amber-600">{openCount}</p>
-          <p className="text-xs text-gray-500">Offen</p>
+          <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{openCount}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Offen</p>
         </div>
         <div className="card p-4 text-center">
-          <p className="text-2xl font-bold text-green-600">{resolvedCount}</p>
-          <p className="text-xs text-gray-500">Bearbeitet</p>
+          <p className="text-2xl font-bold text-green-600 dark:text-green-400">{resolvedCount}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Bearbeitet</p>
         </div>
       </div>
 
       {/* Filter */}
       <div className="flex flex-wrap gap-2">
         <button onClick={() => setFilter('all')}
-          className={`px-3 py-1.5 text-sm rounded-lg border ${filter === 'all' ? 'bg-gray-900 text-white border-gray-900' : 'border-gray-300 hover:bg-gray-50'}`}>
+          className={`px-3 py-1.5 text-sm rounded-lg border ${filter === 'all' ? 'bg-gray-900 text-white border-gray-900' : 'border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'}`}>
           Alle
         </button>
         <button onClick={() => setFilter('open')}
-          className={`px-3 py-1.5 text-sm rounded-lg border ${filter === 'open' ? 'bg-amber-500 text-white border-amber-500' : 'border-gray-300 hover:bg-gray-50'}`}>
+          className={`px-3 py-1.5 text-sm rounded-lg border ${filter === 'open' ? 'bg-amber-500 text-white border-amber-500' : 'border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'}`}>
           Offen ({openCount})
         </button>
         <button onClick={() => setFilter('resolved')}
-          className={`px-3 py-1.5 text-sm rounded-lg border ${filter === 'resolved' ? 'bg-green-500 text-white border-green-500' : 'border-gray-300 hover:bg-gray-50'}`}>
+          className={`px-3 py-1.5 text-sm rounded-lg border ${filter === 'resolved' ? 'bg-green-500 text-white border-green-500' : 'border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'}`}>
           Bearbeitet ({resolvedCount})
         </button>
         {months.length > 1 && (
           <select value={filterMonth} onChange={e => setFilterMonth(e.target.value)}
-            className="px-3 py-1.5 text-sm rounded-lg border border-gray-300 ml-auto">
+            className="px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-700 ml-auto">
             <option value="">Alle Monate</option>
             {months.map(m => (
               <option key={m} value={m}>{format(new Date(m + '-01'), 'MMMM yyyy', { locale: de })}</option>
@@ -379,10 +379,10 @@ export default function EmployeeComplaints() {
         const isMulti = items.length > 1;
         return (
           <div key={dayKey} className="card">
-            <div className="px-5 py-3 bg-gray-50 border-b rounded-t-lg flex items-center justify-between">
-              <h3 className="font-semibold text-gray-700 text-sm">
+            <div className="px-5 py-3 bg-gray-50 dark:bg-gray-800 border-b rounded-t-lg flex items-center justify-between">
+              <h3 className="font-semibold text-gray-700 dark:text-gray-300 text-sm">
                 {format(dayDate, 'EEEE, dd.MM.yyyy', { locale: de })}
-                {isMulti && <span className="ml-2 text-amber-600 font-normal">({items.length} Reklamationen)</span>}
+                {isMulti && <span className="ml-2 text-amber-600 dark:text-amber-400 font-normal">({items.length} Reklamationen)</span>}
               </h3>
             </div>
             <div className="divide-y">
@@ -390,56 +390,56 @@ export default function EmployeeComplaints() {
                 <div
                   key={c.id}
                   ref={(el) => { itemRefs.current[c.id] = el; }}
-                  className={`p-4 transition-colors ${highlightedId === c.id ? 'bg-amber-100 ring-2 ring-amber-400 ring-inset' : ''}`}
+                  className={`p-4 transition-colors ${highlightedId === c.id ? 'bg-amber-100 dark:bg-amber-900/40 ring-2 ring-amber-400 ring-inset' : ''}`}
                 >
                   <div className="flex items-start gap-3">
-                    <div className={`p-2 rounded-lg mt-0.5 ${c.resolvedAt ? 'bg-green-100' : 'bg-amber-100'}`}>
+                    <div className={`p-2 rounded-lg mt-0.5 ${c.resolvedAt ? 'bg-green-100 dark:bg-green-900/40' : 'bg-amber-100 dark:bg-amber-900/40'}`}>
                       {c.resolvedAt
-                        ? <CheckCircle size={18} className="text-green-600" />
-                        : <AlertTriangle size={18} className="text-amber-600" />
+                        ? <CheckCircle size={18} className="text-green-600 dark:text-green-400" />
+                        : <AlertTriangle size={18} className="text-amber-600 dark:text-amber-400" />
                       }
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${c.resolvedAt ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${c.resolvedAt ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300' : 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300'}`}>
                           {c.resolvedAt ? 'Bearbeitet' : 'Offen'}
                         </span>
                         {isMulti && (
-                          <span className="text-xs text-gray-500">
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
                             {idx === 0 ? 'Aktuelle' : `${items.length - idx}.`} Reklamation
                           </span>
                         )}
                         {c.timeEntry && (
-                          <span className="text-sm text-gray-500 flex items-center gap-1">
+                          <span className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
                             <Clock size={12} />
                             {format(new Date(c.timeEntry.clockIn), 'HH:mm')}
                             {c.timeEntry.clockOut && ` - ${format(new Date(c.timeEntry.clockOut), 'HH:mm')}`}
                           </span>
                         )}
                         {!c.timeEntry && (
-                          <span className="text-xs text-gray-500 italic">Tag-Reklamation (kein Eintrag)</span>
+                          <span className="text-xs text-gray-500 dark:text-gray-400 italic">Tag-Reklamation (kein Eintrag)</span>
                         )}
-                        <span className="text-xs text-gray-400 ml-auto">{format(new Date(c.createdAt), 'dd.MM.yyyy HH:mm')}</span>
+                        <span className="text-xs text-gray-400 dark:text-gray-500 ml-auto">{format(new Date(c.createdAt), 'dd.MM.yyyy HH:mm')}</span>
                       </div>
 
-                      <div className="mt-2 p-3 bg-gray-50 rounded-lg">
-                        <p className="text-xs text-gray-500 mb-1 flex items-center gap-1">
+                      <div className="mt-2 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-1 flex items-center gap-1">
                           <MessageSquare size={12} /> Deine Nachricht
                         </p>
-                        <p className="text-sm text-gray-700 whitespace-pre-wrap">{c.message}</p>
+                        <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{c.message}</p>
                       </div>
 
                       {c.resolvedAt && (
-                        <div className="mt-2 p-3 bg-green-50 rounded-lg">
-                          <p className="text-xs text-green-600 mb-1 flex items-center gap-1">
+                        <div className="mt-2 p-3 bg-green-50 dark:bg-green-950/40 rounded-lg">
+                          <p className="text-xs text-green-600 dark:text-green-400 mb-1 flex items-center gap-1">
                             <CheckCircle size={12} /> Antwort vom Admin
                             {c.resolvedByName && <span className="ml-1">({c.resolvedByName})</span>}
                             <span className="text-xs text-green-400 ml-auto">{format(new Date(c.resolvedAt), 'dd.MM.yyyy HH:mm')}</span>
                           </p>
                           {c.response ? (
-                            <p className="text-sm text-green-800 whitespace-pre-wrap">{c.response}</p>
+                            <p className="text-sm text-green-800 dark:text-green-300 whitespace-pre-wrap">{c.response}</p>
                           ) : (
-                            <p className="text-sm text-green-600 italic">Ohne Kommentar bearbeitet</p>
+                            <p className="text-sm text-green-600 dark:text-green-400 italic">Ohne Kommentar bearbeitet</p>
                           )}
                           {(c.originalClockIn || c.newClockIn) && (() => {
                             const fmt = (d: string | null) => d ? format(new Date(d), 'HH:mm') : '—';
@@ -447,11 +447,11 @@ export default function EmployeeComplaints() {
                             const newStr = `${fmt(c.newClockIn)} - ${fmt(c.newClockOut)}`;
                             const changed = oldStr !== newStr || c.originalBreakMinutes !== c.newBreakMinutes;
                             return (
-                              <div className="mt-2 pt-2 border-t border-green-200 text-xs text-green-700">
+                              <div className="mt-2 pt-2 border-t border-green-200 dark:border-green-800 text-xs text-green-700 dark:text-green-300">
                                 {changed ? (
                                   <>
                                     <span className="font-medium">Änderungen: </span>
-                                    <span className="line-through text-gray-400">{oldStr}</span>
+                                    <span className="line-through text-gray-400 dark:text-gray-500">{oldStr}</span>
                                     <span className="mx-2">→</span>
                                     <span className="font-semibold">{newStr}</span>
                                     {c.originalBreakMinutes !== c.newBreakMinutes && (
@@ -459,7 +459,7 @@ export default function EmployeeComplaints() {
                                     )}
                                   </>
                                 ) : (
-                                  <span className="text-gray-500">Keine Zeitänderungen vorgenommen.</span>
+                                  <span className="text-gray-500 dark:text-gray-400">Keine Zeitänderungen vorgenommen.</span>
                                 )}
                               </div>
                             );
@@ -471,7 +471,7 @@ export default function EmployeeComplaints() {
                         <div className="mt-2 flex justify-end">
                           <button
                             onClick={() => withdraw(c.id)}
-                            className="text-xs text-red-600 hover:bg-red-50 px-2 py-1 rounded flex items-center gap-1"
+                            className="text-xs text-red-600 dark:text-red-400 hover:bg-red-50 px-2 py-1 rounded flex items-center gap-1"
                           >
                             <Trash2 size={12} /> Zurückziehen
                           </button>
@@ -487,7 +487,7 @@ export default function EmployeeComplaints() {
       })}
 
       {filtered.length === 0 && (
-        <div className="card p-12 text-center text-gray-400">
+        <div className="card p-12 text-center text-gray-400 dark:text-gray-500">
           <MessageSquare size={48} className="mx-auto mb-3 opacity-30" />
           <p>{filter === 'open' ? 'Keine offenen Reklamationen' : filter === 'resolved' ? 'Keine bearbeiteten Reklamationen' : 'Noch keine Reklamationen eingereicht'}</p>
         </div>

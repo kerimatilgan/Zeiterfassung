@@ -73,8 +73,8 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
-        <p className="text-gray-500">Übersicht der Zeiterfassung</p>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Admin Dashboard</h1>
+        <p className="text-gray-500 dark:text-gray-400">Übersicht der Zeiterfassung</p>
       </div>
 
       {/* Stats Grid */}
@@ -90,8 +90,8 @@ export default function AdminDashboard() {
                 <stat.icon className="w-6 h-6 text-white" />
               </div>
               <div className="flex-1">
-                <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
-                <p className="text-sm text-gray-500">{stat.label}</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{stat.value}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{stat.label}</p>
               </div>
               <ChevronRight className="w-5 h-5 text-gray-300" />
             </div>
@@ -101,9 +101,9 @@ export default function AdminDashboard() {
 
       {/* Offene Reklamationen Widget */}
       {pendingComplaints && pendingComplaints.count > 0 && (pendingComplaints.entries?.length ?? 0) > 0 && (
-        <div className="card border-2 border-orange-200 bg-orange-50">
-          <div className="p-4 border-b border-orange-200 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-orange-800 flex items-center gap-2">
+        <div className="card border-2 border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-950/40">
+          <div className="p-4 border-b border-orange-200 dark:border-orange-800 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-orange-800 dark:text-orange-300 flex items-center gap-2">
               <AlertTriangle className="w-5 h-5" />
               Offene Reklamationen
               <span className="ml-2 px-2 py-0.5 text-sm bg-orange-500 text-white rounded-full">
@@ -128,7 +128,7 @@ export default function AdminDashboard() {
                         className="w-10 h-10 rounded-full object-cover"
                       />
                     ) : (
-                      <div className="w-10 h-10 rounded-full bg-orange-200 flex items-center justify-center text-orange-700 font-medium">
+                      <div className="w-10 h-10 rounded-full bg-orange-200 flex items-center justify-center text-orange-700 dark:text-orange-300 font-medium">
                         {entry.employee.firstName[0]}{entry.employee.lastName[0]}
                       </div>
                     )}
@@ -136,19 +136,19 @@ export default function AdminDashboard() {
                   {/* Content */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
-                      <p className="font-medium text-gray-900">
+                      <p className="font-medium text-gray-900 dark:text-gray-100">
                         {entry.employee.firstName} {entry.employee.lastName}
                       </p>
-                      <ChevronRight className="w-4 h-4 text-gray-400" />
+                      <ChevronRight className="w-4 h-4 text-gray-400 dark:text-gray-500" />
                     </div>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
                       {format(new Date(entry.clockIn), 'dd.MM.yyyy', { locale: de })} • {format(new Date(entry.clockIn), 'HH:mm', { locale: de })}
                       {entry.clockOut && ` - ${format(new Date(entry.clockOut), 'HH:mm', { locale: de })}`}
                     </p>
-                    <p className="text-sm text-orange-700 mt-1 truncate">
+                    <p className="text-sm text-orange-700 dark:text-orange-300 mt-1 truncate">
                       "{entry.complaintMessage}"
                     </p>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                       Reklamiert {format(new Date(entry.complaintAt), "dd.MM.yyyy 'um' HH:mm", { locale: de })}
                     </p>
                   </div>
@@ -157,10 +157,10 @@ export default function AdminDashboard() {
             ))}
           </div>
           {pendingComplaints.count > 5 && (
-            <div className="p-3 border-t border-orange-200 text-center">
+            <div className="p-3 border-t border-orange-200 dark:border-orange-800 text-center">
               <button
                 onClick={() => navigate('/admin/complaints')}
-                className="text-sm text-orange-700 hover:text-orange-900 font-medium"
+                className="text-sm text-orange-700 dark:text-orange-300 hover:text-orange-900 font-medium"
               >
                 Alle {pendingComplaints.count} Reklamationen anzeigen →
               </button>
@@ -171,21 +171,21 @@ export default function AdminDashboard() {
 
       {/* Recent Activity */}
       <div className="card">
-        <div className="p-6 border-b border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+        <div className="p-6 border-b border-gray-100 dark:border-gray-800">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
             <TrendingUp size={20} />
             Letzte Aktivitäten
           </h2>
         </div>
-        <div className="divide-y divide-gray-100">
+        <div className="divide-y divide-gray-100 dark:divide-gray-800">
           {recentEntries?.length ? (
             recentEntries.map((entry: any) => (
               <div key={entry.id} className="p-4 flex items-center justify-between">
                 <div>
-                  <p className="font-medium text-gray-900">
+                  <p className="font-medium text-gray-900 dark:text-gray-100">
                     {entry.employee.firstName} {entry.employee.lastName}
                   </p>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
                     {format(new Date(entry.clockIn), 'dd.MM.yyyy HH:mm', { locale: de })}
                     {entry.clockOut && (
                       <> - {format(new Date(entry.clockOut), 'HH:mm', { locale: de })}</>
@@ -195,8 +195,8 @@ export default function AdminDashboard() {
                 <span
                   className={`px-3 py-1 rounded-full text-sm font-medium ${
                     entry.clockOut
-                      ? 'bg-gray-100 text-gray-600'
-                      : 'bg-green-100 text-green-700'
+                      ? 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
+                      : 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300'
                   }`}
                 >
                   {entry.clockOut ? 'Abgeschlossen' : 'Aktiv'}
@@ -204,7 +204,7 @@ export default function AdminDashboard() {
               </div>
             ))
           ) : (
-            <div className="p-8 text-center text-gray-500">
+            <div className="p-8 text-center text-gray-500 dark:text-gray-400">
               Keine Einträge vorhanden
             </div>
           )}
@@ -214,22 +214,22 @@ export default function AdminDashboard() {
       {/* Modal: Aktuell eingestempelt */}
       {activeModal === 'clockedIn' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setActiveModal(null)}>
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
               <h2 className="text-xl font-semibold flex items-center gap-2">
                 <UserCheck className="w-5 h-5 text-green-500" />
                 Aktuell eingestempelt
               </h2>
-              <button onClick={() => setActiveModal(null)} className="p-2 hover:bg-gray-100 rounded-lg">
+              <button onClick={() => setActiveModal(null)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
                 <X size={20} />
               </button>
             </div>
-            <div className="overflow-y-auto flex-1 divide-y divide-gray-100">
+            <div className="overflow-y-auto flex-1 divide-y divide-gray-100 dark:divide-gray-800">
               {clockedInEntries?.length ? (
                 clockedInEntries.map((entry: any) => (
                   <div
                     key={entry.id}
-                    className="p-4 flex items-center gap-3 hover:bg-gray-50 cursor-pointer"
+                    className="p-4 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
                     onClick={() => {
                       setActiveModal(null);
                       navigate(`/admin/employees?openEmployee=${entry.employeeId}`);
@@ -239,29 +239,29 @@ export default function AdminDashboard() {
                       {entry.employee.photoUrl ? (
                         <img src={photoSrc(entry.employee.photoUrl)} alt="" className="w-10 h-10 rounded-full object-cover" />
                       ) : (
-                        <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-700 font-medium">
+                        <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/40 flex items-center justify-center text-green-700 dark:text-green-300 font-medium">
                           {entry.employee.firstName[0]}{entry.employee.lastName[0]}
                         </div>
                       )}
                     </div>
                     <div className="flex-1">
-                      <p className="font-medium text-gray-900">
+                      <p className="font-medium text-gray-900 dark:text-gray-100">
                         {entry.employee.firstName} {entry.employee.lastName}
                       </p>
-                      <p className="text-sm text-gray-500">#{entry.employee.employeeNumber}</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">#{entry.employee.employeeNumber}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-medium text-green-600">
+                      <p className="text-sm font-medium text-green-600 dark:text-green-400">
                         seit {format(new Date(entry.clockIn), 'HH:mm', { locale: de })}
                       </p>
-                      <p className="text-xs text-gray-400">
+                      <p className="text-xs text-gray-400 dark:text-gray-500">
                         {format(new Date(entry.clockIn), 'dd.MM.yyyy', { locale: de })}
                       </p>
                     </div>
                   </div>
                 ))
               ) : (
-                <div className="p-8 text-center text-gray-500">
+                <div className="p-8 text-center text-gray-500 dark:text-gray-400">
                   Niemand eingestempelt
                 </div>
               )}
@@ -273,22 +273,22 @@ export default function AdminDashboard() {
       {/* Modal: Einträge heute */}
       {activeModal === 'entriesToday' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setActiveModal(null)}>
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
               <h2 className="text-xl font-semibold flex items-center gap-2">
                 <Clock className="w-5 h-5 text-orange-500" />
                 Einträge heute
               </h2>
-              <button onClick={() => setActiveModal(null)} className="p-2 hover:bg-gray-100 rounded-lg">
+              <button onClick={() => setActiveModal(null)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
                 <X size={20} />
               </button>
             </div>
-            <div className="overflow-y-auto flex-1 divide-y divide-gray-100">
+            <div className="overflow-y-auto flex-1 divide-y divide-gray-100 dark:divide-gray-800">
               {todayEntries?.length ? (
                 todayEntries.map((entry: any) => (
                   <div
                     key={entry.id}
-                    className="p-4 flex items-center gap-3 hover:bg-gray-50 cursor-pointer"
+                    className="p-4 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
                     onClick={() => {
                       setActiveModal(null);
                       navigate(`/admin/employees?openEmployee=${entry.employeeId}`);
@@ -298,30 +298,30 @@ export default function AdminDashboard() {
                       {entry.employee.photoUrl ? (
                         <img src={photoSrc(entry.employee.photoUrl)} alt="" className="w-10 h-10 rounded-full object-cover" />
                       ) : (
-                        <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-700 font-medium">
+                        <div className="w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-900/40 flex items-center justify-center text-orange-700 dark:text-orange-300 font-medium">
                           {entry.employee.firstName[0]}{entry.employee.lastName[0]}
                         </div>
                       )}
                     </div>
                     <div className="flex-1">
-                      <p className="font-medium text-gray-900">
+                      <p className="font-medium text-gray-900 dark:text-gray-100">
                         {entry.employee.firstName} {entry.employee.lastName}
                       </p>
-                      <p className="text-sm text-gray-500">#{entry.employee.employeeNumber}</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">#{entry.employee.employeeNumber}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-medium text-gray-700">
+                      <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
                         {format(new Date(entry.clockIn), 'HH:mm', { locale: de })}
                         {entry.clockOut ? ` - ${format(new Date(entry.clockOut), 'HH:mm', { locale: de })}` : ''}
                       </p>
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${entry.clockOut ? 'bg-gray-100 text-gray-600' : 'bg-green-100 text-green-700'}`}>
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${entry.clockOut ? 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400' : 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300'}`}>
                         {entry.clockOut ? 'Fertig' : 'Aktiv'}
                       </span>
                     </div>
                   </div>
                 ))
               ) : (
-                <div className="p-8 text-center text-gray-500">
+                <div className="p-8 text-center text-gray-500 dark:text-gray-400">
                   Keine Einträge heute
                 </div>
               )}

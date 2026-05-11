@@ -241,6 +241,7 @@ router.post('/totp/validate', twoFactorLimiter, async (req, res) => {
         workDays: employee.workDays,
         isAdmin: employee.isAdmin,
         dashboardCardOrder: employee.dashboardCardOrder,
+        theme: employee.theme,
       },
     });
   } catch (error) {
@@ -520,6 +521,7 @@ router.post('/passkey/auth-verify', twoFactorLimiter, async (req, res) => {
         workDays: employee.workDays,
         isAdmin: employee.isAdmin,
         dashboardCardOrder: employee.dashboardCardOrder,
+        theme: employee.theme,
       },
     });
   } catch (error) {

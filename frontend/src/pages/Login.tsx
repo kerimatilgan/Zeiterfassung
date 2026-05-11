@@ -112,11 +112,11 @@ export default function Login() {
         <div className="card p-8">
           {/* Logo */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-100 rounded-full mb-4">
-              <Clock className="w-8 h-8 text-primary-600" />
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-100 dark:bg-primary-900/40 rounded-full mb-4">
+              <Clock className="w-8 h-8 text-primary-600 dark:text-primary-400" />
             </div>
-            <h1 className={`${companyNameSizeClass} font-bold text-gray-900 leading-tight break-words`} title={companyName}>{companyName}</h1>
-            <p className="text-gray-500 mt-1">Zeiterfassung</p>
+            <h1 className={`${companyNameSizeClass} font-bold text-gray-900 dark:text-gray-100 leading-tight break-words`} title={companyName}>{companyName}</h1>
+            <p className="text-gray-500 dark:text-gray-400 mt-1">Zeiterfassung</p>
           </div>
 
           {step === 'credentials' ? (
@@ -177,10 +177,10 @@ export default function Login() {
                 <>
                   <div className="relative my-6">
                     <div className="absolute inset-0 flex items-center">
-                      <div className="w-full border-t border-gray-200" />
+                      <div className="w-full border-t border-gray-200 dark:border-gray-700" />
                     </div>
                     <div className="relative flex justify-center text-sm">
-                      <span className="bg-white px-4 text-gray-400">oder</span>
+                      <span className="bg-white dark:bg-gray-900 px-4 text-gray-400 dark:text-gray-500">oder</span>
                     </div>
                   </div>
 
@@ -188,13 +188,13 @@ export default function Login() {
                     type="button"
                     onClick={handlePasskeyLogin}
                     disabled={passkeyLoading}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-gray-200 rounded-xl text-gray-700 font-medium hover:border-primary-300 hover:bg-primary-50 transition-colors disabled:opacity-50"
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-gray-200 dark:border-gray-700 rounded-xl text-gray-700 dark:text-gray-300 font-medium hover:border-primary-300 hover:bg-primary-50 transition-colors disabled:opacity-50"
                   >
                     {passkeyLoading ? (
                       <div className="w-5 h-5 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
                     ) : (
                       <>
-                        <Fingerprint size={20} className="text-primary-600" />
+                        <Fingerprint size={20} className="text-primary-600 dark:text-primary-400" />
                         Mit Passkey anmelden
                       </>
                     )}
@@ -206,7 +206,7 @@ export default function Login() {
               <div className="mt-4 text-center">
                 <Link
                   to="/forgot-password"
-                  className="text-sm text-primary-600 hover:text-primary-700 hover:underline"
+                  className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 hover:underline"
                 >
                   Passwort vergessen?
                 </Link>
@@ -216,11 +216,11 @@ export default function Login() {
             <>
               {/* TOTP Step */}
               <div className="text-center mb-6">
-                <div className="inline-flex items-center justify-center w-12 h-12 bg-amber-100 rounded-full mb-3">
-                  <ShieldCheck className="w-6 h-6 text-amber-600" />
+                <div className="inline-flex items-center justify-center w-12 h-12 bg-amber-100 dark:bg-amber-900/40 rounded-full mb-3">
+                  <ShieldCheck className="w-6 h-6 text-amber-600 dark:text-amber-400" />
                 </div>
-                <h2 className="text-lg font-semibold text-gray-900">Zwei-Faktor-Authentifizierung</h2>
-                <p className="text-sm text-gray-500 mt-1">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Zwei-Faktor-Authentifizierung</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                   Geben Sie den 6-stelligen Code aus Ihrer Authenticator-App ein.
                 </p>
               </div>
@@ -267,7 +267,7 @@ export default function Login() {
                     setTempToken('');
                     setTotpCode('');
                   }}
-                  className="inline-flex items-center gap-1 text-sm text-primary-600 hover:text-primary-700 hover:underline"
+                  className="inline-flex items-center gap-1 text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 hover:underline"
                 >
                   <ArrowLeft size={16} />
                   Zurück zum Login
@@ -294,13 +294,13 @@ export default function Login() {
       {/* Server-Konfig-Modal */}
       {showServerModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-            <div className="p-5 border-b border-gray-100 flex items-center gap-2">
-              <Server size={20} className="text-primary-600" />
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl max-w-md w-full">
+            <div className="p-5 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2">
+              <Server size={20} className="text-primary-600 dark:text-primary-400" />
               <h3 className="text-lg font-semibold">Server-URL konfigurieren</h3>
             </div>
             <div className="p-5 space-y-3">
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
                 Adresse der Zeiterfassungs-Instanz, mit der sich diese App verbinden soll.
               </p>
               <input
@@ -316,12 +316,12 @@ export default function Login() {
               <button
                 type="button"
                 onClick={() => setServerInput(getDefaultServerUrl())}
-                className="text-xs text-gray-500 hover:text-gray-700"
+                className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
               >
                 Auf Standard ({getDefaultServerUrl()}) zurücksetzen
               </button>
             </div>
-            <div className="p-5 border-t border-gray-100 flex justify-end gap-2">
+            <div className="p-5 border-t border-gray-100 dark:border-gray-800 flex justify-end gap-2">
               <button
                 onClick={() => setShowServerModal(false)}
                 className="btn btn-secondary"

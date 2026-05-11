@@ -65,13 +65,13 @@ export default function DocumentEditModal({ isOpen, onClose, doc, mode = 'self' 
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-md max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+        <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
           <h2 className="text-xl font-semibold flex items-center gap-2">
             <Pencil size={18} />
             Dokument bearbeiten
           </h2>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg" disabled={saving}>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg" disabled={saving}>
             <X size={20} />
           </button>
         </div>
@@ -87,7 +87,7 @@ export default function DocumentEditModal({ isOpen, onClose, doc, mode = 'self' 
               maxLength={200}
               autoFocus
             />
-            <p className="text-[11px] text-gray-400 mt-1">
+            <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-1">
               Dies ist der Anzeige- und Download-Name — die Datei selbst bleibt verschlüsselt.
             </p>
           </div>
@@ -120,20 +120,20 @@ export default function DocumentEditModal({ isOpen, onClose, doc, mode = 'self' 
 
           {mode === 'self' && (
             <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-              visibleToAdmin ? 'border-amber-300 bg-amber-50' : 'border-gray-200 bg-gray-50 hover:bg-gray-100'
+              visibleToAdmin ? 'border-amber-300 bg-amber-50 dark:bg-amber-950/40' : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'
             }`}>
               <input
                 type="checkbox"
                 checked={visibleToAdmin}
                 onChange={(e) => setVisibleToAdmin(e.target.checked)}
-                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+                className="mt-0.5 h-4 w-4 rounded border-gray-300 dark:border-gray-700 text-amber-600 dark:text-amber-400 focus:ring-amber-500"
               />
               <div className="flex-1 text-sm">
-                <div className="flex items-center gap-1.5 font-medium text-gray-900">
-                  {visibleToAdmin ? <Eye size={14} className="text-amber-600" /> : <Lock size={14} className="text-gray-500" />}
+                <div className="flex items-center gap-1.5 font-medium text-gray-900 dark:text-gray-100">
+                  {visibleToAdmin ? <Eye size={14} className="text-amber-600 dark:text-amber-400" /> : <Lock size={14} className="text-gray-500 dark:text-gray-400" />}
                   {visibleToAdmin ? 'Admin darf dieses Dokument sehen' : 'Privates Dokument'}
                 </div>
-                <p className="text-xs text-gray-500 mt-0.5">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                   {visibleToAdmin
                     ? 'Erscheint auch in der Admin-Ansicht deiner Dokumente.'
                     : 'Nur du siehst dieses Dokument. Admin sieht weder Datei noch Existenz.'}
@@ -143,7 +143,7 @@ export default function DocumentEditModal({ isOpen, onClose, doc, mode = 'self' 
           )}
         </div>
 
-        <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
+        <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-800 flex justify-end gap-3">
           <button onClick={onClose} className="btn btn-secondary" disabled={saving}>
             Abbrechen
           </button>

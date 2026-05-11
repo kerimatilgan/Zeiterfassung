@@ -45,12 +45,12 @@ export default function ServerUrlSettings() {
 
   return (
     <div className="card">
-      <div className="p-6 border-b border-gray-100">
-        <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+      <div className="p-6 border-b border-gray-100 dark:border-gray-800">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
           <Server size={20} />
           Server-URL
         </h2>
-        <p className="text-sm text-gray-500 mt-1">
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
           Adresse des Zeiterfassungs-Backends. Standardmäßig die zentrale Handy-Insel-Instanz.
           Nur ändern, wenn du eine eigene Instanz nutzt.
         </p>
@@ -68,16 +68,16 @@ export default function ServerUrlSettings() {
             autoCapitalize="off"
             autoCorrect="off"
           />
-          <p className="text-xs text-gray-500 mt-1">
-            Aktuell aktiv: <code className="text-xs bg-gray-100 px-1 rounded">{getServerUrl() || '(nicht gesetzt)'}</code>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            Aktuell aktiv: <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">{getServerUrl() || '(nicht gesetzt)'}</code>
           </p>
         </div>
       </div>
-      <div className="p-6 border-t border-gray-100 flex justify-between">
+      <div className="p-6 border-t border-gray-100 dark:border-gray-800 flex justify-between">
         <button
           type="button"
           onClick={handleReset}
-          className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1"
+          className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 flex items-center gap-1"
         >
           <RotateCcw size={14} />
           Auf Standard zurücksetzen

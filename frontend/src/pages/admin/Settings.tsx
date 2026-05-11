@@ -89,12 +89,12 @@ function PwaReasonsSection() {
 
   return (
     <div className="card">
-      <div className="p-6 border-b border-gray-100">
-        <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+      <div className="p-6 border-b border-gray-100 dark:border-gray-800">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
           <Smartphone size={20} />
           PWA-Stempel-Gründe
         </h2>
-        <p className="text-sm text-gray-500 mt-1">Vordefinierte Gründe für mobiles Ein-/Ausstempeln</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Vordefinierte Gründe für mobiles Ein-/Ausstempeln</p>
       </div>
       <div className="p-6">
         <div className="flex gap-2 mb-4">
@@ -113,16 +113,16 @@ function PwaReasonsSection() {
         {reasons.length > 0 ? (
           <div className="space-y-2">
             {reasons.map((r) => (
-              <div key={r.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div key={r.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                 <div className="flex items-center gap-3">
-                  <span className={`font-medium ${r.isActive ? 'text-gray-900' : 'text-gray-400 line-through'}`}>
+                  <span className={`font-medium ${r.isActive ? 'text-gray-900 dark:text-gray-100' : 'text-gray-400 dark:text-gray-500 line-through'}`}>
                     {r.name}
                   </span>
-                  {!r.isActive && <span className="text-xs text-yellow-600 bg-yellow-50 px-2 py-0.5 rounded">Inaktiv</span>}
+                  {!r.isActive && <span className="text-xs text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-950/40 px-2 py-0.5 rounded">Inaktiv</span>}
                 </div>
                 <div className="flex items-center gap-1">
                   <button onClick={() => toggleActive(r.id, r.isActive)}
-                    className={`text-xs px-2 py-1 rounded ${r.isActive ? 'text-yellow-700 hover:bg-yellow-100' : 'text-green-700 hover:bg-green-100'}`}>
+                    className={`text-xs px-2 py-1 rounded ${r.isActive ? 'text-yellow-700 dark:text-yellow-300 hover:bg-yellow-100' : 'text-green-700 dark:text-green-300 hover:bg-green-100'}`}>
                     {r.isActive ? 'Deaktivieren' : 'Aktivieren'}
                   </button>
                   <button onClick={() => deleteReason(r.id)} className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded">
@@ -133,7 +133,7 @@ function PwaReasonsSection() {
             ))}
           </div>
         ) : !loading ? (
-          <p className="text-sm text-gray-500 text-center py-4">Noch keine Gründe erstellt</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">Noch keine Gründe erstellt</p>
         ) : null}
       </div>
     </div>
@@ -222,19 +222,19 @@ function DataImportSection() {
 
   return (
     <div className="card">
-      <div className="p-6 border-b border-gray-100">
-        <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+      <div className="p-6 border-b border-gray-100 dark:border-gray-800">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
           <Database size={20} />
           Daten-Import (Startsalden)
         </h2>
-        <p className="text-sm text-gray-500 mt-1">
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
           Überstunden-Saldo, bereits genommene Urlaubstage und Krankheitstage aus der vorherigen Software importieren
         </p>
       </div>
 
       {/* CSV Upload */}
-      <div className="p-6 border-b border-gray-100">
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">CSV-Import</h3>
+      <div className="p-6 border-b border-gray-100 dark:border-gray-800">
+        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">CSV-Import</h3>
         <div className="flex flex-wrap items-center gap-3">
           <label className="btn btn-secondary text-sm flex items-center gap-2 cursor-pointer">
             <Upload size={16} />
@@ -243,15 +243,15 @@ function DataImportSection() {
           </label>
           {csvData && (
             <>
-              <span className="text-sm text-gray-600">{csvData.length} Einträge erkannt</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400">{csvData.length} Einträge erkannt</span>
               <button onClick={handleCsvImport} disabled={csvImporting} className="btn btn-primary text-sm">
                 {csvImporting ? 'Importiere...' : 'Importieren'}
               </button>
-              <button onClick={() => setCsvData(null)} className="text-sm text-gray-500 hover:text-gray-700">Abbrechen</button>
+              <button onClick={() => setCsvData(null)} className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">Abbrechen</button>
             </>
           )}
         </div>
-        <p className="text-xs text-gray-400 mt-2">
+        <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
           Erwartete Spalten: Mitarbeiternummer; Überstunden; Urlaubstage (bereits genommen); Krankheitstage; Jahr; Monat (Trennzeichen: ; oder ,)
         </p>
 
@@ -259,7 +259,7 @@ function DataImportSection() {
         {csvData && csvData.length > 0 && (
           <div className="mt-3 max-h-40 overflow-y-auto border rounded-lg">
             <table className="w-full text-xs">
-              <thead className="bg-gray-50 sticky top-0">
+              <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0">
                 <tr>
                   <th className="px-3 py-1.5 text-left">Nr.</th>
                   <th className="px-3 py-1.5 text-right">Überstunden</th>
@@ -287,30 +287,30 @@ function DataImportSection() {
       {/* Manual Entry Table */}
       <div className="overflow-x-auto">
         <table className="w-full">
-          <thead className="bg-gray-50">
+          <thead className="bg-gray-50 dark:bg-gray-800">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mitarbeiter</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Überstunden (h)</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase" title="Bereits genommene Urlaubstage">Urlaubstage (genommen)</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Krankheitstage</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stichtag</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Aktionen</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Mitarbeiter</th>
+              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Überstunden (h)</th>
+              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase" title="Bereits genommene Urlaubstage">Urlaubstage (genommen)</th>
+              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Krankheitstage</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Stichtag</th>
+              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Aktionen</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
             {employees?.map((emp: any) => {
               const isEditing = editingId === emp.id;
               return (
-                <tr key={emp.id} className={isEditing ? 'bg-primary-50' : ''}>
+                <tr key={emp.id} className={isEditing ? 'bg-primary-50 dark:bg-primary-900/30' : ''}>
                   <td className="px-4 py-3">
-                    <p className="text-sm font-medium text-gray-900">{emp.firstName} {emp.lastName}</p>
-                    <p className="text-xs text-gray-500">#{emp.employeeNumber}</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{emp.firstName} {emp.lastName}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">#{emp.employeeNumber}</p>
                   </td>
                   <td className="px-4 py-3 text-right">
                     {isEditing ? (
                       <input type="text" inputMode="decimal" value={editForm.initialOvertimeBalance} onChange={(e) => setEditForm({...editForm, initialOvertimeBalance: e.target.value as any})} onBlur={(e) => { const v = parseFloat(e.target.value.replace(',', '.')); setEditForm(f => ({...f, initialOvertimeBalance: isNaN(v) ? 0 : v})); }} className="input py-1 text-sm text-right w-24" />
                     ) : (
-                      <span className={`text-sm ${emp.initialOvertimeBalance > 0 ? 'text-green-600' : emp.initialOvertimeBalance < 0 ? 'text-red-600' : 'text-gray-500'}`}>
+                      <span className={`text-sm ${emp.initialOvertimeBalance > 0 ? 'text-green-600 dark:text-green-400' : emp.initialOvertimeBalance < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}`}>
                         {emp.initialOvertimeBalance !== 0 ? `${emp.initialOvertimeBalance > 0 ? '+' : ''}${emp.initialOvertimeBalance}h` : '-'}
                       </span>
                     )}
@@ -319,14 +319,14 @@ function DataImportSection() {
                     {isEditing ? (
                       <input type="number" min="0" value={editForm.initialVacationDaysUsed} onChange={(e) => setEditForm({...editForm, initialVacationDaysUsed: parseInt(e.target.value) || 0})} className="input py-1 text-sm text-right w-20" />
                     ) : (
-                      <span className="text-sm text-gray-700">{emp.initialVacationDaysUsed || '-'}</span>
+                      <span className="text-sm text-gray-700 dark:text-gray-300">{emp.initialVacationDaysUsed || '-'}</span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-right">
                     {isEditing ? (
                       <input type="number" min="0" value={editForm.initialSickDays} onChange={(e) => setEditForm({...editForm, initialSickDays: parseInt(e.target.value) || 0})} className="input py-1 text-sm text-right w-20" />
                     ) : (
-                      <span className="text-sm text-gray-700">{emp.initialSickDays || '-'}</span>
+                      <span className="text-sm text-gray-700 dark:text-gray-300">{emp.initialSickDays || '-'}</span>
                     )}
                   </td>
                   <td className="px-4 py-3">
@@ -340,7 +340,7 @@ function DataImportSection() {
                         </select>
                       </div>
                     ) : (
-                      <span className="text-sm text-gray-500">
+                      <span className="text-sm text-gray-500 dark:text-gray-400">
                         {emp.initialBalanceYear ? `${MONTHS_SHORT[(emp.initialBalanceMonth || 1) - 1]} ${emp.initialBalanceYear}` : '-'}
                       </span>
                     )}
@@ -363,7 +363,7 @@ function DataImportSection() {
                             initialBalanceMonth: emp.initialBalanceMonth || new Date().getMonth() + 1,
                           });
                         }}
-                        className="p-1.5 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
+                        className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
                       >
                         <Edit2 size={16} />
                       </button>
@@ -373,7 +373,7 @@ function DataImportSection() {
               );
             })}
             {!employees?.length && (
-              <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-500">Keine Mitarbeiter vorhanden</td></tr>
+              <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">Keine Mitarbeiter vorhanden</td></tr>
             )}
           </tbody>
         </table>
@@ -1016,15 +1016,15 @@ export default function AdminSettings() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Einstellungen</h1>
-        <p className="text-gray-500">System-Einstellungen verwalten</p>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Einstellungen</h1>
+        <p className="text-gray-500 dark:text-gray-400">System-Einstellungen verwalten</p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Company Settings */}
         <form onSubmit={handleSubmit} className="card">
-          <div className="p-6 border-b border-gray-100">
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+          <div className="p-6 border-b border-gray-100 dark:border-gray-800">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
               <Building2 size={20} />
               Firmendaten
             </h2>
@@ -1070,8 +1070,8 @@ export default function AdminSettings() {
               </div>
             </div>
           </div>
-          <div className="p-6 border-t border-gray-100">
-            <h3 className="font-medium text-gray-900 flex items-center gap-2 mb-4">
+          <div className="p-6 border-t border-gray-100 dark:border-gray-800">
+            <h3 className="font-medium text-gray-900 dark:text-gray-100 flex items-center gap-2 mb-4">
               <Clock size={18} />
               Zeiterfassung
             </h3>
@@ -1088,7 +1088,7 @@ export default function AdminSettings() {
                   }
                   className="input"
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   Automatische Pause bei mehr als 6h Arbeitszeit
                 </p>
               </div>
@@ -1115,19 +1115,19 @@ export default function AdminSettings() {
                   className="rounded"
                 />
                 <div>
-                  <p className="text-sm font-medium text-gray-700">Arbeitskategorie auf Abrechnung anzeigen</p>
-                  <p className="text-xs text-gray-500">Zeigt Kategorie und früheste Einstempelzeit auf dem PDF</p>
+                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Arbeitskategorie auf Abrechnung anzeigen</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Zeigt Kategorie und früheste Einstempelzeit auf dem PDF</p>
                 </div>
               </label>
             </div>
 
             {/* Standort-Erinnerung */}
-            <div className="mt-6 pt-6 border-t border-gray-100">
-              <h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
+            <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-800">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2 flex items-center gap-2">
                 <MapPin size={16} />
                 Standort-Erinnerung
               </h3>
-              <p className="text-xs text-gray-500 mb-4">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
                 Schickt MAs eine Mail-Erinnerung wenn sie noch eingestempelt sind, ihre PWA aber zu weit
                 vom Geschäft entfernt ist. Der Standort wird automatisch aus der oben angegebenen
                 <strong> Firmen-Adresse</strong> ermittelt (geocoded). Prüfung läuft stündlich,
@@ -1141,7 +1141,7 @@ export default function AdminSettings() {
                   className="rounded"
                 />
                 <div>
-                  <p className="text-sm font-medium text-gray-700">Standort-Erinnerung aktiv</p>
+                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Standort-Erinnerung aktiv</p>
                 </div>
               </label>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1155,11 +1155,11 @@ export default function AdminSettings() {
                     onChange={(e) => setFormData({ ...formData, companyRadiusMeters: parseInt(e.target.value) || 500 })}
                     className="input text-sm"
                   />
-                  <p className="text-xs text-gray-500 mt-1">Erinnerung wird ausgelöst, wenn der MA weiter als dieser Wert vom Geschäft entfernt ist.</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Erinnerung wird ausgelöst, wenn der MA weiter als dieser Wert vom Geschäft entfernt ist.</p>
                 </div>
                 <div>
                   <label className="label text-xs">Ermittelte Koordinaten</label>
-                  <div className="px-3 py-2 bg-gray-50 rounded-md text-xs text-gray-600 font-mono">
+                  <div className="px-3 py-2 bg-gray-50 dark:bg-gray-800 rounded-md text-xs text-gray-600 dark:text-gray-400 font-mono">
                     {formData.companyLatitude != null && formData.companyLongitude != null
                       ? `${formData.companyLatitude.toFixed(5)}, ${formData.companyLongitude.toFixed(5)}`
                       : '— (wird beim Speichern aus der Adresse ermittelt)'}
@@ -1168,7 +1168,7 @@ export default function AdminSettings() {
               </div>
             </div>
           </div>
-          <div className="p-6 border-t border-gray-100 flex justify-end">
+          <div className="p-6 border-t border-gray-100 dark:border-gray-800 flex justify-end">
             <button
               type="submit"
               disabled={updateMutation.isPending}
@@ -1189,9 +1189,9 @@ export default function AdminSettings() {
 
         {/* Holidays */}
         <div className="card">
-          <div className="p-6 border-b border-gray-100">
+          <div className="p-6 border-b border-gray-100 dark:border-gray-800">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
                 <Calendar size={20} />
                 Feiertage
               </h2>
@@ -1220,50 +1220,50 @@ export default function AdminSettings() {
               </div>
             </div>
             {bundeslandInfo?.detected && (
-              <div className="flex items-center gap-2 text-sm text-gray-600 bg-gray-50 rounded-lg px-3 py-2">
+              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 rounded-lg px-3 py-2">
                 <MapPin size={14} />
                 <span>Erkanntes Bundesland: <strong>{bundeslandInfo.bundeslandName}</strong> (PLZ {bundeslandInfo.plz})</span>
               </div>
             )}
             {bundeslandInfo && !bundeslandInfo.detected && (
-              <div className="flex items-center gap-2 text-sm text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
+              <div className="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 rounded-lg px-3 py-2">
                 <AlertCircle size={14} />
                 <span>{bundeslandInfo.message}</span>
               </div>
             )}
           </div>
-          <div className="divide-y divide-gray-100 max-h-96 overflow-y-auto">
+          <div className="divide-y divide-gray-100 dark:divide-gray-800 max-h-96 overflow-y-auto">
             {holidays?.length ? (
               holidays.map((holiday: any) => (
                 <div key={holiday.id} className="p-4 flex items-center justify-between">
                   <div>
-                    <p className="font-medium text-gray-900">{holiday.name}</p>
-                    <p className="text-sm text-gray-500">
+                    <p className="font-medium text-gray-900 dark:text-gray-100">{holiday.name}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
                       {format(new Date(holiday.date), 'EEEE, dd. MMMM yyyy', { locale: de })}
                     </p>
                   </div>
                   <button
                     onClick={() => deleteHolidayMutation.mutate(holiday.id)}
-                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                    className="p-2 text-gray-400 dark:text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg"
                   >
                     <Trash2 size={18} />
                   </button>
                 </div>
               ))
             ) : (
-              <div className="p-8 text-center text-gray-500">Keine Feiertage eingetragen</div>
+              <div className="p-8 text-center text-gray-500 dark:text-gray-400">Keine Feiertage eingetragen</div>
             )}
           </div>
         </div>
 
         {/* Mail Server Settings */}
         <div className="card">
-          <div className="p-6 border-b border-gray-100">
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+          <div className="p-6 border-b border-gray-100 dark:border-gray-800">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
               <Mail size={20} />
               Mail-Server
             </h2>
-            <p className="text-sm text-gray-500 mt-1">
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
               SMTP-Konfiguration für E-Mail-Benachrichtigungen
             </p>
           </div>
@@ -1349,14 +1349,14 @@ export default function AdminSettings() {
                 id="smtpSecure"
                 checked={mailFormData.smtpSecure}
                 onChange={(e) => setMailFormData({ ...mailFormData, smtpSecure: e.target.checked })}
-                className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                className="w-4 h-4 rounded border-gray-300 dark:border-gray-700 text-primary-600 dark:text-primary-400 focus:ring-primary-500"
               />
-              <label htmlFor="smtpSecure" className="text-sm text-gray-700">
+              <label htmlFor="smtpSecure" className="text-sm text-gray-700 dark:text-gray-300">
                 TLS/SSL verwenden (Port 465)
               </label>
             </div>
 
-            <div className="pt-4 border-t border-gray-100">
+            <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
               <button
                 type="submit"
                 disabled={updateMailMutation.isPending}
@@ -1377,7 +1377,7 @@ export default function AdminSettings() {
             </div>
 
             {/* Test E-Mail */}
-            <div className="pt-4 border-t border-gray-100">
+            <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
               <label className="label">Test-E-Mail senden</label>
               <div className="flex gap-2">
                 <input
@@ -1407,7 +1407,7 @@ export default function AdminSettings() {
                 </button>
               </div>
               {!mailFormData.smtpHost && (
-                <p className="text-xs text-amber-600 mt-1">
+                <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
                   Bitte zuerst SMTP-Server konfigurieren und speichern
                 </p>
               )}
@@ -1417,13 +1417,13 @@ export default function AdminSettings() {
 
         {/* Absence Types */}
         <div className="card lg:col-span-2">
-          <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+          <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
                 <Briefcase size={20} />
                 Abwesenheitstypen
               </h2>
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                 Urlaub, Schule und andere Abwesenheiten konfigurieren
               </p>
             </div>
@@ -1437,33 +1437,33 @@ export default function AdminSettings() {
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50 dark:bg-gray-800">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                     Bezeichnung
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                     Kürzel
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                     Pflichtstunden
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                     Farbe
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                     Status
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                     Aktionen
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                 {absenceTypes?.length ? (
                   absenceTypes.map((type) => (
                     <tr key={type.id}>
-                      <td className="px-6 py-4 font-medium text-gray-900">{type.name}</td>
+                      <td className="px-6 py-4 font-medium text-gray-900 dark:text-gray-100">{type.name}</td>
                       <td className="px-6 py-4">
                         <span
                           className="px-2 py-1 rounded text-sm font-medium"
@@ -1472,26 +1472,26 @@ export default function AdminSettings() {
                           {type.shortName}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-gray-600">
+                      <td className="px-6 py-4 text-gray-600 dark:text-gray-400">
                         {type.requiredHours === 0 ? (
-                          <span className="text-green-600">Keine (0h)</span>
+                          <span className="text-green-600 dark:text-green-400">Keine (0h)</span>
                         ) : (
                           `${formatHoursToTime(type.requiredHours)} h`
                         )}
                       </td>
                       <td className="px-6 py-4">
                         <div
-                          className="w-6 h-6 rounded-full border border-gray-200"
+                          className="w-6 h-6 rounded-full border border-gray-200 dark:border-gray-700"
                           style={{ backgroundColor: type.color }}
                         />
                       </td>
                       <td className="px-6 py-4">
                         {type.isActive ? (
-                          <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                          <span className="px-2 py-1 bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 rounded-full text-xs font-medium">
                             Aktiv
                           </span>
                         ) : (
-                          <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">
+                          <span className="px-2 py-1 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-full text-xs font-medium">
                             Inaktiv
                           </span>
                         )}
@@ -1500,7 +1500,7 @@ export default function AdminSettings() {
                         <div className="flex items-center justify-end gap-2">
                           <button
                             onClick={() => openEditAbsenceTypeModal(type)}
-                            className="p-2 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
+                            className="p-2 text-gray-500 dark:text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
                           >
                             <Edit2 size={18} />
                           </button>
@@ -1510,7 +1510,7 @@ export default function AdminSettings() {
                                 deleteAbsenceTypeMutation.mutate(type.id);
                               }
                             }}
-                            className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                            className="p-2 text-gray-500 dark:text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
                           >
                             <Trash2 size={18} />
                           </button>
@@ -1520,7 +1520,7 @@ export default function AdminSettings() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                    <td colSpan={6} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
                       Keine Abwesenheitstypen konfiguriert
                     </td>
                   </tr>
@@ -1534,13 +1534,13 @@ export default function AdminSettings() {
       {/* Arbeitskategorien */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="card lg:col-span-2">
-          <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+          <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
                 <Clock size={20} />
                 Arbeitskategorien
               </h2>
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                 Früheste Einstempelzeit pro Kategorie festlegen
               </p>
             </div>
@@ -1554,39 +1554,39 @@ export default function AdminSettings() {
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50 dark:bg-gray-800">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                     Bezeichnung
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                     Früheste Einstempelzeit
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                     Status
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                     Aktionen
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                 {workCategories?.length ? (
                   workCategories.map((cat) => (
                     <tr key={cat.id}>
-                      <td className="px-6 py-4 font-medium text-gray-900">{cat.name}</td>
+                      <td className="px-6 py-4 font-medium text-gray-900 dark:text-gray-100">{cat.name}</td>
                       <td className="px-6 py-4">
-                        <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded text-sm font-medium">
+                        <span className="px-2 py-1 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 rounded text-sm font-medium">
                           ab {cat.earliestClockIn} Uhr
                         </span>
                       </td>
                       <td className="px-6 py-4">
                         {cat.isActive ? (
-                          <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                          <span className="px-2 py-1 bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 rounded-full text-xs font-medium">
                             Aktiv
                           </span>
                         ) : (
-                          <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">
+                          <span className="px-2 py-1 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-full text-xs font-medium">
                             Inaktiv
                           </span>
                         )}
@@ -1595,7 +1595,7 @@ export default function AdminSettings() {
                         <div className="flex items-center justify-end gap-2">
                           <button
                             onClick={() => openEditWorkCategoryModal(cat)}
-                            className="p-2 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
+                            className="p-2 text-gray-500 dark:text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
                           >
                             <Edit2 size={18} />
                           </button>
@@ -1605,7 +1605,7 @@ export default function AdminSettings() {
                                 deleteWorkCategoryMutation.mutate(cat.id);
                               }
                             }}
-                            className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                            className="p-2 text-gray-500 dark:text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
                           >
                             <Trash2 size={18} />
                           </button>
@@ -1615,7 +1615,7 @@ export default function AdminSettings() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
+                    <td colSpan={4} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
                       Keine Arbeitskategorien konfiguriert
                     </td>
                   </tr>
@@ -1629,12 +1629,12 @@ export default function AdminSettings() {
       {/* WorkCategory Modal */}
       {showWorkCategoryModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-md">
+            <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
               <h2 className="text-xl font-semibold">
                 {editingWorkCategory ? 'Arbeitskategorie bearbeiten' : 'Neue Arbeitskategorie'}
               </h2>
-              <button onClick={closeWorkCategoryModal} className="p-2 hover:bg-gray-100 rounded-lg">
+              <button onClick={closeWorkCategoryModal} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
                 <X size={20} />
               </button>
             </div>
@@ -1659,7 +1659,7 @@ export default function AdminSettings() {
                   className="input"
                   required
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   Stempelt ein Mitarbeiter vor dieser Zeit, wird die Einstempelzeit automatisch auf diesen Wert gesetzt
                 </p>
               </div>
@@ -1694,8 +1694,8 @@ export default function AdminSettings() {
 
       {/* Datenbank & Backups */}
       <div className="card">
-        <div className="p-6 border-b border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+        <div className="p-6 border-b border-gray-100 dark:border-gray-800">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
             <Shield size={20} />
             Datenbank & Backups
           </h2>
@@ -1704,38 +1704,38 @@ export default function AdminSettings() {
           {/* DB Info */}
           {databaseInfo && (
             <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                 <div className="flex items-center gap-3">
-                  <HardDrive size={20} className="text-gray-500" />
+                  <HardDrive size={20} className="text-gray-500 dark:text-gray-400" />
                   <div>
-                    <p className="text-sm font-medium text-gray-900">Datenbank-Größe</p>
-                    <p className="text-xs text-gray-500">SQLite Datenbank</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Datenbank-Größe</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">SQLite Datenbank</p>
                   </div>
                 </div>
-                <span className="text-lg font-semibold text-gray-900">
+                <span className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                   {databaseInfo.sizeFormatted}
                 </span>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-                <div className="p-2 bg-gray-50 rounded">
-                  <span className="text-gray-500">Mitarbeiter:</span>
+                <div className="p-2 bg-gray-50 dark:bg-gray-800 rounded">
+                  <span className="text-gray-500 dark:text-gray-400">Mitarbeiter:</span>
                   <span className="ml-2 font-medium">{databaseInfo.stats?.employees ?? 0}</span>
                 </div>
-                <div className="p-2 bg-gray-50 rounded">
-                  <span className="text-gray-500">Zeiteinträge:</span>
+                <div className="p-2 bg-gray-50 dark:bg-gray-800 rounded">
+                  <span className="text-gray-500 dark:text-gray-400">Zeiteinträge:</span>
                   <span className="ml-2 font-medium">{databaseInfo.stats?.timeEntries ?? 0}</span>
                 </div>
-                <div className="p-2 bg-gray-50 rounded">
-                  <span className="text-gray-500">Abrechnungen:</span>
+                <div className="p-2 bg-gray-50 dark:bg-gray-800 rounded">
+                  <span className="text-gray-500 dark:text-gray-400">Abrechnungen:</span>
                   <span className="ml-2 font-medium">{databaseInfo.stats?.monthlyReports ?? 0}</span>
                 </div>
-                <div className="p-2 bg-gray-50 rounded">
-                  <span className="text-gray-500">Feiertage:</span>
+                <div className="p-2 bg-gray-50 dark:bg-gray-800 rounded">
+                  <span className="text-gray-500 dark:text-gray-400">Feiertage:</span>
                   <span className="ml-2 font-medium">{databaseInfo.stats?.holidays ?? 0}</span>
                 </div>
               </div>
               {databaseInfo.lastModified && (
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-500 dark:text-gray-400">
                   Letzte Änderung: {format(new Date(databaseInfo.lastModified), 'dd.MM.yyyy HH:mm', { locale: de })}
                 </p>
               )}
@@ -1753,19 +1753,19 @@ export default function AdminSettings() {
                 </button>
                 <button
                   onClick={() => setShowRestoreModal(true)}
-                  className="btn btn-secondary flex items-center gap-2 text-sm text-amber-700 border-amber-300 hover:bg-amber-50"
+                  className="btn btn-secondary flex items-center gap-2 text-sm text-amber-700 dark:text-amber-300 border-amber-300 hover:bg-amber-50"
                 >
                   <Upload size={16} /> Backup wiederherstellen
                 </button>
               </div>
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-gray-400 dark:text-gray-500">
                 Backup enthält Datenbank, Mitarbeiter-Fotos, hochgeladene Dokumente und finalisierte Abrechnungs-PDFs (als <code>.tar.gz</code>).
               </p>
             </div>
           )}
 
           {/* Backup-System */}
-          <div className="border-t border-gray-100 pt-6">
+          <div className="border-t border-gray-100 dark:border-gray-800 pt-6">
             <BackupSettings />
           </div>
         </div>
@@ -1776,13 +1776,13 @@ export default function AdminSettings() {
 
       {/* Dokumenttypen */}
       <div className="card">
-        <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+        <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
               <Briefcase size={20} />
               Dokumenttypen
             </h2>
-            <p className="text-sm text-gray-500 mt-1">Typen für Mitarbeiter-Dokumente verwalten</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Typen für Mitarbeiter-Dokumente verwalten</p>
           </div>
           <button onClick={() => openDocTypeModal()} className="btn btn-secondary flex items-center gap-2 text-sm">
             <Plus size={16} />
@@ -1791,36 +1791,36 @@ export default function AdminSettings() {
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50">
+            <thead className="bg-gray-50 dark:bg-gray-800">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Farbe</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kürzel</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Aktionen</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Farbe</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Name</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Kürzel</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Status</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Aktionen</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
               {documentTypes?.map((dt: any) => (
                 <tr key={dt.id}>
                   <td className="px-6 py-3">
                     <div className="w-4 h-4 rounded-full" style={{ backgroundColor: dt.color }} />
                   </td>
-                  <td className="px-6 py-3 text-sm font-medium text-gray-900">{dt.name}</td>
-                  <td className="px-6 py-3 text-sm text-gray-500">{dt.shortName}</td>
+                  <td className="px-6 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">{dt.name}</td>
+                  <td className="px-6 py-3 text-sm text-gray-500 dark:text-gray-400">{dt.shortName}</td>
                   <td className="px-6 py-3">
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${dt.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${dt.isActive ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}`}>
                       {dt.isActive ? 'Aktiv' : 'Inaktiv'}
                     </span>
                   </td>
                   <td className="px-6 py-3">
                     <div className="flex items-center justify-end gap-2">
-                      <button onClick={() => openDocTypeModal(dt)} className="p-1.5 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg">
+                      <button onClick={() => openDocTypeModal(dt)} className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg">
                         <Edit2 size={16} />
                       </button>
                       <button
                         onClick={() => { if (confirm(`"${dt.name}" wirklich löschen?`)) deleteDocTypeMutation.mutate(dt.id); }}
-                        className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                        className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
                       >
                         <Trash2 size={16} />
                       </button>
@@ -1829,7 +1829,7 @@ export default function AdminSettings() {
                 </tr>
               ))}
               {!documentTypes?.length && (
-                <tr><td colSpan={5} className="px-6 py-8 text-center text-gray-500">Keine Dokumenttypen vorhanden</td></tr>
+                <tr><td colSpan={5} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">Keine Dokumenttypen vorhanden</td></tr>
               )}
             </tbody>
           </table>
@@ -1839,10 +1839,10 @@ export default function AdminSettings() {
       {/* Dokumenttyp Modal */}
       {showDocTypeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowDocTypeModal(false)}>
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
               <h2 className="text-xl font-semibold">{editingDocType ? 'Dokumenttyp bearbeiten' : 'Neuer Dokumenttyp'}</h2>
-              <button onClick={() => setShowDocTypeModal(false)} className="p-2 hover:bg-gray-100 rounded-lg"><X size={20} /></button>
+              <button onClick={() => setShowDocTypeModal(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"><X size={20} /></button>
             </div>
             <form
               className="p-6 space-y-4"
@@ -1873,8 +1873,8 @@ export default function AdminSettings() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <input type="checkbox" id="docTypeActive" checked={docTypeForm.isActive} onChange={(e) => setDocTypeForm({ ...docTypeForm, isActive: e.target.checked })} className="w-4 h-4 text-primary-600 rounded border-gray-300" />
-                <label htmlFor="docTypeActive" className="text-sm text-gray-700">Aktiv</label>
+                <input type="checkbox" id="docTypeActive" checked={docTypeForm.isActive} onChange={(e) => setDocTypeForm({ ...docTypeForm, isActive: e.target.checked })} className="w-4 h-4 text-primary-600 dark:text-primary-400 rounded border-gray-300 dark:border-gray-700" />
+                <label htmlFor="docTypeActive" className="text-sm text-gray-700 dark:text-gray-300">Aktiv</label>
               </div>
               <div className="flex justify-end gap-3 pt-4">
                 <button type="button" onClick={() => setShowDocTypeModal(false)} className="btn btn-secondary">Abbrechen</button>
@@ -1889,12 +1889,12 @@ export default function AdminSettings() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Terminal Logo */}
         <div className="card lg:col-span-2">
-          <div className="p-6 border-b border-gray-100">
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+          <div className="p-6 border-b border-gray-100 dark:border-gray-800">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
               <Monitor size={20} />
               Terminal-Logo
             </h2>
-            <p className="text-sm text-gray-500 mt-1">
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
               Logo wird oben links auf dem PI-Display angezeigt
             </p>
           </div>
@@ -1905,7 +1905,7 @@ export default function AdminSettings() {
                   <img
                     src={terminalLogo.logoUrl}
                     alt="Terminal Logo"
-                    className="w-24 h-24 object-contain rounded-lg border border-gray-200 bg-gray-900 p-2"
+                    className="w-24 h-24 object-contain rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-900 p-2"
                   />
                   <button
                     onClick={async () => {
@@ -1956,8 +1956,8 @@ export default function AdminSettings() {
               <label
                 className={`flex flex-col items-center justify-center w-full h-36 rounded-lg border-2 border-dashed cursor-pointer transition-colors ${
                   logoDragging
-                    ? 'border-primary-500 bg-primary-50'
-                    : 'border-gray-300 bg-gray-50 hover:bg-gray-100 hover:border-gray-400'
+                    ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30'
+                    : 'border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 hover:border-gray-400'
                 }`}
                 onDragOver={(e) => { e.preventDefault(); setLogoDragging(true); }}
                 onDragLeave={() => setLogoDragging(false)}
@@ -1982,11 +1982,11 @@ export default function AdminSettings() {
                   }
                 }}
               >
-                <Upload size={28} className={logoDragging ? 'text-primary-500' : 'text-gray-400'} />
-                <p className="mt-2 text-sm text-gray-600">
+                <Upload size={28} className={logoDragging ? 'text-primary-500' : 'text-gray-400 dark:text-gray-500'} />
+                <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
                   {logoUploading ? 'Wird hochgeladen...' : logoDragging ? 'Logo hier ablegen' : 'Logo hierhin ziehen oder klicken'}
                 </p>
-                <p className="text-xs text-gray-400 mt-1">PNG, JPG, WebP oder SVG (max. 5MB)</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">PNG, JPG, WebP oder SVG (max. 5MB)</p>
                 <input
                   type="file"
                   accept="image/png,image/jpeg,image/webp,image/svg+xml"
@@ -2014,13 +2014,13 @@ export default function AdminSettings() {
         </div>
 
         <div className="card lg:col-span-2">
-          <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+          <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
                 <Monitor size={20} />
                 Terminals
               </h2>
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                 Stempelterminals verwalten und Online-Status überwachen
               </p>
             </div>
@@ -2034,61 +2034,61 @@ export default function AdminSettings() {
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50 dark:bg-gray-800">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                     Name
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                     Status
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                     Letzte Aktivität
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                     IP-Adresse
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                     Aktionen
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                 {terminals?.length ? (
                   terminals.map((terminal) => (
                     <tr key={terminal.id}>
-                      <td className="px-6 py-4 font-medium text-gray-900">
+                      <td className="px-6 py-4 font-medium text-gray-900 dark:text-gray-100">
                         {terminal.name}
                         {!terminal.isActive && (
-                          <span className="ml-2 px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full text-xs">
+                          <span className="ml-2 px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 rounded-full text-xs">
                             Deaktiviert
                           </span>
                         )}
                       </td>
                       <td className="px-6 py-4">
                         {terminal.isOnline ? (
-                          <span className="flex items-center gap-2 text-green-700">
+                          <span className="flex items-center gap-2 text-green-700 dark:text-green-300">
                             <span className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse" />
                             Online
                           </span>
                         ) : (
-                          <span className="flex items-center gap-2 text-gray-500">
+                          <span className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
                             <span className="w-2.5 h-2.5 bg-gray-300 rounded-full" />
                             Offline
                           </span>
                         )}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
+                      <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
                         {formatLastSeen(terminal.lastSeen)}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-600 font-mono">
+                      <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400 font-mono">
                         {terminal.ipAddress || '-'}
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-end gap-1">
                           <button
                             onClick={() => openEditTerminalModal(terminal)}
-                            className="p-2 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
+                            className="p-2 text-gray-500 dark:text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
                             title="Bearbeiten"
                           >
                             <Edit2 size={18} />
@@ -2099,7 +2099,7 @@ export default function AdminSettings() {
                               navigator.clipboard.writeText(cmd);
                               toast.success('Install-Befehl kopiert!');
                             }}
-                            className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-lg"
+                            className="p-2 text-gray-500 dark:text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg"
                             title="Install-Befehl kopieren"
                           >
                             <Copy size={18} />
@@ -2110,7 +2110,7 @@ export default function AdminSettings() {
                                 regenerateKeyMutation.mutate(terminal.id);
                               }
                             }}
-                            className="p-2 text-gray-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg"
+                            className="p-2 text-gray-500 dark:text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg"
                             title="API-Key erneuern"
                           >
                             <Key size={18} />
@@ -2121,7 +2121,7 @@ export default function AdminSettings() {
                                 deleteTerminalMutation.mutate(terminal.id);
                               }
                             }}
-                            className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                            className="p-2 text-gray-500 dark:text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
                             title="Löschen"
                           >
                             <Trash2 size={18} />
@@ -2132,7 +2132,7 @@ export default function AdminSettings() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                    <td colSpan={5} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
                       Keine Terminals konfiguriert
                     </td>
                   </tr>
@@ -2146,12 +2146,12 @@ export default function AdminSettings() {
       {/* Terminal Create/Edit Modal */}
       {showTerminalModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-md">
+            <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
               <h2 className="text-xl font-semibold">
                 {editingTerminal ? 'Terminal bearbeiten' : 'Neues Terminal'}
               </h2>
-              <button onClick={() => { setShowTerminalModal(false); setEditingTerminal(null); }} className="p-2 hover:bg-gray-100 rounded-lg">
+              <button onClick={() => { setShowTerminalModal(false); setEditingTerminal(null); }} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
                 <X size={20} />
               </button>
             </div>
@@ -2191,7 +2191,7 @@ export default function AdminSettings() {
                   <option value="firstNameLastInitial">Vorname + Initial (Max M.)</option>
                   <option value="initialsOnly">Nur Initialen (M. M.)</option>
                 </select>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   Steuert, wie Mitarbeiter-Namen auf dem HDMI-Display angezeigt werden. Datenschutz-Option für offene Bereiche.
                 </p>
               </div>
@@ -2211,18 +2211,18 @@ export default function AdminSettings() {
       {/* API-Key Anzeige Modal */}
       {showApiKeyModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg">
-            <div className="p-6 border-b border-gray-100">
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-lg">
+            <div className="p-6 border-b border-gray-100 dark:border-gray-800">
               <h2 className="text-xl font-semibold flex items-center gap-2">
                 <Key size={20} className="text-amber-500" />
                 Terminal API-Key
               </h2>
             </div>
             <div className="p-6 space-y-4">
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
                 <div className="flex items-start gap-2">
-                  <AlertCircle size={18} className="text-amber-600 mt-0.5 flex-shrink-0" />
-                  <p className="text-sm text-amber-800">
+                  <AlertCircle size={18} className="text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+                  <p className="text-sm text-amber-800 dark:text-amber-300">
                     Dieser API-Key wird <strong>nur einmal</strong> angezeigt. Bitte kopieren und sicher aufbewahren.
                     Er wird für die Terminal-Konfiguration benötigt.
                   </p>
@@ -2242,16 +2242,16 @@ export default function AdminSettings() {
               </div>
               {displayedTerminalId && (
                 <div>
-                  <p className="text-sm font-medium text-gray-700 mb-2">Schnellinstallation auf dem Raspberry Pi:</p>
+                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Schnellinstallation auf dem Raspberry Pi:</p>
                   <div className="bg-gray-900 text-gray-100 rounded-lg p-3 font-mono text-xs overflow-x-auto">
-                    <span className="text-gray-400">$</span> curl -sL {backendBaseUrl || window.location.origin}/api/setup/terminal-install/{displayedTerminalId} | bash
+                    <span className="text-gray-400 dark:text-gray-500">$</span> curl -sL {backendBaseUrl || window.location.origin}/api/setup/terminal-install/{displayedTerminalId} | bash
                   </div>
                   <button
                     onClick={() => {
                       navigator.clipboard.writeText(`curl -sL ${backendBaseUrl || window.location.origin}/api/setup/terminal-install/${displayedTerminalId} | bash`);
                       toast.success('Install-Befehl kopiert!');
                     }}
-                    className="text-sm text-blue-600 hover:text-blue-700 mt-1"
+                    className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 mt-1"
                   >
                     Befehl kopieren
                   </button>
@@ -2273,12 +2273,12 @@ export default function AdminSettings() {
       {/* Holiday Modal */}
       {showHolidayModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-md">
+            <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
               <h2 className="text-xl font-semibold">Feiertag hinzufügen</h2>
               <button
                 onClick={() => setShowHolidayModal(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg"
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
               >
                 <X size={20} />
               </button>
@@ -2331,12 +2331,12 @@ export default function AdminSettings() {
       {/* Absence Type Modal */}
       {showAbsenceTypeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg">
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-lg">
+            <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
               <h2 className="text-xl font-semibold">
                 {editingAbsenceType ? 'Abwesenheitstyp bearbeiten' : 'Neuer Abwesenheitstyp'}
               </h2>
-              <button onClick={closeAbsenceTypeModal} className="p-2 hover:bg-gray-100 rounded-lg">
+              <button onClick={closeAbsenceTypeModal} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
                 <X size={20} />
               </button>
             </div>
@@ -2366,7 +2366,7 @@ export default function AdminSettings() {
                     maxLength={10}
                     required
                   />
-                  <p className="text-xs text-gray-500 mt-1">Max. 10 Zeichen</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Max. 10 Zeichen</p>
                 </div>
                 <div>
                   <label className="label">Pflichtstunden</label>
@@ -2384,7 +2384,7 @@ export default function AdminSettings() {
                     }
                     className="input"
                   />
-                  <p className="text-xs text-gray-500 mt-1">0 = keine Pflichtstunden</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">0 = keine Pflichtstunden</p>
                 </div>
                 <div>
                   <label className="flex items-center gap-2 mt-2">
@@ -2396,7 +2396,7 @@ export default function AdminSettings() {
                     />
                     <span className="text-sm">Zählt als Urlaubstag</span>
                   </label>
-                  <p className="text-xs text-gray-500 mt-1">Wenn aktiviert, wird dieser Typ vom Urlaubskontingent abgezogen</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Wenn aktiviert, wird dieser Typ vom Urlaubskontingent abgezogen</p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -2409,7 +2409,7 @@ export default function AdminSettings() {
                       onChange={(e) =>
                         setAbsenceTypeForm({ ...absenceTypeForm, color: e.target.value })
                       }
-                      className="w-12 h-10 rounded border border-gray-300 cursor-pointer"
+                      className="w-12 h-10 rounded border border-gray-300 dark:border-gray-700 cursor-pointer"
                     />
                     <input
                       type="text"
@@ -2438,7 +2438,7 @@ export default function AdminSettings() {
                     <option value="active">Aktiv</option>
                     <option value="inactive">Inaktiv</option>
                   </select>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     Inaktive Typen können nicht mehr zugewiesen werden
                   </p>
                 </div>
@@ -2459,15 +2459,15 @@ export default function AdminSettings() {
       {/* Generate Holidays Modal */}
       {showGenerateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-md">
+            <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
               <h2 className="text-xl font-semibold flex items-center gap-2">
                 <Wand2 size={20} />
                 Feiertage automatisch generieren
               </h2>
               <button
                 onClick={() => setShowGenerateModal(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg"
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
               >
                 <X size={20} />
               </button>
@@ -2514,7 +2514,7 @@ export default function AdminSettings() {
                     </option>
                   ))}
                 </select>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   Das Bundesland bestimmt die regionalen Feiertage (z.B. Fronleichnam, Allerheiligen)
                 </p>
               </div>
@@ -2524,13 +2524,13 @@ export default function AdminSettings() {
                   id="deleteExisting"
                   checked={generateForm.deleteExisting}
                   onChange={(e) => setGenerateForm({ ...generateForm, deleteExisting: e.target.checked })}
-                  className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  className="w-4 h-4 rounded border-gray-300 dark:border-gray-700 text-primary-600 dark:text-primary-400 focus:ring-primary-500"
                 />
-                <label htmlFor="deleteExisting" className="text-sm text-gray-700">
+                <label htmlFor="deleteExisting" className="text-sm text-gray-700 dark:text-gray-300">
                   Bestehende Feiertage des Jahres vorher löschen
                 </label>
               </div>
-              <div className="bg-blue-50 rounded-lg p-4 text-sm text-blue-700">
+              <div className="bg-blue-50 dark:bg-blue-950/40 rounded-lg p-4 text-sm text-blue-700 dark:text-blue-300">
                 <p className="font-medium mb-1">Generierte Feiertage:</p>
                 <p>Neujahr, Karfreitag, Ostermontag, Tag der Arbeit, Christi Himmelfahrt, Pfingstmontag, Tag der Deutschen Einheit, 1. + 2. Weihnachtstag + regionale Feiertage je nach Bundesland</p>
               </div>
@@ -2568,8 +2568,8 @@ export default function AdminSettings() {
       {/* Restore Database Modal */}
       {showRestoreModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
               <h2 className="text-xl font-semibold flex items-center gap-2">
                 <Upload size={20} />
                 Backup wiederherstellen
@@ -2580,16 +2580,16 @@ export default function AdminSettings() {
                   setRestoreFile(null);
                   setRestorePassphrase('');
                 }}
-                className="p-2 hover:bg-gray-100 rounded-lg"
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
               >
                 <X size={20} />
               </button>
             </div>
             <form onSubmit={handleRestoreSubmit} className="p-6 space-y-4">
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
                 <div className="flex items-start gap-3">
-                  <AlertCircle size={20} className="text-amber-600 mt-0.5 flex-shrink-0" />
-                  <div className="text-sm text-amber-800">
+                  <AlertCircle size={20} className="text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+                  <div className="text-sm text-amber-800 dark:text-amber-300">
                     <p className="font-semibold mb-1">Achtung!</p>
                     <p>
                       Diese Aktion ersetzt die aktuelle Datenbank komplett — und mergt
@@ -2606,7 +2606,7 @@ export default function AdminSettings() {
                   type="file"
                   accept=".tar.gz,.tgz,.enc,.db"
                   onChange={(e) => setRestoreFile(e.target.files?.[0] || null)}
-                  className="w-full text-sm text-gray-500
+                  className="w-full text-sm text-gray-500 dark:text-gray-400
                     file:mr-4 file:py-2 file:px-4
                     file:rounded-lg file:border-0
                     file:text-sm file:font-medium
@@ -2614,11 +2614,11 @@ export default function AdminSettings() {
                     hover:file:bg-primary-100
                     cursor-pointer"
                 />
-                <p className="mt-1 text-xs text-gray-400">
+                <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
                   <code>.tar.gz</code> (vollständig) oder <code>.tar.gz.enc</code> (verschlüsselt — dann Passphrase nötig). Eine nackte <code>.db</code> stellt nur die Datenbank wieder her, ohne Dokumente/PDFs.
                 </p>
                 {restoreFile && (
-                  <p className="mt-2 text-sm text-gray-600">
+                  <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
                     Ausgewählt: <span className="font-medium">{restoreFile.name}</span> ({(restoreFile.size / (1024 * 1024)).toFixed(2)} MB)
                   </p>
                 )}
@@ -2676,21 +2676,21 @@ export default function AdminSettings() {
       {/* Backup-Download-Modal: optional mit Passphrase verschlüsseln */}
       {showBackupModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
               <h2 className="text-xl font-semibold flex items-center gap-2">
                 <Download size={20} />
                 Backup herunterladen
               </h2>
               <button
                 onClick={() => { setShowBackupModal(false); setBackupPassphrase(''); setBackupPassphraseConfirm(''); }}
-                className="p-2 hover:bg-gray-100 rounded-lg"
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
               >
                 <X size={20} />
               </button>
             </div>
             <div className="p-6 space-y-4">
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
                 Erstellt ein vollständiges Backup (<code>.tar.gz</code>): Datenbank,
                 Mitarbeiter-Fotos, hochgeladene Dokumente und finalisierte Abrechnungs-PDFs.
               </p>
@@ -2718,7 +2718,7 @@ export default function AdminSettings() {
               </div>
 
               {backupPassphrase ? (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-800 flex items-start gap-2">
+                <div className="bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800 rounded-lg p-3 text-sm text-green-800 dark:text-green-300 flex items-start gap-2">
                   <Shield size={18} className="mt-0.5 flex-shrink-0" />
                   <div>
                     <p className="font-medium">Verschlüsseltes Backup</p>
@@ -2726,7 +2726,7 @@ export default function AdminSettings() {
                   </div>
                 </div>
               ) : (
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800 flex items-start gap-2">
+                <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-sm text-amber-800 dark:text-amber-300 flex items-start gap-2">
                   <AlertCircle size={18} className="mt-0.5 flex-shrink-0" />
                   <div>
                     <p className="font-medium">Achtung: ohne Encryption-Key</p>
@@ -2757,10 +2757,10 @@ export default function AdminSettings() {
                 </button>
               </div>
               {!!backupPassphrase && backupPassphrase.length < 8 && (
-                <p className="text-xs text-red-600">Passphrase muss mindestens 8 Zeichen haben.</p>
+                <p className="text-xs text-red-600 dark:text-red-400">Passphrase muss mindestens 8 Zeichen haben.</p>
               )}
               {!!backupPassphrase && backupPassphrase.length >= 8 && backupPassphrase !== backupPassphraseConfirm && (
-                <p className="text-xs text-red-600">Die Passphrasen stimmen nicht überein.</p>
+                <p className="text-xs text-red-600 dark:text-red-400">Die Passphrasen stimmen nicht überein.</p>
               )}
             </div>
           </div>

@@ -382,21 +382,21 @@ export default function EmployeeDashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
           Hallo, {employee?.firstName}!
         </h1>
-        <p className="text-gray-500">Deine Zeiterfassung auf einen Blick</p>
+        <p className="text-gray-500 dark:text-gray-400">Deine Zeiterfassung auf einen Blick</p>
       </div>
 
       {/* Banner: Push-Benachrichtigungen aktivieren (dezent, dismissable) */}
       {showPushBanner && (
-        <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
-            <Bell size={18} className="text-purple-700" />
+        <div className="bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 rounded-lg p-4 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center flex-shrink-0">
+            <Bell size={18} className="text-purple-700 dark:text-purple-300" />
           </div>
           <div className="flex-1">
-            <p className="font-medium text-purple-900">Benachrichtigungen aktivieren?</p>
-            <p className="text-sm text-purple-700">
+            <p className="font-medium text-purple-900 dark:text-purple-200">Benachrichtigungen aktivieren?</p>
+            <p className="text-sm text-purple-700 dark:text-purple-300">
               Erhalte Push-Nachrichten bei neuen Dokumenten, Abrechnungen und Stempel-Erinnerungen.
             </p>
           </div>
@@ -424,20 +424,20 @@ export default function EmployeeDashboard() {
         <button
           type="button"
           onClick={() => navigate('/dashboard/documents')}
-          className="w-full text-left bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg p-4 flex items-center gap-3 transition-colors"
+          className="w-full text-left bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 border border-amber-200 dark:border-amber-800 rounded-lg p-4 flex items-center gap-3 transition-colors"
         >
-          <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
-            <PenLine size={18} className="text-amber-700" />
+          <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center flex-shrink-0">
+            <PenLine size={18} className="text-amber-700 dark:text-amber-300" />
           </div>
           <div className="flex-1">
-            <p className="font-medium text-amber-900">
+            <p className="font-medium text-amber-900 dark:text-amber-200">
               {pendingInfoLetters.length === 1
                 ? 'Ein Info-Schreiben wartet auf deine Bestätigung'
                 : `${pendingInfoLetters.length} Info-Schreiben warten auf deine Bestätigung`}
             </p>
-            <p className="text-sm text-amber-700">Zu den Dokumenten wechseln und digital bestätigen</p>
+            <p className="text-sm text-amber-700 dark:text-amber-300">Zu den Dokumenten wechseln und digital bestätigen</p>
           </div>
-          <ChevronRightIcon size={20} className="text-amber-700 flex-shrink-0" />
+          <ChevronRightIcon size={20} className="text-amber-700 dark:text-amber-300 flex-shrink-0" />
         </button>
       )}
 
@@ -446,24 +446,24 @@ export default function EmployeeDashboard() {
         <button
           type="button"
           onClick={() => navigate('/dashboard/documents')}
-          className="w-full text-left bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg p-4 flex items-center gap-3 transition-colors"
+          className="w-full text-left bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 border border-blue-200 dark:border-blue-800 rounded-lg p-4 flex items-center gap-3 transition-colors"
         >
-          <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-            <FileText size={18} className="text-blue-700" />
+          <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center flex-shrink-0">
+            <FileText size={18} className="text-blue-700 dark:text-blue-300" />
           </div>
           <div className="flex-1">
-            <p className="font-medium text-blue-900">
+            <p className="font-medium text-blue-900 dark:text-blue-200">
               {totalUnread === 1
                 ? (unreadReports.length === 1 ? 'Eine neue Abrechnung wurde für dich bereitgestellt' : 'Ein neues Dokument wurde für dich bereitgestellt')
                 : `${totalUnread} neue Einträge wurden für dich bereitgestellt`}
             </p>
-            <p className="text-sm text-blue-700">
+            <p className="text-sm text-blue-700 dark:text-blue-300">
               {unreadDocuments.length > 0 && unreadReports.length > 0
                 ? `${unreadDocuments.length} Dokument${unreadDocuments.length === 1 ? '' : 'e'} + ${unreadReports.length} Abrechnung${unreadReports.length === 1 ? '' : 'en'}`
                 : 'Jetzt ansehen und herunterladen'}
             </p>
           </div>
-          <ChevronRightIcon size={20} className="text-blue-700 flex-shrink-0" />
+          <ChevronRightIcon size={20} className="text-blue-700 dark:text-blue-300 flex-shrink-0" />
         </button>
       )}
 
@@ -477,7 +477,7 @@ export default function EmployeeDashboard() {
       >
         <div className="flex items-center justify-between">
           <div>
-            <p className={`text-sm ${status?.isClockedIn ? 'text-green-100' : 'text-gray-500'}`}>
+            <p className={`text-sm ${status?.isClockedIn ? 'text-green-100' : 'text-gray-500 dark:text-gray-400'}`}>
               Aktueller Status
             </p>
             <p className="text-2xl font-bold mt-1">
@@ -490,7 +490,7 @@ export default function EmployeeDashboard() {
               </p>
             )}
             {stats?.isTodayWorkDay && stats.dailyTarget > 0 && (
-              <p className={`mt-2 text-sm ${status?.isClockedIn ? 'text-green-100' : 'text-gray-500'}`}>
+              <p className={`mt-2 text-sm ${status?.isClockedIn ? 'text-green-100' : 'text-gray-500 dark:text-gray-400'}`}>
                 Heute: {formatHoursToTime(stats.todayWorked)} / {formatHoursToTime(stats.dailyTarget)} h
                 {stats.todayRemaining > 0 ? ` · noch ${formatHoursToTime(stats.todayRemaining)} h` : ' · Tagessoll erreicht!'}
               </p>
@@ -501,7 +501,7 @@ export default function EmployeeDashboard() {
               status?.isClockedIn ? 'bg-green-400/30' : 'bg-gray-300'
             }`}
           >
-            <Clock size={32} className={status?.isClockedIn ? 'text-white' : 'text-gray-500'} />
+            <Clock size={32} className={status?.isClockedIn ? 'text-white' : 'text-gray-500 dark:text-gray-400'} />
           </div>
         </div>
       </div>
@@ -533,7 +533,7 @@ export default function EmployeeDashboard() {
       {/* PWA Stempel-Modal */}
       {showPwaModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowPwaModal(false)}>
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-md" onClick={e => e.stopPropagation()}>
             <div className={`p-5 rounded-t-xl text-white ${pwaAction === 'clock-in' ? 'bg-green-600' : 'bg-red-600'}`}>
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold flex items-center gap-2">
@@ -547,17 +547,17 @@ export default function EmployeeDashboard() {
             <div className="p-5 space-y-4">
               {/* Standort */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   <MapPin size={14} className="inline mr-1" /> Standort
                 </label>
                 {geoLoading ? (
-                  <div className="flex items-center gap-2 text-sm text-gray-500 p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                     <Loader2 size={16} className="animate-spin" /> Standort wird ermittelt...
                   </div>
                 ) : geoError ? (
-                  <div className="text-sm text-red-600 p-3 bg-red-50 rounded-lg">{geoError}</div>
+                  <div className="text-sm text-red-600 dark:text-red-400 p-3 bg-red-50 dark:bg-red-950/40 rounded-lg">{geoError}</div>
                 ) : geoPosition ? (
-                  <div className="text-sm text-green-700 p-3 bg-green-50 rounded-lg flex items-center gap-2">
+                  <div className="text-sm text-green-700 dark:text-green-300 p-3 bg-green-50 dark:bg-green-950/40 rounded-lg flex items-center gap-2">
                     <MapPin size={14} />
                     Standort erfasst ({geoPosition.latitude.toFixed(4)}, {geoPosition.longitude.toFixed(4)})
                   </div>
@@ -566,7 +566,7 @@ export default function EmployeeDashboard() {
 
               {/* Grund */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Grund <span className="text-red-500">*</span>
                 </label>
                 {pwaReasons?.length > 0 && (
@@ -597,7 +597,7 @@ export default function EmployeeDashboard() {
               <div className="flex gap-3 pt-2">
                 <button
                   onClick={() => setShowPwaModal(false)}
-                  className="flex-1 px-4 py-2.5 border rounded-lg text-gray-700 hover:bg-gray-50"
+                  className="flex-1 px-4 py-2.5 border rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
                 >
                   Abbrechen
                 </button>
@@ -625,19 +625,19 @@ export default function EmployeeDashboard() {
         {/* Überstunden-Saldo Gesamt */}
         <div className="card p-5">
           <div className="flex items-center gap-3 mb-3">
-            <div className="p-2.5 rounded-lg bg-orange-100">
-              <Timer className="w-5 h-5 text-orange-600" />
+            <div className="p-2.5 rounded-lg bg-orange-100 dark:bg-orange-900/40">
+              <Timer className="w-5 h-5 text-orange-600 dark:text-orange-400" />
             </div>
-            <h2 className="font-semibold text-gray-900">Überstunden-Saldo</h2>
+            <h2 className="font-semibold text-gray-900 dark:text-gray-100">Überstunden-Saldo</h2>
           </div>
-          <div className="text-center p-3 rounded-lg bg-orange-50">
-            <p className={`text-2xl lg:text-3xl font-bold ${stats?.totalOvertimeBalance != null && stats.totalOvertimeBalance < 0 ? 'text-red-600' : stats?.totalOvertimeBalance != null && stats.totalOvertimeBalance > 0 ? 'text-green-600' : 'text-gray-900'}`}>
+          <div className="text-center p-3 rounded-lg bg-orange-50 dark:bg-orange-950/40">
+            <p className={`text-2xl lg:text-3xl font-bold ${stats?.totalOvertimeBalance != null && stats.totalOvertimeBalance < 0 ? 'text-red-600 dark:text-red-400' : stats?.totalOvertimeBalance != null && stats.totalOvertimeBalance > 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-gray-100'}`}>
               {stats?.totalOvertimeBalance != null ? formatHoursToTime(stats.totalOvertimeBalance) : '-'} h
             </p>
-            <p className="text-xs text-gray-500 mt-1">inkl. aktuellem Monat</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">inkl. aktuellem Monat</p>
           </div>
           {stats?.totalOvertimeBalance != null && stats.totalOvertimeBalance <= -4 && (
-            <div className={`mt-2 p-2 rounded-lg text-xs ${stats.totalOvertimeBalance <= -8 ? 'bg-amber-100 text-amber-700' : 'bg-orange-50 text-orange-600'}`}>
+            <div className={`mt-2 p-2 rounded-lg text-xs ${stats.totalOvertimeBalance <= -8 ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300' : 'bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400'}`}>
               <p>{stats.totalOvertimeBalance <= -8
                 ? 'Achtung: Bei der nächsten Abrechnung können Urlaubstage für Minusstunden abgezogen werden.'
                 : 'Hinweis: Bei mehr als 8 Minusstunden kann ein Urlaubstag abgezogen werden.'
@@ -669,7 +669,7 @@ export default function EmployeeDashboard() {
                     </div>
                     <div>
                       <h2 className="text-lg font-bold">Woche {weekNumber}</h2>
-                      <p className="text-sm text-gray-400">{weekStart.getFullYear()}</p>
+                      <p className="text-sm text-gray-400 dark:text-gray-500">{weekStart.getFullYear()}</p>
                     </div>
                   </div>
                   <div className="text-right">
@@ -683,7 +683,7 @@ export default function EmployeeDashboard() {
                 <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-700">
                   <button
                     onClick={() => setWeekDate(subWeeks(weekDate, 1))}
-                    className="flex items-center gap-1 text-sm text-gray-400 hover:text-white transition"
+                    className="flex items-center gap-1 text-sm text-gray-400 dark:text-gray-500 hover:text-white transition"
                   >
                     <ChevronLeft size={18} /> Vorherige
                   </button>
@@ -698,7 +698,7 @@ export default function EmployeeDashboard() {
                   <button
                     onClick={() => setWeekDate(addWeeks(weekDate, 1))}
                     disabled={isAfter(addWeeks(weekStart, 1), new Date())}
-                    className="flex items-center gap-1 text-sm text-gray-400 hover:text-white transition disabled:opacity-30 disabled:cursor-not-allowed"
+                    className="flex items-center gap-1 text-sm text-gray-400 dark:text-gray-500 hover:text-white transition disabled:opacity-30 disabled:cursor-not-allowed"
                   >
                     Nächste <ChevronRight size={18} />
                   </button>
@@ -706,7 +706,7 @@ export default function EmployeeDashboard() {
               </div>
 
               {/* Day Cards */}
-              <div className="divide-y divide-gray-100">
+              <div className="divide-y divide-gray-100 dark:divide-gray-800">
                 {weekDays.map(day => {
                   const worked = getDayWorkedHours(day);
                   const dayInfo = getDayTarget(day);
@@ -728,10 +728,10 @@ export default function EmployeeDashboard() {
                     <div
                       onClick={() => canInteract && setExpandedDay(isExpanded ? null : dayKey)}
                       className={`flex items-center gap-4 px-5 py-3.5 transition ${
-                        isToday ? 'bg-primary-50' :
-                        !hasTarget && !isSpecial ? 'bg-gray-50' :
+                        isToday ? 'bg-primary-50 dark:bg-primary-900/30' :
+                        !hasTarget && !isSpecial ? 'bg-gray-50 dark:bg-gray-800' :
                         isFuture ? 'opacity-40' : ''
-                      } ${canInteract ? 'cursor-pointer hover:bg-gray-100' : ''} ${isExpanded ? 'border-b' : ''}`}
+                      } ${canInteract ? 'cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700' : ''} ${isExpanded ? 'border-b' : ''}`}
                     >
                       {/* Progress Ring */}
                       <div className="flex-shrink-0">
@@ -770,25 +770,25 @@ export default function EmployeeDashboard() {
 
                       {/* Day Info */}
                       <div className="flex-1 min-w-0">
-                        <p className={`font-medium ${isToday ? 'text-primary-700' : !hasTarget && !isSpecial ? 'text-gray-400' : 'text-gray-900'}`}>
+                        <p className={`font-medium ${isToday ? 'text-primary-700 dark:text-primary-300' : !hasTarget && !isSpecial ? 'text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-gray-100'}`}>
                           {format(day, 'EEEE', { locale: de })}
                         </p>
-                        <p className={`text-sm ${!hasTarget && !isSpecial ? 'text-gray-400' : 'text-gray-500'}`}>
+                        <p className={`text-sm ${!hasTarget && !isSpecial ? 'text-gray-400 dark:text-gray-500' : 'text-gray-500 dark:text-gray-400'}`}>
                           {format(day, 'dd.MM.yyyy')}
-                          {dayInfo.holiday && <span className="ml-1.5 text-xs text-amber-600">({dayInfo.holiday})</span>}
-                          {dayInfo.absence && <span className="ml-1.5 text-xs text-purple-600">({dayInfo.absence})</span>}
+                          {dayInfo.holiday && <span className="ml-1.5 text-xs text-amber-600 dark:text-amber-400">({dayInfo.holiday})</span>}
+                          {dayInfo.absence && <span className="ml-1.5 text-xs text-purple-600 dark:text-purple-400">({dayInfo.absence})</span>}
                         </p>
                       </div>
 
                       {/* Hours & Diff */}
                       {worked > 0 || (hasTarget && !isFuture) ? (
                         <div className="text-right flex-shrink-0">
-                          <p className={`font-semibold ${!hasTarget && worked > 0 ? 'text-gray-700' : hasTarget ? 'text-gray-900' : 'text-gray-400'}`}>
+                          <p className={`font-semibold ${!hasTarget && worked > 0 ? 'text-gray-700 dark:text-gray-300' : hasTarget ? 'text-gray-900 dark:text-gray-100' : 'text-gray-400 dark:text-gray-500'}`}>
                             {worked > 0 ? `${formatHoursToTime(worked)} h` : '-'}
                           </p>
                           {hasTarget && !isFuture && (
                             <p className={`text-sm font-medium ${
-                              diff > 0.01 ? 'text-green-600' : diff < -0.01 ? 'text-red-500' : 'text-gray-400'
+                              diff > 0.01 ? 'text-green-600 dark:text-green-400' : diff < -0.01 ? 'text-red-500' : 'text-gray-400 dark:text-gray-500'
                             }`}>
                               {Math.abs(diff) > 0.01 ? `${diff > 0 ? '+' : ''}${formatHoursToTime(diff)} h` : '±0'}
                             </p>
@@ -797,7 +797,7 @@ export default function EmployeeDashboard() {
                       ) : null}
                     </div>
                     {isExpanded && (
-                      <div className="bg-gray-50 px-5 py-3 border-b">
+                      <div className="bg-gray-50 dark:bg-gray-800 px-5 py-3 border-b">
                         {dayEntries.length > 0 ? (
                           <div className="space-y-2">
                             {dayEntries.map((entry: any, idx: number) => (
@@ -809,7 +809,7 @@ export default function EmployeeDashboard() {
                                   if (gap <= 0) return null;
                                   const pauseLabel = `${format(prevEnd, 'HH:mm')} - ${format(currStart, 'HH:mm')}`;
                                   return (
-                                    <div className="flex items-center gap-2 text-xs text-orange-600 py-1 px-2 bg-orange-50 rounded">
+                                    <div className="flex items-center gap-2 text-xs text-orange-600 dark:text-orange-400 py-1 px-2 bg-orange-50 dark:bg-orange-950/40 rounded">
                                       <Coffee size={12} />
                                       <span>Pause: {pauseLabel} ({gap >= 60 ? `${Math.floor(gap / 60)}:${String(gap % 60).padStart(2, '0')}h` : `${gap} min`})</span>
                                       <button
@@ -818,14 +818,14 @@ export default function EmployeeDashboard() {
                                           const prev = dayEntries[idx - 1];
                                           navigate(`/dashboard/complaints?entry=${encodeURIComponent(prev.id)}`);
                                         }}
-                                        className="ml-auto text-xs px-2 py-0.5 rounded text-orange-600 hover:bg-orange-100"
+                                        className="ml-auto text-xs px-2 py-0.5 rounded text-orange-600 dark:text-orange-400 hover:bg-orange-100"
                                       >
                                         Reklamieren
                                       </button>
                                     </div>
                                   );
                                 })()}
-                                <div className="bg-white border rounded px-3 py-2 flex items-center gap-2 flex-wrap">
+                                <div className="bg-white dark:bg-gray-900 border rounded px-3 py-2 flex items-center gap-2 flex-wrap">
                                   {entry.complaintMessage && (
                                     entry.complaintResolvedAt
                                       ? <CheckCircle size={14} className="text-green-500" />
@@ -835,10 +835,10 @@ export default function EmployeeDashboard() {
                                   <span className="font-mono text-sm font-medium">
                                     {format(new Date(entry.clockIn), 'HH:mm')}
                                     {' - '}
-                                    {entry.clockOut ? format(new Date(entry.clockOut), 'HH:mm') : <span className="text-green-600">Aktiv</span>}
+                                    {entry.clockOut ? format(new Date(entry.clockOut), 'HH:mm') : <span className="text-green-600 dark:text-green-400">Aktiv</span>}
                                   </span>
                                   {entry.breakMinutes > 0 && (
-                                    <span className="text-xs text-gray-400">
+                                    <span className="text-xs text-gray-400 dark:text-gray-500">
                                       ({entry.breakMinutes >= 60 ? `${Math.floor(entry.breakMinutes / 60)}:${String(entry.breakMinutes % 60).padStart(2, '0')}h` : `${entry.breakMinutes} min`} Pause)
                                     </span>
                                   )}
@@ -850,9 +850,9 @@ export default function EmployeeDashboard() {
                                     className={`ml-auto text-xs px-2 py-1 rounded ${
                                       entry.complaintMessage
                                         ? entry.complaintResolvedAt
-                                          ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                                          : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
-                                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                          ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 hover:bg-green-200'
+                                          : 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 hover:bg-amber-200'
+                                        : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
                                     }`}
                                   >
                                     {entry.complaintMessage ? (entry.complaintResolvedAt ? 'Bearbeitet' : 'Offen') : 'Reklamieren'}
@@ -862,7 +862,7 @@ export default function EmployeeDashboard() {
                             ))}
                           </div>
                         ) : (
-                          <div className="flex items-center justify-between text-sm text-gray-500">
+                          <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
                             <span>Keine Zeiteinträge an diesem Tag</span>
                             {canInteract && (
                               <button
@@ -870,7 +870,7 @@ export default function EmployeeDashboard() {
                                   e.stopPropagation();
                                   navigate(`/dashboard/complaints?date=${format(day, 'yyyy-MM-dd')}`);
                                 }}
-                                className="text-xs px-3 py-1 rounded bg-amber-100 text-amber-700 hover:bg-amber-200 flex items-center gap-1"
+                                className="text-xs px-3 py-1 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 hover:bg-amber-200 flex items-center gap-1"
                               >
                                 <MessageSquare size={12} /> Tag reklamieren
                               </button>
@@ -892,29 +892,29 @@ export default function EmployeeDashboard() {
         {/* Arbeitszeit Monat */}
         <div className="card p-5">
           <div className="flex items-center gap-3 mb-3">
-            <div className="p-2.5 rounded-lg bg-purple-100">
-              <Calendar className="w-5 h-5 text-purple-600" />
+            <div className="p-2.5 rounded-lg bg-purple-100 dark:bg-purple-900/40">
+              <Calendar className="w-5 h-5 text-purple-600 dark:text-purple-400" />
             </div>
-            <h2 className="font-semibold text-gray-900">Dieser Monat</h2>
+            <h2 className="font-semibold text-gray-900 dark:text-gray-100">Dieser Monat</h2>
           </div>
           <div className="grid grid-cols-3 gap-2">
-            <div className="text-center p-2 bg-purple-50 rounded-lg">
-              <p className="text-lg font-bold text-purple-600">
+            <div className="text-center p-2 bg-purple-50 dark:bg-purple-950/40 rounded-lg">
+              <p className="text-lg font-bold text-purple-600 dark:text-purple-400">
                 {stats?.monthHours != null ? formatHoursToTime(stats.monthHours) : '-'}
               </p>
-              <p className="text-xs text-gray-500">Gearbeitet</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Gearbeitet</p>
             </div>
-            <div className="text-center p-2 bg-gray-50 rounded-lg">
-              <p className="text-lg font-bold text-gray-900">
+            <div className="text-center p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
+              <p className="text-lg font-bold text-gray-900 dark:text-gray-100">
                 {stats?.monthlyTarget != null ? formatHoursToTime(stats.monthlyTarget) : '-'}
               </p>
-              <p className="text-xs text-gray-500">Soll</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Soll</p>
             </div>
-            <div className="text-center p-2 bg-orange-50 rounded-lg">
-              <p className={`text-lg font-bold ${stats?.monthOvertime != null && stats.monthOvertime < 0 ? 'text-red-600' : stats?.monthOvertime != null && stats.monthOvertime > 0 ? 'text-green-600' : 'text-gray-900'}`}>
+            <div className="text-center p-2 bg-orange-50 dark:bg-orange-950/40 rounded-lg">
+              <p className={`text-lg font-bold ${stats?.monthOvertime != null && stats.monthOvertime < 0 ? 'text-red-600 dark:text-red-400' : stats?.monthOvertime != null && stats.monthOvertime > 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-gray-100'}`}>
                 {stats?.monthOvertime != null ? formatHoursToTime(stats.monthOvertime) : '-'}
               </p>
-              <p className="text-xs text-gray-500">Saldo</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Saldo</p>
             </div>
           </div>
         </div>
@@ -924,43 +924,43 @@ export default function EmployeeDashboard() {
         {/* Urlaubstage */}
         <div className="card p-5">
           <div className="flex items-center gap-3 mb-3">
-            <div className="p-2.5 rounded-lg bg-green-100">
-              <Umbrella className="w-5 h-5 text-green-600" />
+            <div className="p-2.5 rounded-lg bg-green-100 dark:bg-green-900/40">
+              <Umbrella className="w-5 h-5 text-green-600 dark:text-green-400" />
             </div>
-            <h2 className="font-semibold text-gray-900">Urlaubstage {new Date().getFullYear()}</h2>
+            <h2 className="font-semibold text-gray-900 dark:text-gray-100">Urlaubstage {new Date().getFullYear()}</h2>
           </div>
           {vacationDetails?.carryOver > 0 && (
-            <div className="mb-2 p-2 bg-blue-50 rounded-lg text-center">
-              <p className="text-xs text-blue-600">
+            <div className="mb-2 p-2 bg-blue-50 dark:bg-blue-950/40 rounded-lg text-center">
+              <p className="text-xs text-blue-600 dark:text-blue-400">
                 Übertrag aus {(vacationDetails?.year || new Date().getFullYear()) - 1}: <span className="font-bold">{vacationDetails.carryOver}</span> Tage
                 {vacationDetails.carryOverUsed > 0 && <span> ({vacationDetails.carryOverUsed} verbraucht, <span className="font-bold">{vacationDetails.carryOverRemaining}</span> übrig)</span>}
               </p>
             </div>
           )}
           <div className="grid grid-cols-3 gap-2">
-            <div className="text-center p-2 bg-gray-50 rounded-lg">
-              <p className="text-lg font-bold text-gray-900">{vacationDetails?.total ?? stats?.vacationDaysTotal ?? '-'}</p>
-              <p className="text-xs text-gray-500">Gesamt</p>
+            <div className="text-center p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
+              <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{vacationDetails?.total ?? stats?.vacationDaysTotal ?? '-'}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Gesamt</p>
             </div>
-            <div className="text-center p-2 bg-orange-50 rounded-lg">
-              <p className="text-lg font-bold text-orange-600">{vacationDetails?.totalUsed ?? stats?.vacationDaysUsed ?? '-'}</p>
-              <p className="text-xs text-gray-500">Genommen</p>
+            <div className="text-center p-2 bg-orange-50 dark:bg-orange-950/40 rounded-lg">
+              <p className="text-lg font-bold text-orange-600 dark:text-orange-400">{vacationDetails?.totalUsed ?? stats?.vacationDaysUsed ?? '-'}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Genommen</p>
             </div>
-            <div className="text-center p-2 bg-green-50 rounded-lg">
-              <p className={`text-lg font-bold ${(vacationDetails?.totalRemaining ?? 0) < 0 ? 'text-red-600' : 'text-green-600'}`}>{vacationDetails?.totalRemaining ?? stats?.vacationDaysRemaining ?? '-'}</p>
-              <p className="text-xs text-gray-500">Verbleibend</p>
+            <div className="text-center p-2 bg-green-50 dark:bg-green-950/40 rounded-lg">
+              <p className={`text-lg font-bold ${(vacationDetails?.totalRemaining ?? 0) < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>{vacationDetails?.totalRemaining ?? stats?.vacationDaysRemaining ?? '-'}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Verbleibend</p>
             </div>
           </div>
           {/* Abzüge & Sonderurlaub */}
           {(vacationDetails?.deductedDays > 0 || vacationDetails?.specialLeaveUsed > 0) && (
             <div className="mt-2 space-y-1">
               {vacationDetails.deductedDays > 0 && (
-                <div className="p-1.5 bg-red-50 rounded text-xs text-red-600 text-center">
+                <div className="p-1.5 bg-red-50 dark:bg-red-950/40 rounded text-xs text-red-600 dark:text-red-400 text-center">
                   {vacationDetails.deductedDays} Tag(e) abgezogen (Minusstunden-Ausgleich)
                 </div>
               )}
               {vacationDetails.specialLeaveUsed > 0 && (
-                <div className="p-1.5 bg-purple-50 rounded text-xs text-purple-600 text-center">
+                <div className="p-1.5 bg-purple-50 dark:bg-purple-950/40 rounded text-xs text-purple-600 dark:text-purple-400 text-center">
                   {vacationDetails.specialLeaveUsed} Tag(e) Sonderurlaub (zählt nicht als Urlaub)
                 </div>
               )}
@@ -973,19 +973,19 @@ export default function EmployeeDashboard() {
         {/* Krankheitstage */}
         <div className="card p-5">
           <div className="flex items-center gap-3 mb-3">
-            <div className="p-2.5 rounded-lg bg-red-100">
-              <Thermometer className="w-5 h-5 text-red-600" />
+            <div className="p-2.5 rounded-lg bg-red-100 dark:bg-red-900/40">
+              <Thermometer className="w-5 h-5 text-red-600 dark:text-red-400" />
             </div>
-            <h2 className="font-semibold text-gray-900">Krankheitstage {new Date().getFullYear()}</h2>
+            <h2 className="font-semibold text-gray-900 dark:text-gray-100">Krankheitstage {new Date().getFullYear()}</h2>
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <div className="text-center p-2 bg-red-50 rounded-lg">
-              <p className="text-lg font-bold text-red-600">{stats?.sickDaysMonth ?? 0}</p>
-              <p className="text-xs text-gray-500">Dieser Monat</p>
+            <div className="text-center p-2 bg-red-50 dark:bg-red-950/40 rounded-lg">
+              <p className="text-lg font-bold text-red-600 dark:text-red-400">{stats?.sickDaysMonth ?? 0}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Dieser Monat</p>
             </div>
-            <div className="text-center p-2 bg-gray-50 rounded-lg">
-              <p className="text-lg font-bold text-gray-900">{stats?.sickDaysYear ?? 0}</p>
-              <p className="text-xs text-gray-500">Dieses Jahr</p>
+            <div className="text-center p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
+              <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{stats?.sickDaysYear ?? 0}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Dieses Jahr</p>
             </div>
           </div>
         </div>
@@ -998,8 +998,8 @@ export default function EmployeeDashboard() {
         <DragOverlay>
           {activeDragId ? (
             <div className="card px-4 py-3 shadow-2xl ring-2 ring-primary-400 cursor-grabbing inline-flex items-center gap-2">
-              <GripVertical size={16} className="text-gray-400" />
-              <span className="font-semibold text-gray-900">{CARD_LABELS[activeDragId]}</span>
+              <GripVertical size={16} className="text-gray-400 dark:text-gray-500" />
+              <span className="font-semibold text-gray-900 dark:text-gray-100">{CARD_LABELS[activeDragId]}</span>
             </div>
           ) : null}
         </DragOverlay>

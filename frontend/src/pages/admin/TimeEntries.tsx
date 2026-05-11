@@ -246,27 +246,27 @@ export default function AdminTimeEntries() {
   return (
     <div className="h-[calc(100vh-4rem)] flex flex-col">
       <div className="p-4 border-b shrink-0">
-        <h1 className="text-xl font-bold text-gray-900">Zeiteinträge</h1>
+        <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Zeiteinträge</h1>
       </div>
       <div className="flex flex-1 overflow-hidden">
         {/* MA-Liste */}
         <div className="w-56 border-r flex flex-col shrink-0">
           <div className="p-2">
             <div className="relative">
-              <Search size={14} className="absolute left-2.5 top-2.5 text-gray-400" />
+              <Search size={14} className="absolute left-2.5 top-2.5 text-gray-400 dark:text-gray-500" />
               <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full pl-8 pr-2 py-2 text-sm border rounded-lg" placeholder="Suchen..." />
             </div>
           </div>
           <div className="flex-1 overflow-y-auto">
             {filtered.map(emp => (
               <button key={emp.id} onClick={() => selectEmployee(emp)}
-                className={`w-full text-left px-3 py-2 flex items-center gap-2 text-sm hover:bg-gray-50 transition ${selectedEmployee?.id === emp.id ? 'bg-primary-50 border-l-[3px] border-l-primary-500' : 'border-l-[3px] border-l-transparent'}`}>
-                <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center shrink-0 overflow-hidden">
-                  {emp.photoUrl ? <img src={photoSrc(emp.photoUrl)} className="w-full h-full object-cover" /> : <User size={14} className="text-gray-500" />}
+                className={`w-full text-left px-3 py-2 flex items-center gap-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition ${selectedEmployee?.id === emp.id ? 'bg-primary-50 dark:bg-primary-900/30 border-l-[3px] border-l-primary-500' : 'border-l-[3px] border-l-transparent'}`}>
+                <div className="w-7 h-7 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center shrink-0 overflow-hidden">
+                  {emp.photoUrl ? <img src={photoSrc(emp.photoUrl)} className="w-full h-full object-cover" /> : <User size={14} className="text-gray-500 dark:text-gray-400" />}
                 </div>
                 <div className="min-w-0">
-                  <p className="font-medium text-gray-900 truncate">{emp.firstName} {emp.lastName}</p>
-                  <p className="text-xs text-gray-400">#{emp.employeeNumber}</p>
+                  <p className="font-medium text-gray-900 dark:text-gray-100 truncate">{emp.firstName} {emp.lastName}</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500">#{emp.employeeNumber}</p>
                 </div>
               </button>
             ))}
@@ -287,40 +287,40 @@ export default function AdminTimeEntries() {
               const vd = vacationDetails;
               return (
                 <div className="mb-4 space-y-2">
-                  <div className="bg-primary-50 rounded-lg p-2 text-sm text-center">
-                    <span className="text-primary-700 font-medium">{selectedEmployee.firstName} {selectedEmployee.lastName}</span>
+                  <div className="bg-primary-50 dark:bg-primary-900/30 rounded-lg p-2 text-sm text-center">
+                    <span className="text-primary-700 dark:text-primary-300 font-medium">{selectedEmployee.firstName} {selectedEmployee.lastName}</span>
                     <span className="mx-2 text-gray-300">|</span>
-                    <span className="text-primary-700">{format(selectedMonth, 'MMMM yyyy', { locale: de })}</span>
+                    <span className="text-primary-700 dark:text-primary-300">{format(selectedMonth, 'MMMM yyyy', { locale: de })}</span>
                     <span className="mx-2 text-gray-300">|</span>
-                    <span className="text-primary-700">Ist: {fmtMin(totalMin)} h</span>
+                    <span className="text-primary-700 dark:text-primary-300">Ist: {fmtMin(totalMin)} h</span>
                     <span className="mx-2 text-gray-300">|</span>
-                    <span className="text-primary-700">Soll: {fmtMin(targetMin)} h</span>
+                    <span className="text-primary-700 dark:text-primary-300">Soll: {fmtMin(targetMin)} h</span>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     {/* Urlaub */}
                     <div className="border rounded-lg p-2.5">
-                      <p className="text-xs font-medium text-gray-500 mb-1.5">Urlaub {selectedMonth.getFullYear()}</p>
+                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">Urlaub {selectedMonth.getFullYear()}</p>
                       {vd?.carryOver > 0 && (
-                        <div className="mb-1.5 p-1 bg-blue-50 rounded text-center">
-                          <p className="text-[10px] text-blue-600">Übertrag: <span className="font-bold">{vd.carryOver}</span> Tage {vd.carryOverUsed > 0 ? `(${vd.carryOverRemaining} übrig)` : ''}</p>
+                        <div className="mb-1.5 p-1 bg-blue-50 dark:bg-blue-950/40 rounded text-center">
+                          <p className="text-[10px] text-blue-600 dark:text-blue-400">Übertrag: <span className="font-bold">{vd.carryOver}</span> Tage {vd.carryOverUsed > 0 ? `(${vd.carryOverRemaining} übrig)` : ''}</p>
                         </div>
                       )}
                       <div className="grid grid-cols-3 gap-1 text-center">
-                        <div className="bg-gray-50 rounded p-1"><p className="text-sm font-bold text-gray-900">{vd?.total ?? '-'}</p><p className="text-[10px] text-gray-400">Gesamt</p></div>
-                        <div className="bg-orange-50 rounded p-1"><p className="text-sm font-bold text-orange-600">{vd?.totalUsed ?? '-'}</p><p className="text-[10px] text-gray-400">Genommen</p></div>
-                        <div className="bg-green-50 rounded p-1"><p className={`text-sm font-bold ${(vd?.totalRemaining ?? 0) < 0 ? 'text-red-600' : 'text-green-600'}`}>{vd?.totalRemaining ?? '-'}</p><p className="text-[10px] text-gray-400">Rest</p></div>
+                        <div className="bg-gray-50 dark:bg-gray-800 rounded p-1"><p className="text-sm font-bold text-gray-900 dark:text-gray-100">{vd?.total ?? '-'}</p><p className="text-[10px] text-gray-400 dark:text-gray-500">Gesamt</p></div>
+                        <div className="bg-orange-50 dark:bg-orange-950/40 rounded p-1"><p className="text-sm font-bold text-orange-600 dark:text-orange-400">{vd?.totalUsed ?? '-'}</p><p className="text-[10px] text-gray-400 dark:text-gray-500">Genommen</p></div>
+                        <div className="bg-green-50 dark:bg-green-950/40 rounded p-1"><p className={`text-sm font-bold ${(vd?.totalRemaining ?? 0) < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>{vd?.totalRemaining ?? '-'}</p><p className="text-[10px] text-gray-400 dark:text-gray-500">Rest</p></div>
                       </div>
-                      {vacationMonth > 0 && <p className="text-[10px] text-gray-400 mt-1">davon {vacationMonth} in {format(selectedMonth, 'MMMM', { locale: de })}</p>}
+                      {vacationMonth > 0 && <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">davon {vacationMonth} in {format(selectedMonth, 'MMMM', { locale: de })}</p>}
                       {vd?.deductedDays > 0 && <p className="text-[10px] text-red-500 mt-1">{vd.deductedDays} abgezogen (Minusstd.)</p>}
-                      {vd?.adjustmentDays != null && vd.adjustmentDays !== 0 && <p className={`text-[10px] mt-1 ${vd.adjustmentDays > 0 ? 'text-green-600' : 'text-red-500'}`}>{vd.adjustmentDays > 0 ? '+' : ''}{vd.adjustmentDays} angepasst (manuell)</p>}
+                      {vd?.adjustmentDays != null && vd.adjustmentDays !== 0 && <p className={`text-[10px] mt-1 ${vd.adjustmentDays > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>{vd.adjustmentDays > 0 ? '+' : ''}{vd.adjustmentDays} angepasst (manuell)</p>}
                       {vd?.specialLeaveUsed > 0 && <p className="text-[10px] text-purple-500 mt-1">{vd.specialLeaveUsed} Sonderurlaub</p>}
                     </div>
                     {/* Krank */}
                     <div className="border rounded-lg p-2.5">
-                      <p className="text-xs font-medium text-gray-500 mb-1.5">Krankheit {selectedMonth.getFullYear()}</p>
+                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">Krankheit {selectedMonth.getFullYear()}</p>
                       <div className="grid grid-cols-2 gap-1 text-center">
-                        <div className="bg-red-50 rounded p-1"><p className="text-sm font-bold text-red-600">{sickMonth}</p><p className="text-[10px] text-gray-400">{format(selectedMonth, 'MMM', { locale: de })}</p></div>
-                        <div className="bg-gray-50 rounded p-1"><p className="text-sm font-bold text-gray-900">{sickYear}</p><p className="text-[10px] text-gray-400">Jahr</p></div>
+                        <div className="bg-red-50 dark:bg-red-950/40 rounded p-1"><p className="text-sm font-bold text-red-600 dark:text-red-400">{sickMonth}</p><p className="text-[10px] text-gray-400 dark:text-gray-500">{format(selectedMonth, 'MMM', { locale: de })}</p></div>
+                        <div className="bg-gray-50 dark:bg-gray-800 rounded p-1"><p className="text-sm font-bold text-gray-900 dark:text-gray-100">{sickYear}</p><p className="text-[10px] text-gray-400 dark:text-gray-500">Jahr</p></div>
                       </div>
                     </div>
                   </div>
@@ -335,7 +335,7 @@ export default function AdminTimeEntries() {
               const afterEnd = empEnd ? selectedDate > new Date(empEnd.getFullYear(), empEnd.getMonth(), empEnd.getDate()) : false;
               if (beforeStart || afterEnd) {
                 return (
-                  <div className="text-center text-gray-400 py-12 border rounded-lg border-dashed">
+                  <div className="text-center text-gray-400 dark:text-gray-500 py-12 border rounded-lg border-dashed">
                     <Calendar size={32} className="mx-auto mb-2 opacity-30" />
                     <p>{beforeStart ? 'Vor dem Eintrittsdatum' : 'Nach dem Austrittsdatum'}</p>
                     <p className="text-xs mt-1">{beforeStart ? `Eintritt: ${format(empStart!, 'dd.MM.yyyy', { locale: de })}` : `Austritt: ${format(empEnd!, 'dd.MM.yyyy', { locale: de })}`}</p>
@@ -351,7 +351,7 @@ export default function AdminTimeEntries() {
                 <div className="space-y-4">
                   <div>
                     <h3 className="text-lg font-semibold">{format(selectedDate, 'EEEE, dd. MMMM yyyy', { locale: de })}</h3>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
                       {entries.length > 0 ? `${fmtMin(calcMin(selectedDate))} h` : ''}{isHol ? ` · ${holiday!.name}` : ''}{isNonWork ? ' · Frei' : ''}
                     </p>
                   </div>
@@ -360,40 +360,40 @@ export default function AdminTimeEntries() {
                       onClick={() => { setEditingAbsence(absence); setAbsenceFormData({ absenceTypeId: absence.absenceTypeId, note: absence.note || '' }); setSelectedDates([selectedDate]); setShowAbsencePopup(true); }}>
                       <Briefcase size={16} style={{ color: absence.absenceType.color }} />
                       <span className="font-medium" style={{ color: absence.absenceType.color }}>{absence.absenceType.name}</span>
-                      <Edit2 size={14} className="ml-auto text-gray-400" />
+                      <Edit2 size={14} className="ml-auto text-gray-400 dark:text-gray-500" />
                     </div>
                   )}
                   {entries.length > 0 ? (
-                    <div className="bg-white border rounded-lg divide-y">
-                      <div className="px-3 py-2 bg-gray-50 rounded-t-lg"><span className="text-xs font-medium text-gray-500 uppercase">Buchungen</span></div>
+                    <div className="bg-white dark:bg-gray-900 border rounded-lg divide-y">
+                      <div className="px-3 py-2 bg-gray-50 dark:bg-gray-800 rounded-t-lg"><span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Buchungen</span></div>
                       {entries.map((entry, idx) => (
                         <div key={entry.id}>
-                          {idx > 0 && entries[idx-1].clockOut && (() => { const gap = Math.round((new Date(entry.clockIn).getTime() - new Date(entries[idx-1].clockOut!).getTime()) / 60000); return gap > 0 ? <div className="px-3 py-1.5 bg-orange-50 flex items-center gap-2 text-xs text-orange-600"><Clock size={12} /> Pause: {format(new Date(entries[idx-1].clockOut!), 'HH:mm')} - {format(new Date(entry.clockIn), 'HH:mm')} ({gap >= 60 ? `${Math.floor(gap / 60)}:${String(gap % 60).padStart(2, '0')}h` : `${gap} min`})</div> : null; })()}
-                          <div className="px-3 py-2 flex items-center gap-3 cursor-pointer hover:bg-gray-50" onClick={() => openEdit(selectedDate, entry)}>
+                          {idx > 0 && entries[idx-1].clockOut && (() => { const gap = Math.round((new Date(entry.clockIn).getTime() - new Date(entries[idx-1].clockOut!).getTime()) / 60000); return gap > 0 ? <div className="px-3 py-1.5 bg-orange-50 dark:bg-orange-950/40 flex items-center gap-2 text-xs text-orange-600 dark:text-orange-400"><Clock size={12} /> Pause: {format(new Date(entries[idx-1].clockOut!), 'HH:mm')} - {format(new Date(entry.clockIn), 'HH:mm')} ({gap >= 60 ? `${Math.floor(gap / 60)}:${String(gap % 60).padStart(2, '0')}h` : `${gap} min`})</div> : null; })()}
+                          <div className="px-3 py-2 flex items-center gap-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800" onClick={() => openEdit(selectedDate, entry)}>
                             {entry.complaintMessage && (entry.complaintResolvedAt ? <CheckCircle size={14} className="text-green-500" /> : <AlertTriangle size={14} className="text-amber-500" />)}
                             {(entry.clockInViaPwa || entry.clockOutViaPwa) && <MapPin size={14} className="text-blue-500" />}
-                            <span className="font-mono text-sm font-medium w-28">{format(new Date(entry.clockIn), 'HH:mm')} - {entry.clockOut ? format(new Date(entry.clockOut), 'HH:mm') : <span className="text-green-600">Aktiv</span>}</span>
-                            {entry.clockOut && <span className="text-sm text-gray-500">{fmtMin(Math.floor((new Date(entry.clockOut).getTime() - new Date(entry.clockIn).getTime()) / 60000))} h</span>}
-                            <Edit2 size={14} className="text-gray-400 ml-auto" />
+                            <span className="font-mono text-sm font-medium w-28">{format(new Date(entry.clockIn), 'HH:mm')} - {entry.clockOut ? format(new Date(entry.clockOut), 'HH:mm') : <span className="text-green-600 dark:text-green-400">Aktiv</span>}</span>
+                            {entry.clockOut && <span className="text-sm text-gray-500 dark:text-gray-400">{fmtMin(Math.floor((new Date(entry.clockOut).getTime() - new Date(entry.clockIn).getTime()) / 60000))} h</span>}
+                            <Edit2 size={14} className="text-gray-400 dark:text-gray-500 ml-auto" />
                           </div>
                           {entry.complaintMessage && (
-                            <div className={'px-3 py-2.5 text-sm border-t ' + (entry.complaintResolvedAt ? 'bg-green-50' : 'bg-amber-50')}>
+                            <div className={'px-3 py-2.5 text-sm border-t ' + (entry.complaintResolvedAt ? 'bg-green-50 dark:bg-green-950/40' : 'bg-amber-50 dark:bg-amber-950/40')}>
                               <div className="flex items-start gap-2">
-                                {entry.complaintResolvedAt ? <CheckCircle size={14} className="text-green-600 mt-0.5 shrink-0" /> : <AlertTriangle size={14} className="text-amber-600 mt-0.5 shrink-0" />}
+                                {entry.complaintResolvedAt ? <CheckCircle size={14} className="text-green-600 dark:text-green-400 mt-0.5 shrink-0" /> : <AlertTriangle size={14} className="text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />}
                                 <div className="flex-1">
-                                  <div className={'text-xs font-semibold uppercase tracking-wide mb-1 ' + (entry.complaintResolvedAt ? 'text-green-700' : 'text-amber-700')}>
+                                  <div className={'text-xs font-semibold uppercase tracking-wide mb-1 ' + (entry.complaintResolvedAt ? 'text-green-700 dark:text-green-300' : 'text-amber-700 dark:text-amber-300')}>
                                     Reklamation {entry.complaintResolvedAt ? '(gelöst)' : '(offen)'}
-                                    {entry.complaintAt && <span className="font-normal text-gray-500 ml-2">{format(new Date(entry.complaintAt), 'dd.MM.yyyy HH:mm')}</span>}
+                                    {entry.complaintAt && <span className="font-normal text-gray-500 dark:text-gray-400 ml-2">{format(new Date(entry.complaintAt), 'dd.MM.yyyy HH:mm')}</span>}
                                   </div>
-                                  <div className="text-gray-800 whitespace-pre-wrap">{entry.complaintMessage}</div>
+                                  <div className="text-gray-800 dark:text-gray-200 whitespace-pre-wrap">{entry.complaintMessage}</div>
                                   {entry.complaintResponse && (
-                                    <div className="mt-2 pt-2 border-t border-green-200">
-                                      <div className="text-xs font-semibold text-green-700 mb-0.5">Admin-Antwort:</div>
-                                      <div className="text-gray-700 whitespace-pre-wrap">{entry.complaintResponse}</div>
+                                    <div className="mt-2 pt-2 border-t border-green-200 dark:border-green-800">
+                                      <div className="text-xs font-semibold text-green-700 dark:text-green-300 mb-0.5">Admin-Antwort:</div>
+                                      <div className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{entry.complaintResponse}</div>
                                     </div>
                                   )}
                                   {(entry.complaintOriginalClockIn || entry.complaintOriginalClockOut) && entry.complaintResolvedAt && (
-                                    <div className="mt-2 pt-2 border-t border-green-200 text-xs text-gray-600">
+                                    <div className="mt-2 pt-2 border-t border-green-200 dark:border-green-800 text-xs text-gray-600 dark:text-gray-400">
                                       <span className="font-semibold">Vorher:</span>{' '}
                                       {entry.complaintOriginalClockIn ? format(new Date(entry.complaintOriginalClockIn), 'HH:mm') : '—'} - {entry.complaintOriginalClockOut ? format(new Date(entry.complaintOriginalClockOut), 'HH:mm') : '—'}
                                       {entry.complaintOriginalBreakMinutes != null && <span> · Pause: {entry.complaintOriginalBreakMinutes} min</span>}
@@ -406,16 +406,16 @@ export default function AdminTimeEntries() {
                         </div>
                       ))}
                     </div>
-                  ) : !absence && !isHol && !isNonWork ? <div className="text-center text-gray-400 py-8 border rounded-lg border-dashed">Keine Einträge</div> : null}
+                  ) : !absence && !isHol && !isNonWork ? <div className="text-center text-gray-400 dark:text-gray-500 py-8 border rounded-lg border-dashed">Keine Einträge</div> : null}
                   <div className="flex items-center gap-2 flex-wrap">
-                    <button onClick={() => openEdit(selectedDate)} className="text-sm text-primary-600 hover:bg-primary-50 border border-primary-200 rounded px-3 py-1.5 flex items-center gap-1.5"><Plus size={14} /> Eintrag</button>
+                    <button onClick={() => openEdit(selectedDate)} className="text-sm text-primary-600 dark:text-primary-400 hover:bg-primary-50 border border-primary-200 dark:border-primary-800 rounded px-3 py-1.5 flex items-center gap-1.5"><Plus size={14} /> Eintrag</button>
                     {!absence && absenceTypes?.length > 0 && (
                       <button onClick={() => { setEditingAbsence(null); setAbsenceFormData({ absenceTypeId: absenceTypes[0].id, note: '' }); setSelectedDates([selectedDate]); setShowAbsencePopup(true); }}
-                        className="text-sm text-purple-600 hover:bg-purple-50 border border-purple-200 rounded px-3 py-1.5 flex items-center gap-1.5"><Briefcase size={14} /> Abwesenheit</button>
+                        className="text-sm text-purple-600 dark:text-purple-400 hover:bg-purple-50 border border-purple-200 dark:border-purple-800 rounded px-3 py-1.5 flex items-center gap-1.5"><Briefcase size={14} /> Abwesenheit</button>
                     )}
                     {entries.some(e => e.clockOut) && (
                       <button onClick={() => { setPauseEntryId(entries.find(e => e.clockOut)!.id); setPauseStart('12:00'); setPauseEnd('12:30'); setShowPausePopup(true); }}
-                        className="text-sm text-orange-600 hover:bg-orange-50 border border-orange-200 rounded px-3 py-1.5 flex items-center gap-1.5"><Clock size={14} /> Pause</button>
+                        className="text-sm text-orange-600 dark:text-orange-400 hover:bg-orange-50 border border-orange-200 dark:border-orange-800 rounded px-3 py-1.5 flex items-center gap-1.5"><Clock size={14} /> Pause</button>
                     )}
                   </div>
                 </div>
@@ -426,12 +426,12 @@ export default function AdminTimeEntries() {
           {/* Rechts: Kalender */}
           <div className="w-72 border-l p-3 shrink-0 self-start">
             <div className="flex items-center gap-1 mb-3">
-              <button onClick={() => changeMonth('prev')} className="p-1 hover:bg-gray-100 rounded"><ChevronLeft size={16} /></button>
+              <button onClick={() => changeMonth('prev')} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"><ChevronLeft size={16} /></button>
               <select value={selectedMonth.getMonth()} onChange={e => { const m = new Date(selectedMonth); m.setMonth(parseInt(e.target.value)); setSelectedMonth(m); if (selectedEmployee) loadData(selectedEmployee.id, m); }} className="text-sm font-medium bg-transparent border rounded px-1.5 py-0.5">{MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}</select>
               <select value={selectedMonth.getFullYear()} onChange={e => { const m = new Date(selectedMonth); m.setFullYear(parseInt(e.target.value)); setSelectedMonth(m); if (selectedEmployee) loadData(selectedEmployee.id, m); }} className="text-sm font-medium bg-transparent border rounded px-1.5 py-0.5">{Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map(y => <option key={y} value={y}>{y}</option>)}</select>
-              <button onClick={() => changeMonth('next')} className="p-1 hover:bg-gray-100 rounded"><ChevronRight size={16} /></button>
+              <button onClick={() => changeMonth('next')} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"><ChevronRight size={16} /></button>
             </div>
-            <div className="grid grid-cols-7 gap-0.5 mb-2">{['Mo','Di','Mi','Do','Fr','Sa','So'].map(d => <div key={d} className="text-center text-[10px] font-medium text-gray-400 py-1">{d}</div>)}</div>
+            <div className="grid grid-cols-7 gap-0.5 mb-2">{['Mo','Di','Mi','Do','Fr','Sa','So'].map(d => <div key={d} className="text-center text-[10px] font-medium text-gray-400 dark:text-gray-500 py-1">{d}</div>)}</div>
             <div className="grid grid-cols-7 gap-0.5">
               {(() => {
                 const mS = startOfMonth(selectedMonth), mE = endOfMonth(selectedMonth);
@@ -451,16 +451,16 @@ export default function AdminTimeEntries() {
                   const nw = !workDays.includes(day.getDay()), td = isSameDay(day, new Date()), sel = isSameDay(day, selectedDate), iS = inSel(day), fut = day > new Date(), he = ents.length > 0, ih = !!hol && !nw;
                   // Abwesenheits-Farbe: typeigene Farbe aus DB (Urlaub blau, Krank rot, Sonderurlaub lila, …)
                   // Selektion/Tag-Marker überschreiben das per Tailwind-Klasse — wenn beides anliegt, gewinnt das.
-                  let bg = 'bg-gray-50', tx = 'text-gray-900';
+                  let bg = 'bg-gray-50 dark:bg-gray-800', tx = 'text-gray-900 dark:text-gray-100';
                   let bgStyle: React.CSSProperties | undefined;
-                  if (outOfRange) { bg = 'bg-gray-50'; tx = 'text-gray-300'; }
+                  if (outOfRange) { bg = 'bg-gray-50 dark:bg-gray-800'; tx = 'text-gray-300'; }
                   else if (sel) { bg = 'bg-primary-600'; tx = 'text-white'; }
-                  else if (iS) { bg = 'bg-purple-200'; tx = 'text-purple-900'; }
-                  else if (nw) { bg = 'bg-gray-100'; tx = 'text-gray-400'; }
-                  else if (ih) { bg = 'bg-red-100'; tx = 'text-red-700'; }
-                  else if (abs) { bg = ''; tx = 'text-gray-800'; bgStyle = { backgroundColor: abs.absenceType.color + '40', boxShadow: `inset 0 0 0 1px ${abs.absenceType.color}80` }; }
-                  else if (he) { bg = 'bg-green-100'; tx = 'text-green-800'; }
-                  else if (!fut && !nw) { bg = 'bg-orange-100'; tx = 'text-orange-700'; }
+                  else if (iS) { bg = 'bg-purple-200'; tx = 'text-purple-900 dark:text-purple-200'; }
+                  else if (nw) { bg = 'bg-gray-100 dark:bg-gray-800'; tx = 'text-gray-400 dark:text-gray-500'; }
+                  else if (ih) { bg = 'bg-red-100 dark:bg-red-900/40'; tx = 'text-red-700 dark:text-red-300'; }
+                  else if (abs) { bg = ''; tx = 'text-gray-800 dark:text-gray-200'; bgStyle = { backgroundColor: abs.absenceType.color + '40', boxShadow: `inset 0 0 0 1px ${abs.absenceType.color}80` }; }
+                  else if (he) { bg = 'bg-green-100 dark:bg-green-900/40'; tx = 'text-green-800 dark:text-green-300'; }
+                  else if (!fut && !nw) { bg = 'bg-orange-100 dark:bg-orange-900/40'; tx = 'text-orange-700 dark:text-orange-300'; }
                   return <div key={day.toISOString()}
                     onClick={() => { if (!isSelecting && !outOfRange) setSelectedDate(day); }}
                     onMouseDown={e => { if (outOfRange) return; e.preventDefault(); setIsSelecting(true); setSelectionStart(day); setSelectionEnd(day); }}
@@ -477,8 +477,8 @@ export default function AdminTimeEntries() {
             </div>
             <div className="mt-3 pt-3 border-t flex flex-wrap gap-x-3 gap-y-1">
               {/* Statische Status-Farben */}
-              {[['bg-green-100','Gearbeitet'],['bg-orange-100','Fehlt'],['bg-red-100','Feiertag'],['bg-gray-100','Frei']].map(([c,l]) => (
-                <div key={l} className="flex items-center gap-1 text-[10px] text-gray-500">
+              {[['bg-green-100 dark:bg-green-900/40','Gearbeitet'],['bg-orange-100 dark:bg-orange-900/40','Fehlt'],['bg-red-100 dark:bg-red-900/40','Feiertag'],['bg-gray-100 dark:bg-gray-800','Frei']].map(([c,l]) => (
+                <div key={l} className="flex items-center gap-1 text-[10px] text-gray-500 dark:text-gray-400">
                   <div className={`w-2.5 h-2.5 rounded ${c}`} />{l}
                 </div>
               ))}
@@ -493,7 +493,7 @@ export default function AdminTimeEntries() {
                   }
                 });
                 return usedTypes.map(t => (
-                  <div key={t.id} className="flex items-center gap-1 text-[10px] text-gray-500">
+                  <div key={t.id} className="flex items-center gap-1 text-[10px] text-gray-500 dark:text-gray-400">
                     <div className="w-2.5 h-2.5 rounded" style={{ backgroundColor: t.color + '40', boxShadow: `inset 0 0 0 1px ${t.color}80` }} />{t.name}
                   </div>
                 ));
@@ -503,19 +503,19 @@ export default function AdminTimeEntries() {
             {/* Urlaubsanpassungen */}
             <div className="mt-4 pt-3 border-t">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-semibold text-gray-700">Urlaubsanpassungen {selectedMonth.getFullYear()}</p>
-                <button onClick={() => { setAdjForm({ days: '', reason: '' }); setShowAdjPopup(true); }} className="p-1 text-primary-600 hover:bg-primary-50 rounded" title="Anpassung hinzufügen"><Plus size={14} /></button>
+                <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">Urlaubsanpassungen {selectedMonth.getFullYear()}</p>
+                <button onClick={() => { setAdjForm({ days: '', reason: '' }); setShowAdjPopup(true); }} className="p-1 text-primary-600 dark:text-primary-400 hover:bg-primary-50 rounded" title="Anpassung hinzufügen"><Plus size={14} /></button>
               </div>
               {vacationAdjustments.length > 0 ? (
                 <div className="space-y-1.5">
                   {vacationAdjustments.map((a: any) => (
-                    <div key={a.id} className="flex items-start gap-2 text-[11px] bg-gray-50 rounded p-1.5">
-                      <span className={`font-bold flex-shrink-0 ${a.days > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    <div key={a.id} className="flex items-start gap-2 text-[11px] bg-gray-50 dark:bg-gray-800 rounded p-1.5">
+                      <span className={`font-bold flex-shrink-0 ${a.days > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                         {a.days > 0 ? '+' : ''}{a.days}
                       </span>
                       <div className="flex-1 min-w-0">
-                        <p className="text-gray-700 truncate" title={a.reason}>{a.reason}</p>
-                        <p className="text-[10px] text-gray-400">{MONTHS[a.month - 1]} · {a.createdBy}</p>
+                        <p className="text-gray-700 dark:text-gray-300 truncate" title={a.reason}>{a.reason}</p>
+                        <p className="text-[10px] text-gray-400 dark:text-gray-500">{MONTHS[a.month - 1]} · {a.createdBy}</p>
                       </div>
                       <button onClick={async () => {
                         const current = vacationDetails?.totalRemaining ?? 0;
@@ -527,9 +527,9 @@ export default function AdminTimeEntries() {
                           confirmText: 'Löschen',
                           message: willGoNegative ? (
                             <div className="space-y-2">
-                              <p>Die Anpassung von <strong className="text-green-600">+{a.days}</strong> Tag(en) wird entfernt.</p>
-                              <p>Resturlaub: <strong>{current}</strong> → <strong className="text-red-600">{after}</strong> Tag(e)</p>
-                              <p className="text-xs text-gray-500">Der negative Urlaubssaldo wird ins nächste Jahr übernommen.</p>
+                              <p>Die Anpassung von <strong className="text-green-600 dark:text-green-400">+{a.days}</strong> Tag(en) wird entfernt.</p>
+                              <p>Resturlaub: <strong>{current}</strong> → <strong className="text-red-600 dark:text-red-400">{after}</strong> Tag(e)</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">Der negative Urlaubssaldo wird ins nächste Jahr übernommen.</p>
                             </div>
                           ) : (
                             <p>Diese Urlaubsanpassung ({a.days > 0 ? '+' : ''}{a.days} Tage) wirklich löschen?</p>
@@ -537,33 +537,33 @@ export default function AdminTimeEntries() {
                         });
                         if (!ok) return;
                         try { await timeEntriesApi.deleteVacationAdjustment(a.id); toast.success('Gelöscht'); await loadData(selectedEmployee!.id, selectedMonth); } catch { toast.error('Fehler'); }
-                      }} className="p-0.5 text-gray-400 hover:text-red-500 flex-shrink-0"><Trash2 size={12} /></button>
+                      }} className="p-0.5 text-gray-400 dark:text-gray-500 hover:text-red-500 flex-shrink-0"><Trash2 size={12} /></button>
                     </div>
                   ))}
                   {vacationAdjustments.length > 1 && (() => {
                     const net = vacationAdjustments.reduce((s: number, a: any) => s + a.days, 0);
-                    return <p className={`text-[10px] font-medium text-right ${net > 0 ? 'text-green-600' : net < 0 ? 'text-red-500' : 'text-gray-500'}`}>Gesamt: {net > 0 ? '+' : ''}{net} Tage</p>;
+                    return <p className={`text-[10px] font-medium text-right ${net > 0 ? 'text-green-600 dark:text-green-400' : net < 0 ? 'text-red-500' : 'text-gray-500 dark:text-gray-400'}`}>Gesamt: {net > 0 ? '+' : ''}{net} Tage</p>;
                   })()}
                 </div>
               ) : (
-                <p className="text-[10px] text-gray-400">Keine Anpassungen</p>
+                <p className="text-[10px] text-gray-400 dark:text-gray-500">Keine Anpassungen</p>
               )}
             </div>
           </div>
         </>) : (
-          <div className="flex-1 flex items-center justify-center text-gray-400"><div className="text-center"><User size={48} className="mx-auto mb-3 opacity-30" /><p>Wähle einen Mitarbeiter</p></div></div>
+          <div className="flex-1 flex items-center justify-center text-gray-400 dark:text-gray-500"><div className="text-center"><User size={48} className="mx-auto mb-3 opacity-30" /><p>Wähle einen Mitarbeiter</p></div></div>
         )}
       </div>
 
       {/* Quick Edit */}
-      {(editingEntry || showCreateEntry) && <div ref={popupRef} className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-xl shadow-2xl border p-4 w-80 z-50">
-        <div className="flex items-center justify-between mb-4"><h4 className="font-semibold">{format(selectedDate, 'dd.MM.yyyy', { locale: de })}</h4><button onClick={() => { setEditingEntry(null); setShowCreateEntry(false); }} className="p-1 hover:bg-gray-100 rounded"><X size={16} /></button></div>
+      {(editingEntry || showCreateEntry) && <div ref={popupRef} className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white dark:bg-gray-900 rounded-xl shadow-2xl border p-4 w-80 z-50">
+        <div className="flex items-center justify-between mb-4"><h4 className="font-semibold">{format(selectedDate, 'dd.MM.yyyy', { locale: de })}</h4><button onClick={() => { setEditingEntry(null); setShowCreateEntry(false); }} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"><X size={16} /></button></div>
         <form onSubmit={handleSubmit} className="space-y-3">
-          <div className="grid grid-cols-2 gap-3"><div><label className="block text-xs text-gray-500 mb-1">Ein</label><input type="time" value={formData.clockIn} onChange={e => setFormData({...formData, clockIn: e.target.value})} className="input text-sm py-1.5" required /></div><div><label className="block text-xs text-gray-500 mb-1">Aus</label><input type="time" value={formData.clockOut} onChange={e => setFormData({...formData, clockOut: e.target.value})} className="input text-sm py-1.5" /></div></div>
-          <div><label className="block text-xs text-gray-500 mb-1">Notiz</label><input type="text" value={formData.note} onChange={e => setFormData({...formData, note: e.target.value})} className="input text-sm py-1.5" /></div>
+          <div className="grid grid-cols-2 gap-3"><div><label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Ein</label><input type="time" value={formData.clockIn} onChange={e => setFormData({...formData, clockIn: e.target.value})} className="input text-sm py-1.5" required /></div><div><label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Aus</label><input type="time" value={formData.clockOut} onChange={e => setFormData({...formData, clockOut: e.target.value})} className="input text-sm py-1.5" /></div></div>
+          <div><label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Notiz</label><input type="text" value={formData.note} onChange={e => setFormData({...formData, note: e.target.value})} className="input text-sm py-1.5" /></div>
           <div className="flex items-center justify-between pt-2">
-            {editingEntry && <button type="button" onClick={handleDelete} className="p-2 text-red-600 hover:bg-red-50 rounded"><Trash2 size={16} /></button>}
-            <div className={`flex gap-2 ${editingEntry ? '' : 'ml-auto'}`}><button type="button" onClick={() => { setEditingEntry(null); setShowCreateEntry(false); }} className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">Abbrechen</button><button type="submit" className="px-3 py-1.5 text-sm bg-primary-600 text-white rounded-lg">Speichern</button></div>
+            {editingEntry && <button type="button" onClick={handleDelete} className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 rounded"><Trash2 size={16} /></button>}
+            <div className={`flex gap-2 ${editingEntry ? '' : 'ml-auto'}`}><button type="button" onClick={() => { setEditingEntry(null); setShowCreateEntry(false); }} className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">Abbrechen</button><button type="submit" className="px-3 py-1.5 text-sm bg-primary-600 text-white rounded-lg">Speichern</button></div>
           </div>
         </form>
       </div>}
@@ -576,27 +576,27 @@ export default function AdminTimeEntries() {
         const after = current + days;
         const willGoNegative = days < 0 && after < 0;
         return (
-        <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-xl shadow-2xl border p-4 w-80 z-50">
-          <div className="flex items-center justify-between mb-4"><h4 className="font-semibold">Urlaubsanpassung</h4><button onClick={() => setShowAdjPopup(false)} className="p-1 hover:bg-gray-100 rounded"><X size={16} /></button></div>
+        <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white dark:bg-gray-900 rounded-xl shadow-2xl border p-4 w-80 z-50">
+          <div className="flex items-center justify-between mb-4"><h4 className="font-semibold">Urlaubsanpassung</h4><button onClick={() => setShowAdjPopup(false)} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"><X size={16} /></button></div>
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Monat</label>
-                <select value={selectedMonth.getMonth() + 1} disabled className="input text-sm py-1.5 w-full bg-gray-50">
+                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Monat</label>
+                <select value={selectedMonth.getMonth() + 1} disabled className="input text-sm py-1.5 w-full bg-gray-50 dark:bg-gray-800">
                   {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Tage (+/-)</label>
+                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Tage (+/-)</label>
                 <input type="number" step="0.5" value={adjForm.days} onChange={e => setAdjForm({ ...adjForm, days: e.target.value })} className="input text-sm py-1.5 w-full" placeholder="z.B. 4 oder -2" />
               </div>
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Begründung <span className="text-red-500">*</span></label>
+              <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Begründung <span className="text-red-500">*</span></label>
               <input type="text" value={adjForm.reason} onChange={e => setAdjForm({ ...adjForm, reason: e.target.value })} className="input text-sm py-1.5 w-full" placeholder="z.B. Sondervereinbarung..." />
             </div>
             {days !== 0 && (
-              <div className={`text-xs px-2 py-1.5 rounded ${willGoNegative ? 'bg-red-50 border border-red-200 text-red-700' : 'bg-gray-50 text-gray-600'}`}>
+              <div className={`text-xs px-2 py-1.5 rounded ${willGoNegative ? 'bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300' : 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}`}>
                 Resturlaub: {current} → <strong>{after}</strong> Tag(e)
                 {willGoNegative && <span className="block mt-0.5">⚠ Urlaubssaldo wird negativ — Übertrag ins nächste Jahr</span>}
               </div>
@@ -615,7 +615,7 @@ export default function AdminTimeEntries() {
                     message: (
                       <div className="space-y-2">
                         <p><strong>{name}</strong> hat aktuell <strong>{current}</strong> Resturlaubstag(e).</p>
-                        <p>Nach dieser Anpassung von <strong>{days}</strong> Tag(en) ergibt sich ein Saldo von <strong className="text-red-600">{after} Tag(en)</strong>, der ins nächste Jahr übernommen wird.</p>
+                        <p>Nach dieser Anpassung von <strong>{days}</strong> Tag(en) ergibt sich ein Saldo von <strong className="text-red-600 dark:text-red-400">{after} Tag(en)</strong>, der ins nächste Jahr übernommen wird.</p>
                       </div>
                     ),
                   });
@@ -635,10 +635,10 @@ export default function AdminTimeEntries() {
       })()}
 
       {/* Pause */}
-      {showPausePopup && <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-xl shadow-2xl border p-4 w-80 z-50">
-        <div className="flex items-center justify-between mb-3"><h4 className="font-semibold flex items-center gap-2"><Clock size={18} className="text-orange-500" /> Pause</h4><button onClick={() => setShowPausePopup(false)} className="p-1 hover:bg-gray-100 rounded"><X size={16} /></button></div>
-        <div className="space-y-3"><div><label className="block text-xs text-gray-500 mb-1">Von</label><input type="time" value={pauseStart} onChange={e => setPauseStart(e.target.value)} className="input text-sm py-1.5" /></div><div><label className="block text-xs text-gray-500 mb-1">Bis</label><input type="time" value={pauseEnd} onChange={e => setPauseEnd(e.target.value)} className="input text-sm py-1.5" /></div>
-          <div className="flex justify-end gap-2"><button onClick={() => setShowPausePopup(false)} className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">Abbrechen</button><button onClick={handlePause} className="px-3 py-1.5 text-sm bg-orange-500 text-white rounded-lg">Einfügen</button></div></div>
+      {showPausePopup && <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white dark:bg-gray-900 rounded-xl shadow-2xl border p-4 w-80 z-50">
+        <div className="flex items-center justify-between mb-3"><h4 className="font-semibold flex items-center gap-2"><Clock size={18} className="text-orange-500" /> Pause</h4><button onClick={() => setShowPausePopup(false)} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"><X size={16} /></button></div>
+        <div className="space-y-3"><div><label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Von</label><input type="time" value={pauseStart} onChange={e => setPauseStart(e.target.value)} className="input text-sm py-1.5" /></div><div><label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Bis</label><input type="time" value={pauseEnd} onChange={e => setPauseEnd(e.target.value)} className="input text-sm py-1.5" /></div>
+          <div className="flex justify-end gap-2"><button onClick={() => setShowPausePopup(false)} className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">Abbrechen</button><button onClick={handlePause} className="px-3 py-1.5 text-sm bg-orange-500 text-white rounded-lg">Einfügen</button></div></div>
       </div>}
 
       {/* Abwesenheit */}
@@ -679,13 +679,13 @@ export default function AdminTimeEntries() {
           } catch (err: any) { toast.error(err.response?.data?.error || 'Fehler'); }
         };
         return (
-          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-xl shadow-2xl border p-4 w-80 z-50">
+          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white dark:bg-gray-900 rounded-xl shadow-2xl border p-4 w-80 z-50">
             <div className="flex items-center justify-between mb-3">
               <h4 className="font-semibold flex items-center gap-2"><Briefcase size={18} /> {selectedDates.length > 1 ? `${selectedDates.length} Tage` : format(selectedDate, 'dd.MM.', { locale: de })}</h4>
-              <button onClick={() => setShowAbsencePopup(false)} className="p-1 hover:bg-gray-100 rounded"><X size={16} /></button>
+              <button onClick={() => setShowAbsencePopup(false)} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"><X size={16} /></button>
             </div>
             {existingCount > 0 && selectedDates.length > 1 && (
-              <div className="mb-3 p-2 bg-amber-50 rounded-lg text-xs text-amber-700">
+              <div className="mb-3 p-2 bg-amber-50 dark:bg-amber-950/40 rounded-lg text-xs text-amber-700 dark:text-amber-300">
                 {existingCount} der {selectedDates.length} Tage haben bereits einen Eintrag. Diese werden beim Speichern überschrieben.
               </div>
             )}
@@ -697,15 +697,15 @@ export default function AdminTimeEntries() {
               <input type="text" value={absenceFormData.note} onChange={e => setAbsenceFormData({...absenceFormData, note: e.target.value})} className="input text-sm py-1.5 w-full" placeholder="Notiz..." />
               <div className="flex items-center justify-between pt-2">
                 <div className="flex gap-1">
-                  {editingAbsence && <button type="button" onClick={handleAbsenceDelete} className="p-2 text-red-600 hover:bg-red-50 rounded" title="Löschen"><Trash2 size={16} /></button>}
+                  {editingAbsence && <button type="button" onClick={handleAbsenceDelete} className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 rounded" title="Löschen"><Trash2 size={16} /></button>}
                   {existingCount > 0 && selectedDates.length > 1 && (
-                    <button type="button" onClick={handleDeleteAll} className="px-2 py-1.5 text-xs text-red-600 hover:bg-red-50 border border-red-200 rounded-lg">
+                    <button type="button" onClick={handleDeleteAll} className="px-2 py-1.5 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 border border-red-200 dark:border-red-800 rounded-lg">
                       Alle löschen ({existingCount})
                     </button>
                   )}
                 </div>
                 <div className="flex gap-2">
-                  <button type="button" onClick={() => setShowAbsencePopup(false)} className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">Abbrechen</button>
+                  <button type="button" onClick={() => setShowAbsencePopup(false)} className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">Abbrechen</button>
                   <button type="submit" className="px-3 py-1.5 text-sm bg-primary-600 text-white rounded-lg">Speichern</button>
                 </div>
               </div>

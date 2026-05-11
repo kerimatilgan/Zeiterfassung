@@ -20,6 +20,7 @@ import EmployeeDocuments from './pages/employee/Documents';
 import EmployeeComplaints from './pages/employee/Complaints';
 import Layout from './components/Layout';
 import api from './lib/api';
+import { applyTheme, getStoredThemePref } from './lib/theme';
 
 function ProtectedRoute({ children, adminOnly = false, employeeOnly = false }: { children: React.ReactNode; adminOnly?: boolean; employeeOnly?: boolean }) {
   const { isAuthenticated, employee } = useAuthStore();
@@ -50,6 +51,12 @@ function App() {
     }).catch(() => setNeedsSetup(false));
   }, []);
 
+  // Theme anwenden: bei eingeloggten Nutzern aus employee.theme (DB), sonst
+  // aus dem localStorage-Fallback (bzw. System-Präferenz).
+  useEffect(() => {
+    applyTheme(employee?.theme ?? getStoredThemePref());
+  }, [employee?.theme]);
+
   // Beim App-Start (oder Tab-Reload) den eingeloggten User über /auth/me
   // aktualisieren — sonst hat der authStore-Cache eventuell veraltete Felder
   // (z.B. nach Backend-Schema-Erweiterungen wie dashboardCardOrder).
@@ -62,7 +69,7 @@ function App() {
 
   // Loading
   if (needsSetup === null) {
-    return <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    return <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-800">
       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
     </div>;
   }

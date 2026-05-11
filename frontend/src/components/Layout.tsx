@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { useSocket } from '../hooks/useSocket';
+import ThemeToggle from './ThemeToggle';
 
 interface LayoutProps {
   isAdmin?: boolean;
@@ -83,12 +84,12 @@ export default function Layout({ isAdmin = false }: LayoutProps) {
   const links = isAdmin ? adminLinks : employeeLinks;
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex bg-gray-100 dark:bg-gray-950">
       {/* Mobile Menu Button (nur wenn Sidebar geschlossen) */}
       {!sidebarOpen && (
         <button
           onClick={() => setSidebarOpen(true)}
-          className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-white rounded-lg shadow-md"
+          className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 rounded-lg shadow-md"
         >
           <Menu size={24} />
         </button>
@@ -105,29 +106,29 @@ export default function Layout({ isAdmin = false }: LayoutProps) {
       {/* Sidebar */}
       <aside
         className={`
-          fixed lg:sticky lg:top-0 inset-y-0 left-0 z-40 w-64 h-screen bg-white border-r border-gray-200
+          fixed lg:sticky lg:top-0 inset-y-0 left-0 z-40 w-64 h-screen bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800
           transform transition-transform duration-200 ease-in-out
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         `}
       >
         <div className="flex flex-col h-full">
           {/* Logo + Mobile Close Button */}
-          <div className="p-6 border-b border-gray-200 flex items-start justify-between">
+          <div className="p-6 border-b border-gray-200 dark:border-gray-800 flex items-start justify-between">
             <div>
-              <h1 className={`${companyNameSizeClass} font-bold text-primary-600 leading-tight break-words`} title={companyName}>{companyName}</h1>
-              <p className="text-sm text-gray-500 mt-0.5">Zeiterfassung</p>
+              <h1 className={`${companyNameSizeClass} font-bold text-primary-600 dark:text-primary-400 leading-tight break-words`} title={companyName}>{companyName}</h1>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Zeiterfassung</p>
             </div>
             {/* Mobile Close Button */}
             <button
               onClick={() => setSidebarOpen(false)}
-              className="lg:hidden p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded"
+              className="lg:hidden p-1 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
             >
               <X size={24} />
             </button>
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 p-4 space-y-1">
+          <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
             {links.map((link) => (
               <NavLink
                 key={link.to}
@@ -137,8 +138,8 @@ export default function Layout({ isAdmin = false }: LayoutProps) {
                 className={({ isActive }) =>
                   `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                     isActive
-                      ? 'bg-primary-50 text-primary-700'
-                      : 'text-gray-600 hover:bg-gray-50'
+                      ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/40 dark:text-primary-300'
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
                   }`
                 }
               >
@@ -154,18 +155,21 @@ export default function Layout({ isAdmin = false }: LayoutProps) {
           </nav>
 
           {/* User Info & Logout */}
-          <div className="p-4 border-t border-gray-200">
+          <div className="p-4 border-t border-gray-200 dark:border-gray-800">
             <div className="mb-3">
-              <p className="font-medium text-gray-900">
+              <p className="font-medium text-gray-900 dark:text-gray-100 truncate">
                 {employee?.firstName} {employee?.lastName}
               </p>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
                 {employee?.isAdmin ? 'Administrator' : 'Mitarbeiter'}
               </p>
             </div>
+            <div className="mb-3">
+              <ThemeToggle />
+            </div>
             <button
               onClick={handleLogout}
-              className="flex items-center gap-2 w-full px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+              className="flex items-center gap-2 w-full px-4 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
             >
               <LogOut size={20} />
               Abmelden
@@ -175,7 +179,7 @@ export default function Layout({ isAdmin = false }: LayoutProps) {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 lg:ml-0">
+      <main className="flex-1 lg:ml-0 text-gray-900 dark:text-gray-100">
         <div className="p-4 lg:p-8 pt-16 lg:pt-8">
           <Outlet />
         </div>
