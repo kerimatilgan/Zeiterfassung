@@ -152,7 +152,7 @@ export async function createArchive(passphrase?: string | null): Promise<{ fileP
  * WICHTIG: kümmert sich NICHT um die laufende Prisma-Connection — der Aufrufer
  * muss vorher $disconnect() und nachher $connect() machen.
  */
-export async function restoreFromArchive(archivePath: string, passphrase?: string | null): Promise<{ restoredDb: boolean; restoredUploads: boolean; restoredReports: boolean; hadSecrets: boolean }> {
+export async function restoreFromArchive(archivePath: string, passphrase?: string | null): Promise<{ restoredDb: boolean; restoredUploads: boolean; restoredReports: boolean; hadSecrets: boolean; dbBackupPath: string }> {
   const workDir = path.join(BACKUP_DIR, `_restore_${Date.now()}`);
   fs.mkdirSync(workDir, { recursive: true });
   const dbBackupPath = `${DB_PATH}.before_restore_${Date.now()}`;
@@ -176,11 +176,16 @@ export async function restoreFromArchive(archivePath: string, passphrase?: strin
     if (!fs.existsSync(extractedDb)) {
       throw new Error('Archiv enthält keine zeiterfassung.db — kein gültiges Zeiterfassung-Backup.');
     }
-    // Test: ist die DB lesbar?
-    try {
-      execFileSync('sqlite3', [extractedDb, 'SELECT count(*) FROM sqlite_master;'], { timeout: 15000 });
-    } catch {
-      throw new Error('Die zeiterfassung.db im Archiv ist beschädigt oder keine gültige SQLite-Datei.');
+    // Schneller Header-Check (kein externes sqlite3-CLI nötig — das ist in
+    // schlanken Docker-Images oft nicht installiert). Eine echte SQLite-Datei
+    // beginnt mit "SQLite format 3\0". Die Tiefen-Validierung (kann Prisma die
+    // DB lesen?) macht der aufrufende /database/restore-Endpoint danach.
+    const SQLITE_MAGIC = Buffer.from('SQLite format 3\0', 'latin1'); // 16 bytes
+    const header = Buffer.alloc(SQLITE_MAGIC.length);
+    const fd = fs.openSync(extractedDb, 'r');
+    try { fs.readSync(fd, header, 0, SQLITE_MAGIC.length, 0); } finally { fs.closeSync(fd); }
+    if (!header.equals(SQLITE_MAGIC)) {
+      throw new Error('Die zeiterfassung.db im Archiv ist keine gültige SQLite-Datei.');
     }
 
     // 4) Aktuelle DB sichern, dann ersetzen
@@ -219,7 +224,7 @@ export async function restoreFromArchive(archivePath: string, passphrase?: strin
       } catch {/* secrets.json kaputt — ignorieren, DB-Restore hat trotzdem geklappt */}
     }
 
-    return { restoredDb: true, restoredUploads, restoredReports, hadSecrets };
+    return { restoredDb: true, restoredUploads, restoredReports, hadSecrets, dbBackupPath };
   } catch (err) {
     // Bei Fehler: DB zurückrollen falls schon ersetzt
     if (fs.existsSync(dbBackupPath)) {

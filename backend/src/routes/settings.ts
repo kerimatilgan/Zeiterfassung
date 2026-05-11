@@ -1340,8 +1340,19 @@ router.post('/database/restore', authMiddleware, adminMiddleware, upload.single(
         // Vollständiges Archiv: DB + uploads/ + reports/ (+ ggf. secrets.json)
         const result = await restoreFromArchive(uploadedPath, passphrase);
 
+        // Tiefen-Check: kann Prisma die wiederhergestellte DB lesen? Falls nicht
+        // (z.B. falsches Schema), die alte DB aus dem Pre-Restore-Backup zurückrollen.
         await prisma.$connect();
-        await prisma.employee.count(); // Sanity-Check
+        try {
+          await prisma.employee.count();
+        } catch (deepCheckErr) {
+          try {
+            await prisma.$disconnect();
+            if (fs.existsSync(result.dbBackupPath)) fs.copyFileSync(result.dbBackupPath, dbPath);
+            await prisma.$connect();
+          } catch {}
+          throw new Error('Die Datenbank im Backup ließ sich nicht öffnen (falsches Schema oder beschädigt) — die alte Datenbank wurde wiederhergestellt.');
+        }
 
         await createAuditLog({
           req,
@@ -1357,7 +1368,9 @@ router.post('/database/restore', authMiddleware, adminMiddleware, upload.single(
             + (result.restoredUploads ? ' Dokumente/Fotos wiederhergestellt.' : '')
             + (result.restoredReports ? ' Abrechnungs-PDFs wiederhergestellt.' : '')
             + (result.hadSecrets ? ' Encryption-Key übernommen.' : ''),
-          ...result,
+          restoredUploads: result.restoredUploads,
+          restoredReports: result.restoredReports,
+          hadSecrets: result.hadSecrets,
         });
       }
 
