@@ -2722,7 +2722,7 @@ export default function AdminSettings() {
                   <Shield size={18} className="mt-0.5 flex-shrink-0" />
                   <div>
                     <p className="font-medium">Verschlüsseltes Backup</p>
-                    <p>Das Archiv wird AES-256-GCM-verschlüsselt (<code>.tar.gz.enc</code>) und enthält dann auch den <code>DOCUMENT_ENCRYPTION_KEY</code> — ein einziges self-contained Backup, das ohne diese Passphrase nutzlos ist. <strong>Merke dir die Passphrase gut</strong> — ohne sie ist das Backup unwiederbringlich verloren.</p>
+                    <p>Das Archiv wird AES-256-GCM-verschlüsselt (<code>.tar.gz.enc</code>) und enthält dann auch den <code>DOCUMENT_ENCRYPTION_KEY</code> sowie die VAPID-Push-Keys — ein einziges self-contained Backup, das ohne diese Passphrase nutzlos ist. <strong>Merke dir die Passphrase gut</strong> — ohne sie ist das Backup unwiederbringlich verloren.</p>
                   </div>
                 </div>
               ) : (

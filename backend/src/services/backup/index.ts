@@ -24,16 +24,31 @@ const UPLOADS_DIR = path.resolve(process.cwd(), 'uploads');
 const REPORTS_DIR = path.resolve(process.cwd(), 'reports');
 const ENV_PATH = path.resolve(process.cwd(), '.env');
 
-// Liest den DOCUMENT_ENCRYPTION_KEY aus der .env — wird (nur) in passphrase-
-// verschlüsselte Backups als secrets.json mit eingepackt, damit das Backup
-// self-contained ist. Klartext-Backups enthalten ihn NICHT.
-function readDocumentEncryptionKey(): string | null {
+// Liest einen .env-Wert (erst aus process.env, dann direkt aus der Datei).
+function readEnvValue(key: string, fileContent?: string): string | null {
+  if (process.env[key]) return process.env[key]!;
   try {
-    if (process.env.DOCUMENT_ENCRYPTION_KEY) return process.env.DOCUMENT_ENCRYPTION_KEY;
-    const envContent = fs.readFileSync(ENV_PATH, 'utf8');
-    const m = envContent.match(/^DOCUMENT_ENCRYPTION_KEY="?([a-f0-9]{64})"?/m);
+    const content = fileContent ?? fs.readFileSync(ENV_PATH, 'utf8');
+    const m = content.match(new RegExp(`^${key}="?([^"\\n]+)"?`, 'm'));
     return m ? m[1] : null;
   } catch { return null; }
+}
+
+// Geheimnisse, die in passphrase-verschlüsselte Backups als secrets.json
+// mit eingepackt werden, damit das Backup self-contained ist:
+//   - DOCUMENT_ENCRYPTION_KEY: KRITISCH — ohne ihn sind alle .enc-Dateien
+//     unwiederbringlich verloren
+//   - VAPID_*: ohne sie sind nach einem Restore alle Push-Subscriptions tot
+// JWT_SECRET wird bewusst NICHT mitgesichert (anderer Wert = MAs einmal neu
+// anmelden, kein Datenverlust). Klartext-Backups enthalten gar keine Secrets.
+const BACKUP_SECRET_KEYS = ['DOCUMENT_ENCRYPTION_KEY', 'VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY', 'VAPID_SUBJECT'] as const;
+
+function collectBackupSecrets(): Record<string, string | null> {
+  let fileContent = '';
+  try { fileContent = fs.readFileSync(ENV_PATH, 'utf8'); } catch {}
+  const out: Record<string, string | null> = {};
+  for (const k of BACKUP_SECRET_KEYS) out[k] = readEnvValue(k, fileContent);
+  return out;
 }
 
 // Optionale Passphrase für geplante (automatische) Backups — aus .env.
@@ -83,7 +98,7 @@ function formatDate(d: Date): string {
  *     zeiterfassung.db        (konsistente Kopie via VACUUM INTO)
  *     uploads/                (MA-Fotos, hochgeladene Dokumente, Logos)
  *     reports/                (finalisierte Abrechnungs-PDFs)
- *     secrets.json            (nur wenn passphrase gesetzt: DOCUMENT_ENCRYPTION_KEY)
+ *     secrets.json            (nur mit passphrase: DOCUMENT_ENCRYPTION_KEY + VAPID_*)
  *
  * Ohne Passphrase: gzip-tar in `zeiterfassung_<ts>.tar.gz`.
  * Mit Passphrase:  zusätzlich AES-256-GCM-verschlüsselt → `zeiterfassung_<ts>.tar.gz.enc`,
@@ -117,10 +132,9 @@ export async function createArchive(passphrase?: string | null): Promise<{ fileP
 
     // 3) secrets.json — NUR bei passphrase-verschlüsseltem Backup
     if (passphrase) {
-      const docKey = readDocumentEncryptionKey();
       fs.writeFileSync(
         path.join(stageDir, 'secrets.json'),
-        JSON.stringify({ DOCUMENT_ENCRYPTION_KEY: docKey || null, createdAt: new Date().toISOString() }, null, 2),
+        JSON.stringify({ ...collectBackupSecrets(), createdAt: new Date().toISOString() }, null, 2),
       );
     }
 
@@ -205,21 +219,26 @@ export async function restoreFromArchive(archivePath: string, passphrase?: strin
       restoredReports = true;
     }
 
-    // 6) secrets.json — DOCUMENT_ENCRYPTION_KEY in .env eintragen falls fehlt
+    // 6) secrets.json — fehlende Secrets in .env nachtragen (DOCUMENT_ENCRYPTION_KEY,
+    //    VAPID_*). Vorhandene Werte werden NICHT überschrieben.
     let hadSecrets = false;
     const extSecrets = path.join(extractDir, 'secrets.json');
     if (fs.existsSync(extSecrets)) {
       hadSecrets = true;
       try {
         const secrets = JSON.parse(fs.readFileSync(extSecrets, 'utf8'));
-        const key = secrets?.DOCUMENT_ENCRYPTION_KEY;
-        if (key && /^[a-f0-9]{64}$/.test(key)) {
-          const envContent = fs.existsSync(ENV_PATH) ? fs.readFileSync(ENV_PATH, 'utf8') : '';
-          if (!/^DOCUMENT_ENCRYPTION_KEY=/m.test(envContent)) {
-            // Key fehlt in .env → anhängen, damit verschlüsselte Dateien lesbar bleiben
-            fs.appendFileSync(ENV_PATH, `${envContent.endsWith('\n') || !envContent ? '' : '\n'}DOCUMENT_ENCRYPTION_KEY="${key}"\n`);
-            process.env.DOCUMENT_ENCRYPTION_KEY = key;
+        let envContent = fs.existsSync(ENV_PATH) ? fs.readFileSync(ENV_PATH, 'utf8') : '';
+        const toAdd: string[] = [];
+        for (const k of ['DOCUMENT_ENCRYPTION_KEY', 'VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY', 'VAPID_SUBJECT']) {
+          const val = secrets?.[k];
+          if (typeof val === 'string' && val.length > 0 && !new RegExp(`^${k}=`, 'm').test(envContent)) {
+            toAdd.push(`${k}="${val}"`);
+            process.env[k] = val;
           }
+        }
+        if (toAdd.length > 0) {
+          const prefix = envContent.length > 0 && !envContent.endsWith('\n') ? '\n' : '';
+          fs.appendFileSync(ENV_PATH, prefix + toAdd.join('\n') + '\n');
         }
       } catch {/* secrets.json kaputt — ignorieren, DB-Restore hat trotzdem geklappt */}
     }
