@@ -361,13 +361,13 @@ function EmployeeDocumentList({ employeeId, formatFileSize, MONTHS, filterYear, 
           </div>
           <button
             onClick={() => doc._isReport ? handleReportDownload(doc._reportId, doc.year, doc.month) : handleDownload(doc.id, doc.originalFilename)}
-            className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
+            className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded-lg"
             title="Herunterladen"
           >
             <Download size={16} />
           </button>
           {!doc._isReport && (
-            <button onClick={() => handleDelete(doc)} className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg" title="Löschen">
+            <button onClick={() => handleDelete(doc)} className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg" title="Löschen">
               <Trash2 size={16} />
             </button>
           )}
@@ -1688,8 +1688,8 @@ export default function AdminEmployees() {
                           onClick={() => openRfidModal(employee)}
                           className={`p-2 rounded-lg ${
                             employee.rfidCard
-                              ? 'text-green-600 dark:text-green-400 hover:text-green-700 hover:bg-green-50'
-                              : 'text-gray-500 dark:text-gray-400 hover:text-primary-600 hover:bg-primary-50'
+                              ? 'text-green-600 dark:text-green-400 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-900/30'
+                              : 'text-gray-500 dark:text-gray-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/30'
                           }`}
                           title={employee.rfidCard ? `RFID: ${employee.rfidCard}` : 'RFID-Karte zuweisen'}
                         >
@@ -1697,7 +1697,7 @@ export default function AdminEmployees() {
                         </button>
                         <button
                           onClick={() => navigate(`/admin/time-entries?employee=${employee.id}`)}
-                          className="p-2 text-gray-500 dark:text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
+                          className="p-2 text-gray-500 dark:text-gray-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded-lg"
                           title="Zeiteinträge"
                         >
                           <Calendar size={18} />
@@ -1707,8 +1707,8 @@ export default function AdminEmployees() {
                           disabled={generateInfoPdfMutation.isPending}
                           className={`p-2 rounded-lg disabled:opacity-50 ${
                             employee.latestInfoLetter?.signedAt
-                              ? 'text-green-600 dark:text-green-400 hover:text-green-700 hover:bg-green-50'
-                              : 'text-gray-500 dark:text-gray-400 hover:text-amber-600 hover:bg-amber-50'
+                              ? 'text-green-600 dark:text-green-400 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-900/30'
+                              : 'text-gray-500 dark:text-gray-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30'
                           }`}
                           title={
                             employee.latestInfoLetter?.signedAt
@@ -1722,21 +1722,21 @@ export default function AdminEmployees() {
                         )}
                         <button
                           onClick={() => { setSelectedEmployeeForDocs(employee); setShowDocumentsModal(true); }}
-                          className="p-2 text-gray-500 dark:text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"
+                          className="p-2 text-gray-500 dark:text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg"
                           title="Dokumente"
                         >
                           <FolderOpen size={18} />
                         </button>
                         <button
                           onClick={() => openEditModal(employee)}
-                          className="p-2 text-gray-500 dark:text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
+                          className="p-2 text-gray-500 dark:text-gray-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded-lg"
                           title="Bearbeiten"
                         >
                           <Edit2 size={18} />
                         </button>
                         <button
                           onClick={() => handleDelete(employee)}
-                          className="p-2 text-gray-500 dark:text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                          className="p-2 text-gray-500 dark:text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg"
                           title="Deaktivieren"
                           disabled={!employee.isActive}
                         >
@@ -2144,7 +2144,7 @@ export default function AdminEmployees() {
                   <button
                     type="button"
                     onClick={handleRfidRemove}
-                    className="btn btn-secondary text-red-600 dark:text-red-400 hover:bg-red-50 flex-1"
+                    className="btn btn-secondary text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 flex-1"
                     disabled={removeRfidMutation.isPending || isScanning}
                   >
                     <Trash2 size={18} className="mr-2" />
@@ -2281,7 +2281,7 @@ export default function AdminEmployees() {
                                     {((entry as any).clockInViaPwa || (entry as any).clockOutViaPwa) && (
                                       <button
                                         onClick={(e) => { e.stopPropagation(); setPwaDetailEntry(entry); }}
-                                        className="flex-shrink-0 p-0.5 rounded hover:bg-blue-100"
+                                        className="flex-shrink-0 p-0.5 rounded hover:bg-blue-100 dark:hover:bg-blue-900/40"
                                       >
                                         <MapPin size={14} className="text-blue-500" />
                                       </button>
@@ -2310,14 +2310,14 @@ export default function AdminEmployees() {
                           <div className="flex items-center gap-2 flex-wrap">
                             <button
                               onClick={() => handleDayClick(editingDate)}
-                              className="text-sm text-primary-600 dark:text-primary-400 hover:bg-primary-50 border border-primary-200 dark:border-primary-800 rounded px-3 py-1.5 flex items-center gap-1.5"
+                              className="text-sm text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/30 border border-primary-200 dark:border-primary-800 rounded px-3 py-1.5 flex items-center gap-1.5"
                             >
                               <Plus size={14} /> Eintrag hinzufügen
                             </button>
                             {!hasAbsence && absenceTypes && absenceTypes.length > 0 && (
                               <button
                                 onClick={() => openAbsencePopup(editingDate)}
-                                className="text-sm text-purple-600 dark:text-purple-400 hover:bg-purple-50 border border-purple-200 dark:border-purple-800 rounded px-3 py-1.5 flex items-center gap-1.5"
+                                className="text-sm text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 border border-purple-200 dark:border-purple-800 rounded px-3 py-1.5 flex items-center gap-1.5"
                               >
                                 <Briefcase size={14} /> Abwesenheit
                               </button>
@@ -2328,7 +2328,7 @@ export default function AdminEmployees() {
                                   const completedEntry = summary.entries.find((e: TimeEntry) => e.clockOut);
                                   if (completedEntry) openPausePopup(editingDate, completedEntry.id);
                                 }}
-                                className="text-sm text-orange-600 dark:text-orange-400 hover:bg-orange-50 border border-orange-200 dark:border-orange-800 rounded px-3 py-1.5 flex items-center gap-1.5"
+                                className="text-sm text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/30 border border-orange-200 dark:border-orange-800 rounded px-3 py-1.5 flex items-center gap-1.5"
                               >
                                 <Clock size={14} /> Pause
                               </button>
@@ -2538,7 +2538,7 @@ export default function AdminEmployees() {
                             } ${isHolidayOnWorkDay && !isNonWorkDay ? 'bg-red-50 dark:bg-red-950/40' : ''} ${isEditing ? 'bg-primary-100 dark:bg-primary-900/40' : ''} ${
                               inSelection ? 'bg-blue-100 dark:bg-blue-900/40' : ''
                             } ${
-                              hasAbsence ? '' : 'cursor-pointer hover:bg-primary-50'
+                              hasAbsence ? '' : 'cursor-pointer hover:bg-primary-50 dark:hover:bg-primary-900/30'
                             }`}
                             style={hasAbsence && !inSelection && !hasHoliday ? { backgroundColor: summary.absence!.absenceType.color + '10' } : {}}
                           >
@@ -2612,7 +2612,7 @@ export default function AdminEmployees() {
                                       {((entry as any).clockInViaPwa || (entry as any).clockOutViaPwa) && (
                                         <button
                                           onClick={(e) => { e.stopPropagation(); setPwaDetailEntry(entry); }}
-                                          className="flex-shrink-0 p-0.5 rounded hover:bg-blue-100"
+                                          className="flex-shrink-0 p-0.5 rounded hover:bg-blue-100 dark:hover:bg-blue-900/40"
                                           title="Auswärtsstempelung – Details anzeigen"
                                         >
                                           <MapPin size={14} className="text-blue-500" />
@@ -2639,7 +2639,7 @@ export default function AdminEmployees() {
                                       e.stopPropagation();
                                       handleDayClick(date);
                                     }}
-                                    className="text-xs text-primary-600 dark:text-primary-400 hover:bg-primary-50 border border-primary-200 dark:border-primary-800 rounded px-2 py-1 mt-1 flex items-center gap-1"
+                                    className="text-xs text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/30 border border-primary-200 dark:border-primary-800 rounded px-2 py-1 mt-1 flex items-center gap-1"
                                   >
                                     <Plus size={12} />
                                     Eintrag
@@ -2657,7 +2657,7 @@ export default function AdminEmployees() {
                                       e.stopPropagation();
                                       openAbsencePopup(date);
                                     }}
-                                    className="text-xs text-purple-600 dark:text-purple-400 hover:bg-purple-50 border border-purple-200 dark:border-purple-800 rounded px-2 py-1 flex items-center gap-1"
+                                    className="text-xs text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 border border-purple-200 dark:border-purple-800 rounded px-2 py-1 flex items-center gap-1"
                                   >
                                     <Briefcase size={12} />
                                     Abwesenheit
@@ -2670,7 +2670,7 @@ export default function AdminEmployees() {
                                       const completedEntry = summary.entries.find((e: TimeEntry) => e.clockOut);
                                       if (completedEntry) openPausePopup(date, completedEntry.id);
                                     }}
-                                    className="text-xs text-orange-600 dark:text-orange-400 hover:bg-orange-50 border border-orange-200 dark:border-orange-800 rounded px-2 py-1 flex items-center gap-1"
+                                    className="text-xs text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/30 border border-orange-200 dark:border-orange-800 rounded px-2 py-1 flex items-center gap-1"
                                   >
                                     <Clock size={12} />
                                     Pause
@@ -2807,7 +2807,7 @@ export default function AdminEmployees() {
                             <button
                               type="button"
                               onClick={handleTimeEntryDelete}
-                              className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 rounded-lg"
+                              className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg"
                               title="Löschen"
                             >
                               <Trash2 size={18} />
@@ -2986,7 +2986,7 @@ export default function AdminEmployees() {
                             <button
                               type="button"
                               onClick={handleAbsenceDelete}
-                              className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 rounded-lg"
+                              className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg"
                               title="Löschen"
                             >
                               <Trash2 size={18} />

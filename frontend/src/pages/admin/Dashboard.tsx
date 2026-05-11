@@ -115,7 +115,7 @@ export default function AdminDashboard() {
             {(pendingComplaints.entries ?? []).map((entry: any) => (
               <div
                 key={entry.id}
-                className="p-4 hover:bg-orange-100 cursor-pointer transition-colors"
+                className="p-4 hover:bg-orange-100 dark:hover:bg-orange-900/40 cursor-pointer transition-colors"
                 onClick={() => navigate(`/admin/complaints?entry=${encodeURIComponent(entry.id)}`)}
               >
                 <div className="flex items-start gap-3">

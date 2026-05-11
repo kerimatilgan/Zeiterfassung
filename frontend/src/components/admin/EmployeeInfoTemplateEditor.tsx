@@ -140,7 +140,7 @@ export default function EmployeeInfoTemplateEditor({ value, onSave, saving }: Pr
                 key={v.key}
                 type="button"
                 onClick={() => insertVariable(v.key)}
-                className="text-left text-xs px-3 py-2 rounded-md bg-gray-50 dark:bg-gray-800 hover:bg-primary-50 hover:text-primary-700 border border-gray-200 dark:border-gray-700 transition-colors"
+                className="text-left text-xs px-3 py-2 rounded-md bg-gray-50 dark:bg-gray-800 hover:bg-primary-50 dark:hover:bg-primary-900/30 hover:text-primary-700 border border-gray-200 dark:border-gray-700 transition-colors"
                 title={`Fügt {{${v.key}}} ein`}
               >
                 <div className="font-medium">{v.label}</div>

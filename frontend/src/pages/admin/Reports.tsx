@@ -426,7 +426,7 @@ export default function AdminReports() {
                         {/* Bearbeiten - immer verfügbar */}
                         <button
                           onClick={() => openEditModal(report)}
-                          className="p-2 text-gray-500 dark:text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
+                          className="p-2 text-gray-500 dark:text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg"
                           title="Bearbeiten"
                         >
                           <Edit2 size={18} />
@@ -434,7 +434,7 @@ export default function AdminReports() {
                         {/* PDF-Vorschau - immer verfügbar */}
                         <button
                           onClick={() => handlePreviewPdf(report)}
-                          className="p-2 text-gray-500 dark:text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
+                          className="p-2 text-gray-500 dark:text-gray-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded-lg"
                           title="PDF-Vorschau"
                         >
                           <Eye size={18} />
@@ -443,7 +443,7 @@ export default function AdminReports() {
                         {report.status === 'draft' && (
                           <button
                             onClick={() => finalizeMutation.mutate(report.id)}
-                            className="p-2 text-gray-500 dark:text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg"
+                            className="p-2 text-gray-500 dark:text-gray-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/30 rounded-lg"
                             title="Finalisieren"
                           >
                             <Check size={18} />
@@ -455,7 +455,7 @@ export default function AdminReports() {
                             onClick={() =>
                               handleDownload(report.id, `${report.employee.lastName}_${report.employee.firstName}_${String(report.month).padStart(2, '0')}_${report.year}.pdf`)
                             }
-                            className="p-2 text-gray-500 dark:text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
+                            className="p-2 text-gray-500 dark:text-gray-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded-lg"
                             title="PDF herunterladen"
                           >
                             <Download size={18} />
@@ -476,7 +476,7 @@ export default function AdminReports() {
                               deleteMutation.mutate(report.id);
                             }
                           }}
-                          className="p-2 text-gray-500 dark:text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                          className="p-2 text-gray-500 dark:text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg"
                           title="Löschen"
                         >
                           <Trash2 size={18} />

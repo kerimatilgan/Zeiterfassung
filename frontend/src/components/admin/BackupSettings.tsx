@@ -672,7 +672,7 @@ export default function BackupSettings() {
                 </div>
                 <div className="flex items-center gap-1">
                   <button onClick={() => testTargetMut.mutate(target.id)} title="Verbindung testen"
-                    className="p-2 text-gray-400 dark:text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg">
+                    className="p-2 text-gray-400 dark:text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg">
                     <TestTube size={16} />
                   </button>
                   <button onClick={() => handleEditTarget(target)} title="Bearbeiten"
@@ -681,7 +681,7 @@ export default function BackupSettings() {
                   </button>
                   <button onClick={() => { if (confirm('Backup-Ziel wirklich löschen?')) deleteTargetMut.mutate(target.id); }}
                     title="Löschen"
-                    className="p-2 text-gray-400 dark:text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg">
+                    className="p-2 text-gray-400 dark:text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg">
                     <Trash2 size={16} />
                   </button>
                 </div>
@@ -737,13 +737,13 @@ export default function BackupSettings() {
                   <div className="flex items-center gap-1 shrink-0">
                     {record.status === 'success' && (
                       <button onClick={() => handleDownload(record.id, record.filename)} title="Herunterladen"
-                        className="p-2 text-gray-400 dark:text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg">
+                        className="p-2 text-gray-400 dark:text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg">
                         <Download size={16} />
                       </button>
                     )}
                     <button onClick={() => { if (confirm('Backup-Eintrag löschen?')) deleteRecordMut.mutate(record.id); }}
                       title="Löschen"
-                      className="p-2 text-gray-400 dark:text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg">
+                      className="p-2 text-gray-400 dark:text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg">
                       <Trash2 size={16} />
                     </button>
                   </div>

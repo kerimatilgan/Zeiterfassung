@@ -424,7 +424,7 @@ export default function EmployeeDashboard() {
         <button
           type="button"
           onClick={() => navigate('/dashboard/documents')}
-          className="w-full text-left bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 border border-amber-200 dark:border-amber-800 rounded-lg p-4 flex items-center gap-3 transition-colors"
+          className="w-full text-left bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/40 border border-amber-200 dark:border-amber-800 rounded-lg p-4 flex items-center gap-3 transition-colors"
         >
           <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center flex-shrink-0">
             <PenLine size={18} className="text-amber-700 dark:text-amber-300" />
@@ -446,7 +446,7 @@ export default function EmployeeDashboard() {
         <button
           type="button"
           onClick={() => navigate('/dashboard/documents')}
-          className="w-full text-left bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 border border-blue-200 dark:border-blue-800 rounded-lg p-4 flex items-center gap-3 transition-colors"
+          className="w-full text-left bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/40 border border-blue-200 dark:border-blue-800 rounded-lg p-4 flex items-center gap-3 transition-colors"
         >
           <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center flex-shrink-0">
             <FileText size={18} className="text-blue-700 dark:text-blue-300" />
@@ -472,7 +472,7 @@ export default function EmployeeDashboard() {
         className={`card p-6 ${
           status?.isClockedIn
             ? 'bg-gradient-to-r from-green-500 to-green-600 text-white'
-            : 'bg-gradient-to-r from-gray-100 to-gray-200'
+            : 'bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 text-gray-900 dark:text-gray-100'
         }`}
       >
         <div className="flex items-center justify-between">
@@ -498,7 +498,7 @@ export default function EmployeeDashboard() {
           </div>
           <div
             className={`p-4 rounded-full ${
-              status?.isClockedIn ? 'bg-green-400/30' : 'bg-gray-300'
+              status?.isClockedIn ? 'bg-green-400/30' : 'bg-gray-300 dark:bg-gray-700'
             }`}
           >
             <Clock size={32} className={status?.isClockedIn ? 'text-white' : 'text-gray-500 dark:text-gray-400'} />
@@ -818,7 +818,7 @@ export default function EmployeeDashboard() {
                                           const prev = dayEntries[idx - 1];
                                           navigate(`/dashboard/complaints?entry=${encodeURIComponent(prev.id)}`);
                                         }}
-                                        className="ml-auto text-xs px-2 py-0.5 rounded text-orange-600 dark:text-orange-400 hover:bg-orange-100"
+                                        className="ml-auto text-xs px-2 py-0.5 rounded text-orange-600 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-900/40"
                                       >
                                         Reklamieren
                                       </button>

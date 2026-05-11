@@ -122,10 +122,10 @@ function PwaReasonsSection() {
                 </div>
                 <div className="flex items-center gap-1">
                   <button onClick={() => toggleActive(r.id, r.isActive)}
-                    className={`text-xs px-2 py-1 rounded ${r.isActive ? 'text-yellow-700 dark:text-yellow-300 hover:bg-yellow-100' : 'text-green-700 dark:text-green-300 hover:bg-green-100'}`}>
+                    className={`text-xs px-2 py-1 rounded ${r.isActive ? 'text-yellow-700 dark:text-yellow-300 hover:bg-yellow-100 dark:hover:bg-yellow-900/40' : 'text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/40'}`}>
                     {r.isActive ? 'Deaktivieren' : 'Aktivieren'}
                   </button>
-                  <button onClick={() => deleteReason(r.id)} className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded">
+                  <button onClick={() => deleteReason(r.id)} className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded">
                     <Trash2 size={14} />
                   </button>
                 </div>
@@ -363,7 +363,7 @@ function DataImportSection() {
                             initialBalanceMonth: emp.initialBalanceMonth || new Date().getMonth() + 1,
                           });
                         }}
-                        className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
+                        className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded-lg"
                       >
                         <Edit2 size={16} />
                       </button>
@@ -1244,7 +1244,7 @@ export default function AdminSettings() {
                   </div>
                   <button
                     onClick={() => deleteHolidayMutation.mutate(holiday.id)}
-                    className="p-2 text-gray-400 dark:text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                    className="p-2 text-gray-400 dark:text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg"
                   >
                     <Trash2 size={18} />
                   </button>
@@ -1500,7 +1500,7 @@ export default function AdminSettings() {
                         <div className="flex items-center justify-end gap-2">
                           <button
                             onClick={() => openEditAbsenceTypeModal(type)}
-                            className="p-2 text-gray-500 dark:text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
+                            className="p-2 text-gray-500 dark:text-gray-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded-lg"
                           >
                             <Edit2 size={18} />
                           </button>
@@ -1510,7 +1510,7 @@ export default function AdminSettings() {
                                 deleteAbsenceTypeMutation.mutate(type.id);
                               }
                             }}
-                            className="p-2 text-gray-500 dark:text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                            className="p-2 text-gray-500 dark:text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg"
                           >
                             <Trash2 size={18} />
                           </button>
@@ -1595,7 +1595,7 @@ export default function AdminSettings() {
                         <div className="flex items-center justify-end gap-2">
                           <button
                             onClick={() => openEditWorkCategoryModal(cat)}
-                            className="p-2 text-gray-500 dark:text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
+                            className="p-2 text-gray-500 dark:text-gray-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded-lg"
                           >
                             <Edit2 size={18} />
                           </button>
@@ -1605,7 +1605,7 @@ export default function AdminSettings() {
                                 deleteWorkCategoryMutation.mutate(cat.id);
                               }
                             }}
-                            className="p-2 text-gray-500 dark:text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                            className="p-2 text-gray-500 dark:text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg"
                           >
                             <Trash2 size={18} />
                           </button>
@@ -1753,7 +1753,7 @@ export default function AdminSettings() {
                 </button>
                 <button
                   onClick={() => setShowRestoreModal(true)}
-                  className="btn btn-secondary flex items-center gap-2 text-sm text-amber-700 dark:text-amber-300 border-amber-300 hover:bg-amber-50"
+                  className="btn btn-secondary flex items-center gap-2 text-sm text-amber-700 dark:text-amber-300 border-amber-300 hover:bg-amber-50 dark:hover:bg-amber-900/30"
                 >
                   <Upload size={16} /> Backup wiederherstellen
                 </button>
@@ -1815,12 +1815,12 @@ export default function AdminSettings() {
                   </td>
                   <td className="px-6 py-3">
                     <div className="flex items-center justify-end gap-2">
-                      <button onClick={() => openDocTypeModal(dt)} className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg">
+                      <button onClick={() => openDocTypeModal(dt)} className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded-lg">
                         <Edit2 size={16} />
                       </button>
                       <button
                         onClick={() => { if (confirm(`"${dt.name}" wirklich löschen?`)) deleteDocTypeMutation.mutate(dt.id); }}
-                        className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                        className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg"
                       >
                         <Trash2 size={16} />
                       </button>
@@ -2073,7 +2073,7 @@ export default function AdminSettings() {
                           </span>
                         ) : (
                           <span className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-                            <span className="w-2.5 h-2.5 bg-gray-300 rounded-full" />
+                            <span className="w-2.5 h-2.5 bg-gray-300 dark:bg-gray-600 rounded-full" />
                             Offline
                           </span>
                         )}
@@ -2088,7 +2088,7 @@ export default function AdminSettings() {
                         <div className="flex items-center justify-end gap-1">
                           <button
                             onClick={() => openEditTerminalModal(terminal)}
-                            className="p-2 text-gray-500 dark:text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
+                            className="p-2 text-gray-500 dark:text-gray-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded-lg"
                             title="Bearbeiten"
                           >
                             <Edit2 size={18} />
@@ -2099,7 +2099,7 @@ export default function AdminSettings() {
                               navigator.clipboard.writeText(cmd);
                               toast.success('Install-Befehl kopiert!');
                             }}
-                            className="p-2 text-gray-500 dark:text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg"
+                            className="p-2 text-gray-500 dark:text-gray-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/30 rounded-lg"
                             title="Install-Befehl kopieren"
                           >
                             <Copy size={18} />
@@ -2110,7 +2110,7 @@ export default function AdminSettings() {
                                 regenerateKeyMutation.mutate(terminal.id);
                               }
                             }}
-                            className="p-2 text-gray-500 dark:text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg"
+                            className="p-2 text-gray-500 dark:text-gray-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded-lg"
                             title="API-Key erneuern"
                           >
                             <Key size={18} />
@@ -2121,7 +2121,7 @@ export default function AdminSettings() {
                                 deleteTerminalMutation.mutate(terminal.id);
                               }
                             }}
-                            className="p-2 text-gray-500 dark:text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                            className="p-2 text-gray-500 dark:text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg"
                             title="Löschen"
                           >
                             <Trash2 size={18} />

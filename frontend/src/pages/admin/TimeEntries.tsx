@@ -408,14 +408,14 @@ export default function AdminTimeEntries() {
                     </div>
                   ) : !absence && !isHol && !isNonWork ? <div className="text-center text-gray-400 dark:text-gray-500 py-8 border rounded-lg border-dashed">Keine Einträge</div> : null}
                   <div className="flex items-center gap-2 flex-wrap">
-                    <button onClick={() => openEdit(selectedDate)} className="text-sm text-primary-600 dark:text-primary-400 hover:bg-primary-50 border border-primary-200 dark:border-primary-800 rounded px-3 py-1.5 flex items-center gap-1.5"><Plus size={14} /> Eintrag</button>
+                    <button onClick={() => openEdit(selectedDate)} className="text-sm text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/30 border border-primary-200 dark:border-primary-800 rounded px-3 py-1.5 flex items-center gap-1.5"><Plus size={14} /> Eintrag</button>
                     {!absence && absenceTypes?.length > 0 && (
                       <button onClick={() => { setEditingAbsence(null); setAbsenceFormData({ absenceTypeId: absenceTypes[0].id, note: '' }); setSelectedDates([selectedDate]); setShowAbsencePopup(true); }}
-                        className="text-sm text-purple-600 dark:text-purple-400 hover:bg-purple-50 border border-purple-200 dark:border-purple-800 rounded px-3 py-1.5 flex items-center gap-1.5"><Briefcase size={14} /> Abwesenheit</button>
+                        className="text-sm text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 border border-purple-200 dark:border-purple-800 rounded px-3 py-1.5 flex items-center gap-1.5"><Briefcase size={14} /> Abwesenheit</button>
                     )}
                     {entries.some(e => e.clockOut) && (
                       <button onClick={() => { setPauseEntryId(entries.find(e => e.clockOut)!.id); setPauseStart('12:00'); setPauseEnd('12:30'); setShowPausePopup(true); }}
-                        className="text-sm text-orange-600 dark:text-orange-400 hover:bg-orange-50 border border-orange-200 dark:border-orange-800 rounded px-3 py-1.5 flex items-center gap-1.5"><Clock size={14} /> Pause</button>
+                        className="text-sm text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/30 border border-orange-200 dark:border-orange-800 rounded px-3 py-1.5 flex items-center gap-1.5"><Clock size={14} /> Pause</button>
                     )}
                   </div>
                 </div>
@@ -504,7 +504,7 @@ export default function AdminTimeEntries() {
             <div className="mt-4 pt-3 border-t">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">Urlaubsanpassungen {selectedMonth.getFullYear()}</p>
-                <button onClick={() => { setAdjForm({ days: '', reason: '' }); setShowAdjPopup(true); }} className="p-1 text-primary-600 dark:text-primary-400 hover:bg-primary-50 rounded" title="Anpassung hinzufügen"><Plus size={14} /></button>
+                <button onClick={() => { setAdjForm({ days: '', reason: '' }); setShowAdjPopup(true); }} className="p-1 text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded" title="Anpassung hinzufügen"><Plus size={14} /></button>
               </div>
               {vacationAdjustments.length > 0 ? (
                 <div className="space-y-1.5">
@@ -562,7 +562,7 @@ export default function AdminTimeEntries() {
           <div className="grid grid-cols-2 gap-3"><div><label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Ein</label><input type="time" value={formData.clockIn} onChange={e => setFormData({...formData, clockIn: e.target.value})} className="input text-sm py-1.5" required /></div><div><label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Aus</label><input type="time" value={formData.clockOut} onChange={e => setFormData({...formData, clockOut: e.target.value})} className="input text-sm py-1.5" /></div></div>
           <div><label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Notiz</label><input type="text" value={formData.note} onChange={e => setFormData({...formData, note: e.target.value})} className="input text-sm py-1.5" /></div>
           <div className="flex items-center justify-between pt-2">
-            {editingEntry && <button type="button" onClick={handleDelete} className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 rounded"><Trash2 size={16} /></button>}
+            {editingEntry && <button type="button" onClick={handleDelete} className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded"><Trash2 size={16} /></button>}
             <div className={`flex gap-2 ${editingEntry ? '' : 'ml-auto'}`}><button type="button" onClick={() => { setEditingEntry(null); setShowCreateEntry(false); }} className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">Abbrechen</button><button type="submit" className="px-3 py-1.5 text-sm bg-primary-600 text-white rounded-lg">Speichern</button></div>
           </div>
         </form>
@@ -697,9 +697,9 @@ export default function AdminTimeEntries() {
               <input type="text" value={absenceFormData.note} onChange={e => setAbsenceFormData({...absenceFormData, note: e.target.value})} className="input text-sm py-1.5 w-full" placeholder="Notiz..." />
               <div className="flex items-center justify-between pt-2">
                 <div className="flex gap-1">
-                  {editingAbsence && <button type="button" onClick={handleAbsenceDelete} className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 rounded" title="Löschen"><Trash2 size={16} /></button>}
+                  {editingAbsence && <button type="button" onClick={handleAbsenceDelete} className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded" title="Löschen"><Trash2 size={16} /></button>}
                   {existingCount > 0 && selectedDates.length > 1 && (
-                    <button type="button" onClick={handleDeleteAll} className="px-2 py-1.5 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 border border-red-200 dark:border-red-800 rounded-lg">
+                    <button type="button" onClick={handleDeleteAll} className="px-2 py-1.5 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg">
                       Alle löschen ({existingCount})
                     </button>
                   )}

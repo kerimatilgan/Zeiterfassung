@@ -320,7 +320,7 @@ export default function EmployeeTimesheet() {
                                             ? prevEntry.complaintResolvedAt
                                               ? 'text-green-700 dark:text-green-300 bg-green-100 dark:bg-green-900/40 hover:bg-green-200'
                                               : 'text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/40 hover:bg-amber-200'
-                                            : 'text-orange-500 hover:text-orange-700 hover:bg-orange-50'
+                                            : 'text-orange-500 hover:text-orange-700 hover:bg-orange-50 dark:hover:bg-orange-900/30'
                                         }`}
                                         title="Pause reklamieren"
                                       >
@@ -343,7 +343,7 @@ export default function EmployeeTimesheet() {
                                   {(entry.clockInViaPwa || entry.clockOutViaPwa) && (
                                     <button
                                       onClick={(e) => { e.stopPropagation(); setPwaDetailEntry(entry); }}
-                                      className="flex-shrink-0 p-0.5 rounded hover:bg-blue-100"
+                                      className="flex-shrink-0 p-0.5 rounded hover:bg-blue-100 dark:hover:bg-blue-900/40"
                                       title="Auswärtsstempelung – Details anzeigen"
                                     >
                                       <MapPin size={14} className="text-blue-500" />
@@ -392,7 +392,7 @@ export default function EmployeeTimesheet() {
                           {day <= new Date() && (
                             <button
                               onClick={() => openStandaloneComplaint(day)}
-                              className="text-xs px-2 py-0.5 rounded text-gray-400 dark:text-gray-500 hover:text-amber-600 hover:bg-amber-50 flex items-center gap-1 ml-auto"
+                              className="text-xs px-2 py-0.5 rounded text-gray-400 dark:text-gray-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30 flex items-center gap-1 ml-auto"
                               title="Tag reklamieren (z.B. Karte vergessen)"
                             >
                               <MessageSquare size={12} />
@@ -473,7 +473,7 @@ export default function EmployeeTimesheet() {
                           if (gapMinutes > 0) {
                             return (
                               <div
-                                className="flex items-center justify-between text-xs text-orange-500 py-1 px-2 cursor-pointer hover:bg-orange-50 rounded"
+                                className="flex items-center justify-between text-xs text-orange-500 py-1 px-2 cursor-pointer hover:bg-orange-50 dark:hover:bg-orange-900/30 rounded"
                                 onClick={() => openComplaintModal(prevEntry, pauseLabel)}
                               >
                                 <div className="flex items-center gap-1.5">
@@ -500,7 +500,7 @@ export default function EmployeeTimesheet() {
                           {(entry.clockInViaPwa || entry.clockOutViaPwa) && (
                             <button
                               onClick={(e) => { e.stopPropagation(); setPwaDetailEntry(entry); }}
-                              className="flex-shrink-0 p-0.5 rounded hover:bg-blue-100"
+                              className="flex-shrink-0 p-0.5 rounded hover:bg-blue-100 dark:hover:bg-blue-900/40"
                             >
                               <MapPin size={14} className="text-blue-500" />
                             </button>
@@ -546,7 +546,7 @@ export default function EmployeeTimesheet() {
                     {day <= new Date() && (
                       <button
                         onClick={() => openStandaloneComplaint(day)}
-                        className="text-xs px-2 py-1 rounded text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-800 hover:text-amber-600 hover:bg-amber-50"
+                        className="text-xs px-2 py-1 rounded text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-800 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30"
                         title="Tag reklamieren"
                       >
                         <MessageSquare size={14} />

@@ -471,7 +471,7 @@ export default function EmployeeComplaints() {
                         <div className="mt-2 flex justify-end">
                           <button
                             onClick={() => withdraw(c.id)}
-                            className="text-xs text-red-600 dark:text-red-400 hover:bg-red-50 px-2 py-1 rounded flex items-center gap-1"
+                            className="text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 px-2 py-1 rounded flex items-center gap-1"
                           >
                             <Trash2 size={12} /> Zurückziehen
                           </button>

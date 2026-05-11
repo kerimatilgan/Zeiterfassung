@@ -308,7 +308,7 @@ export default function EmployeeDocuments() {
                     ) : (
                       <button
                         onClick={() => setSignDoc(doc)}
-                        className="flex items-center gap-1.5 mt-2 text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 rounded px-2 py-1 w-full justify-center border border-amber-200 dark:border-amber-800"
+                        className="flex items-center gap-1.5 mt-2 text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/40 rounded px-2 py-1 w-full justify-center border border-amber-200 dark:border-amber-800"
                       >
                         <PenLine size={14} />
                         <span>Jetzt digital bestätigen</span>
@@ -319,7 +319,7 @@ export default function EmployeeDocuments() {
                 <div className="flex flex-col gap-1 flex-shrink-0">
                   <button
                     onClick={() => doc._isReport ? handleReportDownload(doc) : handleDownload(doc.id, doc.originalFilename)}
-                    className="p-2 text-primary-600 dark:text-primary-400 hover:bg-primary-50 rounded-lg"
+                    className="p-2 text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded-lg"
                     title="Herunterladen"
                   >
                     <Download size={20} />
@@ -335,7 +335,7 @@ export default function EmployeeDocuments() {
                       </button>
                       <button
                         onClick={() => deleteOwnUpload(doc)}
-                        className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
+                        className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg"
                         title="Löschen"
                       >
                         <Trash2 size={18} />
