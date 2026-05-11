@@ -4,6 +4,7 @@ import { useAuthStore } from './store/authStore';
 import Login from './pages/Login';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import SsoCallback from './pages/SsoCallback';
 import SetupWizard from './pages/Setup';
 import AdminDashboard from './pages/admin/Dashboard';
 import AdminEmployees from './pages/admin/Employees';
@@ -84,6 +85,7 @@ function App() {
       <Route path="/login" element={!isAuthenticated ? <Login /> : <Navigate to={employee?.isAdmin ? '/admin' : '/dashboard'} />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/sso/callback" element={<SsoCallback />} />
 
       {/* Admin Routes */}
       <Route path="/admin" element={

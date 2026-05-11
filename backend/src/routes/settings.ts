@@ -17,6 +17,8 @@ import {
   type Bundesland,
 } from '../utils/germanHolidays.js';
 import { createArchive, restoreFromArchive } from '../services/backup/index.js';
+import { encryptString } from '../utils/encryption.js';
+import { clearOidcCache, getRedirectUri, getOidcPublicInfo } from '../utils/sso.js';
 
 // Multer für Datenbank-/Backup-Restore-Upload (.db, .tar.gz, .tar.gz.enc)
 const upload = multer({
@@ -103,7 +105,12 @@ router.get('/public', async (_req, res) => {
       where: { id: 'default' },
       select: { companyName: true },
     });
-    res.json({ companyName: settings?.companyName || '' });
+    const sso = await getOidcPublicInfo();
+    res.json({
+      companyName: settings?.companyName || '',
+      ssoEnabled: sso.enabled,
+      ssoButtonLabel: sso.buttonLabel,
+    });
   } catch (error) {
     console.error('Get public settings error:', error);
     res.status(500).json({ error: 'Fehler beim Laden' });
@@ -2058,6 +2065,115 @@ echo ""
     res.send(script);
   } catch (error) {
     res.status(500).json({ error: 'Fehler beim Generieren des Scripts' });
+  }
+});
+
+// ==================== SSO / OIDC EINSTELLUNGEN ====================
+
+// OIDC-Konfiguration abrufen (Admin) — Client-Secret wird nie ausgeliefert.
+router.get('/sso', authMiddleware, adminMiddleware, async (_req: AuthRequest, res: Response) => {
+  try {
+    const s = await prisma.settings.findUnique({
+      where: { id: 'default' },
+      select: {
+        oidcEnabled: true,
+        oidcIssuer: true,
+        oidcClientId: true,
+        oidcClientSecret: true,
+        oidcButtonLabel: true,
+      },
+    });
+    res.json({
+      oidcEnabled: s?.oidcEnabled ?? false,
+      oidcIssuer: s?.oidcIssuer ?? '',
+      oidcClientId: s?.oidcClientId ?? '',
+      oidcClientSecretSet: !!s?.oidcClientSecret,
+      oidcButtonLabel: s?.oidcButtonLabel ?? 'Mit Authentik anmelden',
+      redirectUri: getRedirectUri(),
+    });
+  } catch (error) {
+    console.error('Get SSO settings error:', error);
+    res.status(500).json({ error: 'Fehler beim Laden der SSO-Einstellungen' });
+  }
+});
+
+// OIDC-Konfiguration speichern (Admin). Client-Secret wird verschlüsselt abgelegt.
+router.put('/sso', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const schema = z.object({
+      oidcEnabled: z.boolean(),
+      oidcIssuer: z.string().trim().url('Issuer muss eine gültige URL sein').or(z.literal('')).optional(),
+      oidcClientId: z.string().trim().max(255).optional(),
+      // '********' = unverändert lassen; '' = löschen; sonst neues Secret
+      oidcClientSecret: z.string().max(2000).optional(),
+      oidcButtonLabel: z.string().trim().max(80).optional(),
+    });
+    const data = schema.parse(req.body);
+
+    const current = await prisma.settings.findUnique({
+      where: { id: 'default' },
+      select: { oidcClientSecret: true },
+    });
+
+    let secretToSave: string | null | undefined = undefined; // undefined = nicht ändern
+    if (data.oidcClientSecret === undefined || data.oidcClientSecret === '********') {
+      secretToSave = undefined;
+    } else if (data.oidcClientSecret === '') {
+      secretToSave = null;
+    } else {
+      secretToSave = encryptString(data.oidcClientSecret);
+    }
+
+    const issuer = (data.oidcIssuer ?? '').trim() || null;
+    const clientId = (data.oidcClientId ?? '').trim() || null;
+    const buttonLabel = (data.oidcButtonLabel ?? '').trim() || 'Mit Authentik anmelden';
+
+    // Wenn aktiviert werden soll, müssen Issuer + Client-ID + (vorhandenes oder neues) Secret da sein.
+    const willHaveSecret = secretToSave === undefined ? !!current?.oidcClientSecret : !!secretToSave;
+    if (data.oidcEnabled && !(issuer && clientId && willHaveSecret)) {
+      return res.status(400).json({ error: 'Für aktiviertes SSO werden Issuer-URL, Client-ID und Client-Secret benötigt.' });
+    }
+
+    const updateData: any = {
+      oidcEnabled: data.oidcEnabled,
+      oidcIssuer: issuer,
+      oidcClientId: clientId,
+      oidcButtonLabel: buttonLabel,
+    };
+    if (secretToSave !== undefined) updateData.oidcClientSecret = secretToSave;
+
+    await prisma.settings.upsert({
+      where: { id: 'default' },
+      update: updateData,
+      create: { id: 'default', ...updateData },
+    });
+
+    clearOidcCache();
+
+    await createAuditLog({
+      req,
+      userId: req.employee!.id,
+      userName: `${req.employee!.firstName} ${req.employee!.lastName}`,
+      action: 'UPDATE',
+      entityType: 'SsoSettings',
+      entityId: 'default',
+      note: `SSO-Einstellungen geändert (aktiv: ${data.oidcEnabled}, Issuer: ${issuer || '—'})`,
+    });
+
+    res.json({
+      oidcEnabled: data.oidcEnabled,
+      oidcIssuer: issuer ?? '',
+      oidcClientId: clientId ?? '',
+      oidcClientSecretSet: secretToSave === undefined ? !!current?.oidcClientSecret : !!secretToSave,
+      oidcButtonLabel: buttonLabel,
+      redirectUri: getRedirectUri(),
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: error.issues[0].message });
+    }
+    console.error('Update SSO settings error:', error);
+    res.status(500).json({ error: 'Fehler beim Speichern der SSO-Einstellungen' });
   }
 });
 

@@ -37,6 +37,7 @@ export type EntityType =
   | 'Database'
   | 'WorkCategory'
   | 'MailSettings'
+  | 'SsoSettings'
   | 'Terminal'
   | 'Document'
   | 'DocumentType'

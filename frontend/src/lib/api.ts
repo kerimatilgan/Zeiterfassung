@@ -281,6 +281,15 @@ export const settingsApi = {
   getMailSettings: () => api.get('/settings/mail'),
   updateMailSettings: (data: any) => api.put('/settings/mail', data),
   testMailSettings: (testEmail: string) => api.post('/settings/mail/test', { testEmail }),
+  // SSO / OIDC (z.B. Authentik)
+  getSso: () => api.get('/settings/sso'),
+  updateSso: (data: {
+    oidcEnabled: boolean;
+    oidcIssuer?: string;
+    oidcClientId?: string;
+    oidcClientSecret?: string; // '********' = unverändert, '' = löschen
+    oidcButtonLabel?: string;
+  }) => api.put('/settings/sso', data),
 };
 
 // 2FA / Passkeys

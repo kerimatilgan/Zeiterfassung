@@ -63,6 +63,9 @@ model Employee {
   dashboardCardOrder      String?
   // Theme-Präferenz: "light" | "dark" | "system" (Default: System-Einstellung des Browsers)
   theme                   String   @default("system")
+  // OIDC/SSO: "sub"-Claim des verknüpften Identity-Providers (z.B. Authentik).
+  // Wird beim ersten SSO-Login gesetzt (Matching anhand der E-Mail).
+  ssoSubject              String?  @unique
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -271,6 +274,13 @@ model Settings {
 
   // Info-Schreiben-Vorlage (Rich-Text-HTML aus react-quill)
   employeeInfoTemplate  String?
+
+  // Single Sign-On (OIDC, z.B. Authentik). Nur User-Info-Claims, keine Rollen.
+  oidcEnabled           Boolean  @default(false)
+  oidcIssuer            String?  // Issuer-/Discovery-URL (ohne /.well-known/...)
+  oidcClientId          String?
+  oidcClientSecret      String?  // verschlüsselt at rest (siehe encryption.ts)
+  oidcButtonLabel       String?  @default("Mit Authentik anmelden")
 
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt

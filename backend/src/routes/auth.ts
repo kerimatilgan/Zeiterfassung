@@ -8,6 +8,7 @@ import { loginLimiter, forgotPasswordLimiter, resetPasswordLimiter } from '../mi
 import { z } from 'zod';
 import { createAuditLog } from '../utils/auditLog.js';
 import { sendPasswordResetEmail } from '../utils/emailService.js';
+import { getOidcConfig, getRedirectUri, getPublicBaseUrl, oidc } from '../utils/sso.js';
 
 const JWT_SECRET: string = (() => {
   const s = process.env.JWT_SECRET;
@@ -412,6 +413,165 @@ router.post('/admin-reset-password', authMiddleware, async (req: AuthRequest, re
   } catch (error) {
     console.error('Admin reset password error:', error);
     res.status(500).json({ error: 'Fehler beim Senden des Reset-Links' });
+  }
+});
+
+// ==================== SSO / OIDC (z.B. Authentik) ====================
+// Es werden nur User-Info-Claims (sub, email, name) genutzt — keine Rollen.
+// Bestehende Nutzer werden per E-Mail erkannt und beim ersten SSO-Login mit
+// dem OIDC-"sub" verknüpft. Neue Nutzer werden NICHT angelegt. isAdmin bleibt
+// unverändert. App-eigene 2FA wird bei SSO-Login übersprungen.
+
+const SSO_COOKIE = 'sso_flow';
+const SSO_COOKIE_OPTS = {
+  httpOnly: true as const,
+  secure: true as const,
+  sameSite: 'lax' as const,
+  path: '/api/auth/sso',
+  maxAge: 10 * 60 * 1000,
+};
+
+function ssoRedirectError(res: Response, message: string) {
+  const base = getPublicBaseUrl();
+  res.redirect(`${base}/login?sso_error=${encodeURIComponent(message)}`);
+}
+
+// Startet den OIDC-Login: leitet zum Authorization-Endpoint weiter.
+router.get('/sso/login', async (_req, res: Response) => {
+  try {
+    const config = await getOidcConfig();
+    const redirectUri = getRedirectUri();
+    const codeVerifier = oidc.randomPKCECodeVerifier();
+    const codeChallenge = await oidc.calculatePKCECodeChallenge(codeVerifier);
+    const state = oidc.randomState();
+    const nonce = oidc.randomNonce();
+
+    const authUrl = oidc.buildAuthorizationUrl(config, {
+      redirect_uri: redirectUri,
+      scope: 'openid email profile',
+      code_challenge: codeChallenge,
+      code_challenge_method: 'S256',
+      state,
+      nonce,
+    });
+
+    const flowToken = jwt.sign(
+      { kind: 'sso_flow', st: state, n: nonce, cv: codeVerifier },
+      JWT_SECRET,
+      { expiresIn: '10m' }
+    );
+    res.cookie(SSO_COOKIE, flowToken, SSO_COOKIE_OPTS);
+    res.redirect(authUrl.href);
+  } catch (error: any) {
+    console.error('SSO login start error:', error);
+    ssoRedirectError(res, error?.message || 'SSO-Anmeldung konnte nicht gestartet werden.');
+  }
+});
+
+// OIDC-Callback: tauscht den Code gegen Tokens, ermittelt den Nutzer und stellt
+// ein App-JWT aus. Leitet danach auf /sso/callback?token=... im Frontend weiter.
+router.get('/sso/callback', async (req, res: Response) => {
+  // Flow-State aus Cookie lesen
+  const rawCookie = req.headers.cookie || '';
+  const m = rawCookie.match(new RegExp(`(?:^|;\\s*)${SSO_COOKIE}=([^;]+)`));
+  res.clearCookie(SSO_COOKIE, { path: SSO_COOKIE_OPTS.path });
+
+  let flow: { st: string; n: string; cv: string };
+  try {
+    if (!m) throw new Error('no cookie');
+    const decoded = jwt.verify(decodeURIComponent(m[1]), JWT_SECRET) as any;
+    if (decoded?.kind !== 'sso_flow' || !decoded.st || !decoded.n || !decoded.cv) throw new Error('bad flow');
+    flow = { st: decoded.st, n: decoded.n, cv: decoded.cv };
+  } catch {
+    return ssoRedirectError(res, 'SSO-Sitzung abgelaufen. Bitte erneut versuchen.');
+  }
+
+  try {
+    const config = await getOidcConfig();
+    const base = getPublicBaseUrl();
+    const currentUrl = new URL(req.originalUrl, base);
+
+    const tokens = await oidc.authorizationCodeGrant(config, currentUrl, {
+      expectedState: flow.st,
+      expectedNonce: flow.n,
+      pkceCodeVerifier: flow.cv,
+      idTokenExpected: true,
+    });
+
+    const claims = tokens.claims() || ({} as any);
+    const sub = claims.sub as string | undefined;
+    if (!sub) return ssoRedirectError(res, 'OIDC-Antwort ohne Subjekt — Anmeldung abgebrochen.');
+
+    // UserInfo holen (Authentik liefert E-Mail dort zuverlässig)
+    let userinfo: any = {};
+    try {
+      if (tokens.access_token) userinfo = await oidc.fetchUserInfo(config, tokens.access_token, sub);
+    } catch (e) {
+      // nicht kritisch — wir versuchen es mit den ID-Token-Claims
+    }
+    const email: string | undefined = (userinfo.email || claims.email) as string | undefined;
+    const emailVerified = userinfo.email_verified ?? claims.email_verified;
+    const displayName: string = (userinfo.name || claims.name || userinfo.preferred_username || email || sub) as string;
+
+    if (!email) return ssoRedirectError(res, 'Kein E-Mail-Claim erhalten — Anmeldung abgebrochen.');
+    if (emailVerified === false) return ssoRedirectError(res, 'E-Mail beim Identity-Provider nicht verifiziert.');
+
+    // Nutzer ermitteln: zuerst per sub, dann per E-Mail (case-insensitive).
+    let employee = await prisma.employee.findUnique({ where: { ssoSubject: sub } });
+    let justLinked = false;
+    if (!employee) {
+      employee = await prisma.employee.findUnique({ where: { email } });
+      if (!employee) {
+        // case-insensitiver Fallback (SQLite kann kein mode:'insensitive')
+        const candidates = await prisma.employee.findMany({
+          where: { email: { not: null } },
+          select: { id: true, email: true },
+        });
+        const hit = candidates.find((c) => c.email!.toLowerCase() === email.toLowerCase());
+        if (hit) employee = await prisma.employee.findUnique({ where: { id: hit.id } });
+      }
+      if (!employee) {
+        return ssoRedirectError(res, 'Kein Konto mit dieser E-Mail vorhanden. Bitte wende dich an deinen Administrator.');
+      }
+      if (employee.ssoSubject && employee.ssoSubject !== sub) {
+        return ssoRedirectError(res, 'Diese E-Mail ist bereits mit einem anderen SSO-Konto verknüpft.');
+      }
+      // verknüpfen
+      employee = await prisma.employee.update({ where: { id: employee.id }, data: { ssoSubject: sub } });
+      justLinked = true;
+    }
+
+    if (!employee.isActive) {
+      return ssoRedirectError(res, 'Dieses Konto ist deaktiviert.');
+    }
+
+    if (justLinked) {
+      await createAuditLog({
+        req,
+        userId: employee.id,
+        userName: `${employee.firstName} ${employee.lastName}`,
+        action: 'UPDATE',
+        entityType: 'Employee',
+        entityId: employee.id,
+        note: `SSO-Konto verknüpft (${displayName})`,
+      });
+    }
+
+    const token = generateToken(employee);
+    await createAuditLog({
+      req,
+      userId: employee.id,
+      userName: `${employee.firstName} ${employee.lastName}`,
+      action: 'LOGIN',
+      entityType: 'Employee',
+      entityId: employee.id,
+      note: `Login via SSO (${displayName})`,
+    });
+
+    return res.redirect(`${base}/sso/callback?token=${encodeURIComponent(token)}`);
+  } catch (error: any) {
+    console.error('SSO callback error:', error?.message || error);
+    return ssoRedirectError(res, 'SSO-Anmeldung fehlgeschlagen. Bitte erneut versuchen.');
   }
 });
 

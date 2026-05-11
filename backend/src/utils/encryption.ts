@@ -56,6 +56,29 @@ export function encryptBuffer(data: Buffer): Buffer {
   return Buffer.concat([iv, authTag, encrypted]);
 }
 
+// Kleine String-Verschlüsselung für einzelne Geheimnisse in der DB (z.B. das
+// OIDC-Client-Secret). Format: "iv:authTag:ciphertext" (alles hex).
+export function encryptString(plaintext: string): string {
+  const key = getEncryptionKey();
+  const iv = crypto.randomBytes(IV_LENGTH);
+  const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
+  const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
+  const authTag = cipher.getAuthTag();
+  return `${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted.toString('hex')}`;
+}
+
+export function decryptString(encrypted: string): string {
+  const key = getEncryptionKey();
+  const parts = encrypted.split(':');
+  if (parts.length !== 3) throw new Error('Ungültiges Verschlüsselungsformat');
+  const iv = Buffer.from(parts[0], 'hex');
+  const authTag = Buffer.from(parts[1], 'hex');
+  const data = Buffer.from(parts[2], 'hex');
+  const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
+  decipher.setAuthTag(authTag);
+  return Buffer.concat([decipher.update(data), decipher.final()]).toString('utf8');
+}
+
 export function decryptFile(filePath: string): Buffer {
   const key = getEncryptionKey();
   const fileData = fs.readFileSync(filePath);

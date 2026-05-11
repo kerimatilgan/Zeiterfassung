@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { Save, Building2, Clock, Calendar, Trash2, Plus, X, Briefcase, Edit2, Wand2, MapPin, AlertCircle, Database, Download, Upload, HardDrive, Mail, Send, CheckCircle, Monitor, Copy, Key, Shield, Smartphone } from 'lucide-react';
 import BackupSettings from '../../components/admin/BackupSettings';
 import EmployeeInfoTemplateEditor from '../../components/admin/EmployeeInfoTemplateEditor';
+import SsoSettings from '../../components/admin/SsoSettings';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 
@@ -1773,6 +1774,9 @@ export default function AdminSettings() {
 
       {/* Daten-Import */}
       <DataImportSection />
+
+      {/* Single Sign-On (OIDC) */}
+      <SsoSettings />
 
       {/* Dokumenttypen */}
       <div className="card">

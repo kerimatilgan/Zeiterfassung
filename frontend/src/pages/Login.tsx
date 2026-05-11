@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { authApi, twoFactorApi, settingsApi } from '../lib/api';
 import { useQuery } from '@tanstack/react-query';
 import { startAuthentication } from '@simplewebauthn/browser';
 import toast from 'react-hot-toast';
-import { Clock, LogIn, Fingerprint, ShieldCheck, ArrowLeft, Server } from 'lucide-react';
+import { Clock, LogIn, Fingerprint, ShieldCheck, ArrowLeft, Server, KeyRound } from 'lucide-react';
 import { isNativeApp, getServerUrl, setServerUrl, getDefaultServerUrl } from '../lib/serverConfig';
 
 type LoginStep = 'credentials' | 'totp';
@@ -21,15 +21,32 @@ export default function Login() {
   const totpInputRef = useRef<HTMLInputElement>(null);
   const { login } = useAuthStore();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [showServerModal, setShowServerModal] = useState(false);
   const [serverInput, setServerInput] = useState(getServerUrl() || getDefaultServerUrl());
 
-  // Firmenname für die Login-Karte (öffentlich, ohne Auth)
+  // Firmenname + SSO-Status für die Login-Karte (öffentlich, ohne Auth)
   const { data: branding } = useQuery({
     queryKey: ['public-branding'],
-    queryFn: () => settingsApi.getPublic().then((r) => r.data as { companyName: string }),
+    queryFn: () =>
+      settingsApi.getPublic().then(
+        (r) => r.data as { companyName: string; ssoEnabled?: boolean; ssoButtonLabel?: string }
+      ),
     staleTime: 5 * 60 * 1000,
   });
+  const showSsoButton = !!branding?.ssoEnabled && !isNativeApp();
+
+  // Fehler vom SSO-Callback (Backend leitet auf /login?sso_error=... weiter)
+  useEffect(() => {
+    const err = searchParams.get('sso_error');
+    if (err) {
+      toast.error(err);
+      const next = new URLSearchParams(searchParams);
+      next.delete('sso_error');
+      setSearchParams(next, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const companyName = branding?.companyName?.trim() || 'Zeiterfassung';
   // Schriftgröße an die Länge anpassen — Karte ist max-w-md (~448 px)
   const companyNameSizeClass = companyName.length <= 16
@@ -171,9 +188,10 @@ export default function Login() {
                 </button>
               </form>
 
-              {/* Passkey Button - only in secure context (https or localhost) UND nicht in nativer App
-                  (Capacitor/Tauri-WebView unterstützt WebAuthn ohne Asset-Links nicht zuverlässig) */}
-              {window.isSecureContext && !isNativeApp() && (
+              {/* Passkey- und/oder SSO-Button. Passkey nur in secure context UND nicht
+                  in nativer App (Capacitor/Tauri-WebView macht WebAuthn ohne Asset-Links
+                  Probleme). SSO-Button nur wenn vom Admin konfiguriert. */}
+              {(showSsoButton || (window.isSecureContext && !isNativeApp())) && (
                 <>
                   <div className="relative my-6">
                     <div className="absolute inset-0 flex items-center">
@@ -184,21 +202,36 @@ export default function Login() {
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={handlePasskeyLogin}
-                    disabled={passkeyLoading}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-gray-200 dark:border-gray-700 rounded-xl text-gray-700 dark:text-gray-300 font-medium hover:border-primary-300 hover:bg-primary-50 dark:hover:bg-primary-900/30 transition-colors disabled:opacity-50"
-                  >
-                    {passkeyLoading ? (
-                      <div className="w-5 h-5 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <>
-                        <Fingerprint size={20} className="text-primary-600 dark:text-primary-400" />
-                        Mit Passkey anmelden
-                      </>
+                  <div className="space-y-3">
+                    {showSsoButton && (
+                      <button
+                        type="button"
+                        onClick={() => { window.location.href = '/api/auth/sso/login'; }}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-medium transition-colors"
+                      >
+                        <KeyRound size={20} />
+                        {branding?.ssoButtonLabel?.trim() || 'Single Sign-On'}
+                      </button>
                     )}
-                  </button>
+
+                    {window.isSecureContext && !isNativeApp() && (
+                      <button
+                        type="button"
+                        onClick={handlePasskeyLogin}
+                        disabled={passkeyLoading}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-gray-200 dark:border-gray-700 rounded-xl text-gray-700 dark:text-gray-300 font-medium hover:border-primary-300 hover:bg-primary-50 dark:hover:bg-primary-900/30 transition-colors disabled:opacity-50"
+                      >
+                        {passkeyLoading ? (
+                          <div className="w-5 h-5 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <>
+                            <Fingerprint size={20} className="text-primary-600 dark:text-primary-400" />
+                            Mit Passkey anmelden
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
                 </>
               )}
 
