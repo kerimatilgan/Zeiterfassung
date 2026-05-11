@@ -16,16 +16,18 @@ import {
   BUNDESLAND_NAMES,
   type Bundesland,
 } from '../utils/germanHolidays.js';
+import { createArchive, restoreFromArchive } from '../services/backup/index.js';
 
-// Multer für Datei-Upload konfigurieren
+// Multer für Datenbank-/Backup-Restore-Upload (.db, .tar.gz, .tar.gz.enc)
 const upload = multer({
   dest: 'temp-uploads/',
-  limits: { fileSize: 100 * 1024 * 1024 }, // Max 100MB
+  limits: { fileSize: 2 * 1024 * 1024 * 1024 }, // Max 2 GB (Archive können mit Uploads groß werden)
   fileFilter: (_req, file, cb) => {
-    if (file.originalname.endsWith('.db') || file.mimetype === 'application/octet-stream') {
+    const n = file.originalname.toLowerCase();
+    if (n.endsWith('.db') || n.endsWith('.tar.gz') || n.endsWith('.tgz') || n.endsWith('.tar.gz.enc') || file.mimetype === 'application/octet-stream' || file.mimetype === 'application/gzip') {
       cb(null, true);
     } else {
-      cb(new Error('Nur .db Dateien sind erlaubt'));
+      cb(new Error('Nur .db, .tar.gz oder .tar.gz.enc Dateien sind erlaubt'));
     }
   },
 });
@@ -1254,114 +1256,144 @@ router.get('/database/info', authMiddleware, adminMiddleware, async (_req: AuthR
   }
 });
 
-// Datenbank-Backup herunterladen (Admin)
-router.get('/database/backup', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
+// Vollständiges Backup herunterladen (Admin) — DB + uploads/ + reports/ als .tar.gz.
+// Mit ?passphrase=… (POST-Body) wird das Archiv AES-256-GCM-verschlüsselt
+// (.tar.gz.enc) und enthält dann zusätzlich den DOCUMENT_ENCRYPTION_KEY,
+// sodass das Backup self-contained ist. Ohne Passphrase: Klartext-tar.gz
+// OHNE den Encryption-Key (der muss separat gesichert werden).
+router.post('/database/backup', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
   try {
-    const dbPath = path.join(process.cwd(), 'prisma', 'zeiterfassung.db');
-
-    if (!fs.existsSync(dbPath)) {
-      return res.status(404).json({ error: 'Datenbank-Datei nicht gefunden' });
+    const passphraseRaw = typeof req.body?.passphrase === 'string' ? req.body.passphrase.trim() : '';
+    if (passphraseRaw && passphraseRaw.length < 8) {
+      return res.status(400).json({ error: 'Passphrase muss mindestens 8 Zeichen haben (oder leer lassen für unverschlüsseltes Backup).' });
     }
+    const passphrase = passphraseRaw || null;
 
-    // Dateiname mit Datum
-    const now = new Date();
-    const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}`;
-    const filename = `zeiterfassung_backup_${dateStr}.db`;
+    const { filePath, filename, fileSize } = await createArchive(passphrase);
 
-    // Audit Log
     await createAuditLog({
       req,
       action: 'DB_BACKUP',
       entityType: 'Database',
-      newValues: {
-        filename,
-        size: fs.statSync(dbPath).size,
-      },
+      newValues: { filename, size: fileSize, verschlüsselt: !!passphrase },
+      note: passphrase ? 'Vollständiges verschlüsseltes Backup heruntergeladen (inkl. Encryption-Key)' : 'Vollständiges Backup heruntergeladen (ohne Encryption-Key)',
     });
 
     res.setHeader('Content-Type', 'application/octet-stream');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Length', String(fileSize));
 
-    const fileStream = fs.createReadStream(dbPath);
-    fileStream.pipe(res);
+    const stream = fs.createReadStream(filePath);
+    stream.pipe(res);
+    // Heruntergeladene Kopie nach dem Senden aufräumen — die Retention-/Scheduled-
+    // Backups sind davon unabhängig, das hier war ein On-Demand-Export.
+    stream.on('close', () => { try { fs.unlinkSync(filePath); } catch {} });
   } catch (error) {
     console.error('Database backup error:', error);
     res.status(500).json({ error: 'Fehler beim Erstellen des Backups' });
   }
 });
 
-// Datenbank wiederherstellen (Admin)
-router.post('/database/restore', authMiddleware, adminMiddleware, upload.single('database'), async (req: AuthRequest, res: Response) => {
+// Legacy-Alias: alter Frontend-Code rief GET /database/backup auf — leitet auf
+// die neue POST-Variante (ohne Passphrase) um, falls noch jemand den GET-Pfad nutzt.
+router.get('/database/backup', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
   try {
-    if (!req.file) {
+    const { filePath, filename, fileSize } = await createArchive(null);
+    await createAuditLog({
+      req, action: 'DB_BACKUP', entityType: 'Database',
+      newValues: { filename, size: fileSize, verschlüsselt: false },
+      note: 'Vollständiges Backup heruntergeladen (Legacy-GET, ohne Encryption-Key)',
+    });
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Length', String(fileSize));
+    const stream = fs.createReadStream(filePath);
+    stream.pipe(res);
+    stream.on('close', () => { try { fs.unlinkSync(filePath); } catch {} });
+  } catch (error) {
+    console.error('Database backup error:', error);
+    res.status(500).json({ error: 'Fehler beim Erstellen des Backups' });
+  }
+});
+
+// Backup/Datenbank wiederherstellen (Admin)
+// Akzeptiert: .tar.gz (vollständiges Backup), .tar.gz.enc (passphrase-verschlüsselt,
+// dann muss Form-Feld "passphrase" mitgeschickt werden) oder eine nackte .db
+// (Legacy — nur DB, keine uploads/reports).
+router.post('/database/restore', authMiddleware, adminMiddleware, upload.single('database'), async (req: AuthRequest, res: Response) => {
+  const uploadedPath = req.file?.path;
+  try {
+    if (!req.file || !uploadedPath) {
       return res.status(400).json({ error: 'Keine Datei hochgeladen' });
     }
 
-    const uploadedPath = req.file.path;
+    const originalName = req.file.originalname.toLowerCase();
+    const isArchive = originalName.endsWith('.tar.gz') || originalName.endsWith('.tgz') || originalName.endsWith('.tar.gz.enc');
+    const passphrase = typeof req.body?.passphrase === 'string' && req.body.passphrase.trim() ? req.body.passphrase.trim() : null;
     const dbPath = path.join(process.cwd(), 'prisma', 'zeiterfassung.db');
-    const backupPath = path.join(process.cwd(), 'prisma', `zeiterfassung_before_restore_${Date.now()}.db.bak`);
 
-    // Prisma-Verbindung schließen
+    // Prisma-Verbindung schließen — die DB-Datei wird ausgetauscht
     await prisma.$disconnect();
 
     try {
-      // Aktuelle DB sichern
-      if (fs.existsSync(dbPath)) {
-        fs.copyFileSync(dbPath, backupPath);
+      if (isArchive) {
+        // Vollständiges Archiv: DB + uploads/ + reports/ (+ ggf. secrets.json)
+        const result = await restoreFromArchive(uploadedPath, passphrase);
+
+        await prisma.$connect();
+        await prisma.employee.count(); // Sanity-Check
+
+        await createAuditLog({
+          req,
+          action: 'DB_RESTORE',
+          entityType: 'Database',
+          newValues: { filename: req.file.originalname, ...result },
+          note: `Backup wiederhergestellt — DB✓ uploads:${result.restoredUploads ? '✓' : '–'} reports:${result.restoredReports ? '✓' : '–'}${result.hadSecrets ? ' (inkl. Encryption-Key)' : ''}`,
+        });
+
+        return res.json({
+          success: true,
+          message: 'Backup erfolgreich wiederhergestellt.'
+            + (result.restoredUploads ? ' Dokumente/Fotos wiederhergestellt.' : '')
+            + (result.restoredReports ? ' Abrechnungs-PDFs wiederhergestellt.' : '')
+            + (result.hadSecrets ? ' Encryption-Key übernommen.' : ''),
+          ...result,
+        });
       }
 
-      // Hochgeladene Datei als neue DB einsetzen
+      // Legacy: nackte .db-Datei
+      const dbBackup = `${dbPath}.before_restore_${Date.now()}`;
+      if (fs.existsSync(dbPath)) fs.copyFileSync(dbPath, dbBackup);
       fs.copyFileSync(uploadedPath, dbPath);
-
-      // Temp-Datei löschen
-      fs.unlinkSync(uploadedPath);
-
-      // Prisma neu verbinden
       await prisma.$connect();
-
-      // Test-Query um sicherzustellen, dass die DB valide ist
       await prisma.employee.count();
 
-      // Audit Log
       await createAuditLog({
-        req,
-        action: 'DB_RESTORE',
-        entityType: 'Database',
-        newValues: {
-          filename: req.file.originalname,
-          backupPath,
-        },
-        note: 'Datenbank erfolgreich wiederhergestellt',
+        req, action: 'DB_RESTORE', entityType: 'Database',
+        newValues: { filename: req.file.originalname, legacyDbOnly: true },
+        note: 'Datenbank (nur .db) wiederhergestellt — uploads/reports NICHT enthalten',
       });
 
-      res.json({
+      return res.json({
         success: true,
-        message: 'Datenbank erfolgreich wiederhergestellt',
-        backupPath: backupPath,
+        message: 'Datenbank wiederhergestellt. Hinweis: eine nackte .db enthält keine Dokumente/Fotos/Abrechnungs-PDFs — für vollständige Wiederherstellung bitte das .tar.gz-Backup verwenden.',
       });
-    } catch (restoreError) {
-      // Bei Fehler: Backup wiederherstellen
-      console.error('Restore failed, reverting:', restoreError);
-
-      if (fs.existsSync(backupPath)) {
-        fs.copyFileSync(backupPath, dbPath);
-      }
-
-      // Temp-Datei löschen falls noch vorhanden
-      if (fs.existsSync(uploadedPath)) {
-        fs.unlinkSync(uploadedPath);
-      }
-
-      // Prisma neu verbinden
-      await prisma.$connect();
-
+    } catch (restoreError: any) {
+      console.error('Restore failed:', restoreError);
+      // restoreFromArchive rollt die DB selbst zurück; trotzdem sicherstellen dass Prisma wieder verbunden ist
+      try { await prisma.$connect(); } catch {}
       return res.status(400).json({
-        error: 'Datenbank-Wiederherstellung fehlgeschlagen. Die hochgeladene Datei ist keine gültige Zeiterfassung-Datenbank.',
+        error: restoreError?.message || 'Wiederherstellung fehlgeschlagen — die Datei ist kein gültiges Zeiterfassung-Backup.',
       });
     }
   } catch (error) {
     console.error('Database restore error:', error);
-    res.status(500).json({ error: 'Fehler bei der Datenbank-Wiederherstellung' });
+    try { await prisma.$connect(); } catch {}
+    res.status(500).json({ error: 'Fehler bei der Wiederherstellung' });
+  } finally {
+    if (uploadedPath && fs.existsSync(uploadedPath)) {
+      try { fs.unlinkSync(uploadedPath); } catch {}
+    }
   }
 });
 

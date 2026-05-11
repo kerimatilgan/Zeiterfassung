@@ -14,12 +14,36 @@ import { DropboxProvider } from './providers/DropboxProvider.js';
 import { GDriveProvider } from './providers/GDriveProvider.js';
 import { OneDriveProvider } from './providers/OneDriveProvider.js';
 import { encryptConfig, decryptConfig } from './configEncryption.js';
+import { encryptArchive, decryptArchive, isEncryptedArchive } from './archiveCrypto.js';
 
 const prisma = new PrismaClient();
 
 const BACKUP_DIR = '/opt/Zeiterfassung/backups';
 const DB_PATH = path.resolve(process.cwd(), 'prisma/zeiterfassung.db');
 const UPLOADS_DIR = path.resolve(process.cwd(), 'uploads');
+const REPORTS_DIR = path.resolve(process.cwd(), 'reports');
+const ENV_PATH = path.resolve(process.cwd(), '.env');
+
+// Liest den DOCUMENT_ENCRYPTION_KEY aus der .env — wird (nur) in passphrase-
+// verschlüsselte Backups als secrets.json mit eingepackt, damit das Backup
+// self-contained ist. Klartext-Backups enthalten ihn NICHT.
+function readDocumentEncryptionKey(): string | null {
+  try {
+    if (process.env.DOCUMENT_ENCRYPTION_KEY) return process.env.DOCUMENT_ENCRYPTION_KEY;
+    const envContent = fs.readFileSync(ENV_PATH, 'utf8');
+    const m = envContent.match(/^DOCUMENT_ENCRYPTION_KEY="?([a-f0-9]{64})"?/m);
+    return m ? m[1] : null;
+  } catch { return null; }
+}
+
+// Optionale Passphrase für geplante (automatische) Backups — aus .env.
+// Wenn gesetzt, werden Scheduled-Backups verschlüsselt + enthalten den
+// Document-Key. Wenn nicht gesetzt: Klartext-tar.gz (mit reports/ + uploads/).
+function getScheduledBackupPassphrase(): string | null {
+  const p = process.env.BACKUP_PASSPHRASE;
+  return p && p.trim().length >= 8 ? p.trim() : null;
+}
+
 // Retention wird aus Settings geladen
 async function getRetentionDays(): Promise<number> {
   try {
@@ -53,83 +77,158 @@ function formatDate(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
 }
 
-async function createArchive(): Promise<{ filePath: string; filename: string; fileSize: number }> {
-  if (!fs.existsSync(BACKUP_DIR)) {
-    fs.mkdirSync(BACKUP_DIR, { recursive: true });
-  }
+/**
+ * Erstellt ein vollständiges Backup-Archiv:
+ *   stage/
+ *     zeiterfassung.db        (konsistente Kopie via VACUUM INTO)
+ *     uploads/                (MA-Fotos, hochgeladene Dokumente, Logos)
+ *     reports/                (finalisierte Abrechnungs-PDFs)
+ *     secrets.json            (nur wenn passphrase gesetzt: DOCUMENT_ENCRYPTION_KEY)
+ *
+ * Ohne Passphrase: gzip-tar in `zeiterfassung_<ts>.tar.gz`.
+ * Mit Passphrase:  zusätzlich AES-256-GCM-verschlüsselt → `zeiterfassung_<ts>.tar.gz.enc`,
+ *                  und secrets.json wird mit eingepackt (Backup ist dann self-contained).
+ */
+export async function createArchive(passphrase?: string | null): Promise<{ filePath: string; filename: string; fileSize: number }> {
+  if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR, { recursive: true });
 
   const timestamp = formatDate(new Date());
-  const filename = `zeiterfassung_${timestamp}.tar.gz`;
-  const archivePath = path.join(BACKUP_DIR, filename);
-  const tmpDbPath = path.join(BACKUP_DIR, `_tmp_backup_${timestamp}.db`);
+  const stageDir = path.join(BACKUP_DIR, `_stage_${timestamp}`);
+  const tarPath = path.join(BACKUP_DIR, `zeiterfassung_${timestamp}.tar.gz`);
 
   try {
-    // Create consistent SQLite copy using VACUUM INTO (execFile: keine Shell)
-    execFileSync('sqlite3', [DB_PATH, `VACUUM INTO '${tmpDbPath.replace(/'/g, "''")}'`], { timeout: 30000 });
-  } catch {
-    // Fallback: direct copy
-    fs.copyFileSync(DB_PATH, tmpDbPath);
+    fs.mkdirSync(stageDir, { recursive: true });
+
+    // 1) Konsistente DB-Kopie
+    const stagedDb = path.join(stageDir, 'zeiterfassung.db');
+    try {
+      execFileSync('sqlite3', [DB_PATH, `VACUUM INTO '${stagedDb.replace(/'/g, "''")}'`], { timeout: 30000 });
+    } catch {
+      fs.copyFileSync(DB_PATH, stagedDb);
+    }
+
+    // 2) uploads/ + reports/
+    if (fs.existsSync(UPLOADS_DIR)) {
+      fs.cpSync(UPLOADS_DIR, path.join(stageDir, 'uploads'), { recursive: true, dereference: true });
+    }
+    if (fs.existsSync(REPORTS_DIR)) {
+      fs.cpSync(REPORTS_DIR, path.join(stageDir, 'reports'), { recursive: true, dereference: true });
+    }
+
+    // 3) secrets.json — NUR bei passphrase-verschlüsseltem Backup
+    if (passphrase) {
+      const docKey = readDocumentEncryptionKey();
+      fs.writeFileSync(
+        path.join(stageDir, 'secrets.json'),
+        JSON.stringify({ DOCUMENT_ENCRYPTION_KEY: docKey || null, createdAt: new Date().toISOString() }, null, 2),
+      );
+    }
+
+    // 4) tar.gz
+    if (fs.existsSync(tarPath)) fs.unlinkSync(tarPath);
+    await tar.create({ gzip: true, file: tarPath, cwd: stageDir }, fs.readdirSync(stageDir));
+
+    // 5) Optional verschlüsseln
+    if (passphrase) {
+      const encPath = `${tarPath}.enc`;
+      encryptArchive(tarPath, encPath, passphrase);
+      fs.unlinkSync(tarPath);
+      const stat = fs.statSync(encPath);
+      return { filePath: encPath, filename: path.basename(encPath), fileSize: stat.size };
+    }
+
+    const stat = fs.statSync(tarPath);
+    return { filePath: tarPath, filename: path.basename(tarPath), fileSize: stat.size };
+  } finally {
+    fs.rmSync(stageDir, { recursive: true, force: true });
   }
+}
 
-  // Build list of files to archive
-  const filesToArchive: { cwd: string; files: string[] }[] = [
-    { cwd: BACKUP_DIR, files: [path.basename(tmpDbPath)] },
-  ];
+/**
+ * Stellt aus einem Backup-Archiv (.tar.gz oder .tar.gz.enc) die Daten wieder her:
+ * überschreibt die SQLite-DB, mergt uploads/ und reports/.
+ * `passphrase` ist nur nötig, wenn das Archiv verschlüsselt ist.
+ *
+ * WICHTIG: kümmert sich NICHT um die laufende Prisma-Connection — der Aufrufer
+ * muss vorher $disconnect() und nachher $connect() machen.
+ */
+export async function restoreFromArchive(archivePath: string, passphrase?: string | null): Promise<{ restoredDb: boolean; restoredUploads: boolean; restoredReports: boolean; hadSecrets: boolean }> {
+  const workDir = path.join(BACKUP_DIR, `_restore_${Date.now()}`);
+  fs.mkdirSync(workDir, { recursive: true });
+  const dbBackupPath = `${DB_PATH}.before_restore_${Date.now()}`;
 
-  if (fs.existsSync(UPLOADS_DIR)) {
-    filesToArchive.push({ cwd: path.dirname(UPLOADS_DIR), files: ['uploads'] });
+  try {
+    // 1) Ggf. entschlüsseln
+    let tarPath = archivePath;
+    if (isEncryptedArchive(archivePath)) {
+      if (!passphrase) throw new Error('Dieses Backup ist passphrase-verschlüsselt — bitte Passphrase angeben.');
+      tarPath = path.join(workDir, 'archive.tar.gz');
+      decryptArchive(archivePath, tarPath, passphrase);
+    }
+
+    // 2) Entpacken
+    const extractDir = path.join(workDir, 'extract');
+    fs.mkdirSync(extractDir, { recursive: true });
+    await tar.extract({ file: tarPath, cwd: extractDir });
+
+    // 3) Plausi: enthält das Archiv eine DB?
+    const extractedDb = path.join(extractDir, 'zeiterfassung.db');
+    if (!fs.existsSync(extractedDb)) {
+      throw new Error('Archiv enthält keine zeiterfassung.db — kein gültiges Zeiterfassung-Backup.');
+    }
+    // Test: ist die DB lesbar?
+    try {
+      execFileSync('sqlite3', [extractedDb, 'SELECT count(*) FROM sqlite_master;'], { timeout: 15000 });
+    } catch {
+      throw new Error('Die zeiterfassung.db im Archiv ist beschädigt oder keine gültige SQLite-Datei.');
+    }
+
+    // 4) Aktuelle DB sichern, dann ersetzen
+    if (fs.existsSync(DB_PATH)) fs.copyFileSync(DB_PATH, dbBackupPath);
+    fs.copyFileSync(extractedDb, DB_PATH);
+
+    // 5) uploads/ + reports/ mergen (vorhandene Dateien überschreiben)
+    const extUploads = path.join(extractDir, 'uploads');
+    const extReports = path.join(extractDir, 'reports');
+    let restoredUploads = false, restoredReports = false;
+    if (fs.existsSync(extUploads)) {
+      fs.cpSync(extUploads, UPLOADS_DIR, { recursive: true, force: true });
+      restoredUploads = true;
+    }
+    if (fs.existsSync(extReports)) {
+      fs.cpSync(extReports, REPORTS_DIR, { recursive: true, force: true });
+      restoredReports = true;
+    }
+
+    // 6) secrets.json — DOCUMENT_ENCRYPTION_KEY in .env eintragen falls fehlt
+    let hadSecrets = false;
+    const extSecrets = path.join(extractDir, 'secrets.json');
+    if (fs.existsSync(extSecrets)) {
+      hadSecrets = true;
+      try {
+        const secrets = JSON.parse(fs.readFileSync(extSecrets, 'utf8'));
+        const key = secrets?.DOCUMENT_ENCRYPTION_KEY;
+        if (key && /^[a-f0-9]{64}$/.test(key)) {
+          const envContent = fs.existsSync(ENV_PATH) ? fs.readFileSync(ENV_PATH, 'utf8') : '';
+          if (!/^DOCUMENT_ENCRYPTION_KEY=/m.test(envContent)) {
+            // Key fehlt in .env → anhängen, damit verschlüsselte Dateien lesbar bleiben
+            fs.appendFileSync(ENV_PATH, `${envContent.endsWith('\n') || !envContent ? '' : '\n'}DOCUMENT_ENCRYPTION_KEY="${key}"\n`);
+            process.env.DOCUMENT_ENCRYPTION_KEY = key;
+          }
+        }
+      } catch {/* secrets.json kaputt — ignorieren, DB-Restore hat trotzdem geklappt */}
+    }
+
+    return { restoredDb: true, restoredUploads, restoredReports, hadSecrets };
+  } catch (err) {
+    // Bei Fehler: DB zurückrollen falls schon ersetzt
+    if (fs.existsSync(dbBackupPath)) {
+      try { fs.copyFileSync(dbBackupPath, DB_PATH); } catch {}
+    }
+    throw err;
+  } finally {
+    fs.rmSync(workDir, { recursive: true, force: true });
   }
-
-  // Create tar.gz: first the db, then uploads
-  await tar.create(
-    {
-      gzip: true,
-      file: archivePath,
-      cwd: BACKUP_DIR,
-    },
-    [path.basename(tmpDbPath)],
-  );
-
-  // If uploads exist, append them
-  if (fs.existsSync(UPLOADS_DIR)) {
-    await tar.create(
-      {
-        gzip: true,
-        file: archivePath,
-        cwd: path.dirname(UPLOADS_DIR),
-      },
-      ['uploads'],
-    );
-  }
-
-  // Actually, let's redo: create a staging dir and tar everything together
-  const stageDir = path.join(BACKUP_DIR, `_stage_${timestamp}`);
-  fs.mkdirSync(stageDir, { recursive: true });
-  fs.renameSync(tmpDbPath, path.join(stageDir, 'zeiterfassung.db'));
-
-  // Symlink uploads if exists
-  if (fs.existsSync(UPLOADS_DIR)) {
-    // Copy uploads directory listing
-    fs.cpSync(UPLOADS_DIR, path.join(stageDir, 'uploads'), { recursive: true, dereference: true });
-  }
-
-  // Remove old incomplete archive
-  if (fs.existsSync(archivePath)) fs.unlinkSync(archivePath);
-
-  await tar.create(
-    {
-      gzip: true,
-      file: archivePath,
-      cwd: stageDir,
-    },
-    fs.readdirSync(stageDir),
-  );
-
-  // Cleanup staging
-  fs.rmSync(stageDir, { recursive: true, force: true });
-
-  const stat = fs.statSync(archivePath);
-  return { filePath: archivePath, filename, fileSize: stat.size };
 }
 
 export async function runBackup(trigger: 'scheduled' | 'manual' = 'manual'): Promise<any[]> {
@@ -139,8 +238,8 @@ export async function runBackup(trigger: 'scheduled' | 'manual' = 'manual'): Pro
   isRunning = true;
 
   try {
-    // Create archive
-    const { filePath, filename, fileSize } = await createArchive();
+    // Geplante Backups werden verschlüsselt, wenn BACKUP_PASSPHRASE in .env gesetzt ist
+    const { filePath, filename, fileSize } = await createArchive(getScheduledBackupPassphrase());
     const retentionDays = await getRetentionDays();
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + retentionDays);
@@ -202,10 +301,10 @@ export async function cleanupOldBackups(): Promise<void> {
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - retentionDays);
 
-  // Delete old local files
+  // Delete old local files (Klartext .tar.gz und verschlüsselte .tar.gz.enc)
   if (fs.existsSync(BACKUP_DIR)) {
     for (const file of fs.readdirSync(BACKUP_DIR)) {
-      if (!file.endsWith('.tar.gz')) continue;
+      if (!file.endsWith('.tar.gz') && !file.endsWith('.tar.gz.enc')) continue;
       const filePath = path.join(BACKUP_DIR, file);
       const stat = fs.statSync(filePath);
       if (stat.mtime < cutoff) {

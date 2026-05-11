@@ -466,7 +466,11 @@ export default function AdminSettings() {
   const [editingAbsenceType, setEditingAbsenceType] = useState<AbsenceType | null>(null);
   const [showRestoreModal, setShowRestoreModal] = useState(false);
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
+  const [restorePassphrase, setRestorePassphrase] = useState('');
   const [isDownloading, setIsDownloading] = useState(false);
+  const [showBackupModal, setShowBackupModal] = useState(false);
+  const [backupPassphrase, setBackupPassphrase] = useState('');
+  const [backupPassphraseConfirm, setBackupPassphraseConfirm] = useState('');
 
   // Mail-Server Einstellungen
   const [mailFormData, setMailFormData] = useState({
@@ -818,12 +822,13 @@ export default function AdminSettings() {
   });
 
   const restoreDatabaseMutation = useMutation({
-    mutationFn: (file: File) => settingsApi.restoreDatabase(file),
-    onSuccess: () => {
+    mutationFn: ({ file, passphrase }: { file: File; passphrase?: string }) => settingsApi.restoreDatabase(file, passphrase),
+    onSuccess: (res: any) => {
       queryClient.invalidateQueries();
-      toast.success('Datenbank erfolgreich wiederhergestellt');
+      toast.success(res?.data?.message || 'Backup erfolgreich wiederhergestellt');
       setShowRestoreModal(false);
       setRestoreFile(null);
+      setRestorePassphrase('');
       refetchDatabaseInfo();
     },
     onError: (error: any) => {
@@ -831,17 +836,18 @@ export default function AdminSettings() {
     },
   });
 
-  const handleBackupDownload = async () => {
+  // Backup herunterladen — wenn passphrase übergeben, kommt ein verschlüsseltes
+  // .tar.gz.enc zurück (inkl. Encryption-Key); sonst Klartext-.tar.gz.
+  const doBackupDownload = async (passphrase?: string) => {
     setIsDownloading(true);
     try {
-      const response = await settingsApi.downloadBackup();
+      const response = await settingsApi.downloadBackup(passphrase);
       const blob = new Blob([response.data], { type: 'application/octet-stream' });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      // Dateiname aus Content-Disposition Header oder Fallback
       const contentDisposition = response.headers['content-disposition'];
-      let filename = 'zeiterfassung_backup.db';
+      let filename = passphrase ? 'zeiterfassung_backup.tar.gz.enc' : 'zeiterfassung_backup.tar.gz';
       if (contentDisposition) {
         const match = contentDisposition.match(/filename="(.+)"/);
         if (match) filename = match[1];
@@ -851,9 +857,18 @@ export default function AdminSettings() {
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-      toast.success('Backup heruntergeladen');
+      toast.success(passphrase ? 'Verschlüsseltes Backup heruntergeladen' : 'Backup heruntergeladen');
+      setShowBackupModal(false);
+      setBackupPassphrase('');
+      setBackupPassphraseConfirm('');
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Fehler beim Download');
+      // Bei responseType:'blob' kommt der Fehler-JSON ebenfalls als Blob — auslesen
+      let msg = 'Fehler beim Download';
+      try {
+        const txt = await (error.response?.data as Blob)?.text?.();
+        if (txt) msg = JSON.parse(txt).error || msg;
+      } catch {}
+      toast.error(msg);
     } finally {
       setIsDownloading(false);
     }
@@ -862,7 +877,7 @@ export default function AdminSettings() {
   const handleRestoreSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (restoreFile) {
-      restoreDatabaseMutation.mutate(restoreFile);
+      restoreDatabaseMutation.mutate({ file: restoreFile, passphrase: restorePassphrase || undefined });
     }
   };
 
@@ -1724,25 +1739,28 @@ export default function AdminSettings() {
                   Letzte Änderung: {format(new Date(databaseInfo.lastModified), 'dd.MM.yyyy HH:mm', { locale: de })}
                 </p>
               )}
-              <div className="flex gap-3">
+              <div className="flex flex-wrap gap-3">
                 <button
-                  onClick={handleBackupDownload}
+                  onClick={() => setShowBackupModal(true)}
                   disabled={isDownloading}
                   className="btn btn-secondary flex items-center gap-2 text-sm"
                 >
                   {isDownloading ? (
-                    <><div className="w-4 h-4 border-2 border-gray-600 border-t-transparent rounded-full animate-spin" /> Lade...</>
+                    <><div className="w-4 h-4 border-2 border-gray-600 border-t-transparent rounded-full animate-spin" /> Erstelle Backup…</>
                   ) : (
-                    <><Download size={16} /> DB herunterladen</>
+                    <><Download size={16} /> Backup herunterladen</>
                   )}
                 </button>
                 <button
                   onClick={() => setShowRestoreModal(true)}
                   className="btn btn-secondary flex items-center gap-2 text-sm text-amber-700 border-amber-300 hover:bg-amber-50"
                 >
-                  <Upload size={16} /> DB wiederherstellen
+                  <Upload size={16} /> Backup wiederherstellen
                 </button>
               </div>
+              <p className="text-xs text-gray-400">
+                Backup enthält Datenbank, Mitarbeiter-Fotos, hochgeladene Dokumente und finalisierte Abrechnungs-PDFs (als <code>.tar.gz</code>).
+              </p>
             </div>
           )}
 
@@ -2550,7 +2568,7 @@ export default function AdminSettings() {
       {/* Restore Database Modal */}
       {showRestoreModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-100 flex items-center justify-between">
               <h2 className="text-xl font-semibold flex items-center gap-2">
                 <Upload size={20} />
@@ -2560,6 +2578,7 @@ export default function AdminSettings() {
                 onClick={() => {
                   setShowRestoreModal(false);
                   setRestoreFile(null);
+                  setRestorePassphrase('');
                 }}
                 className="p-2 hover:bg-gray-100 rounded-lg"
               >
@@ -2573,9 +2592,9 @@ export default function AdminSettings() {
                   <div className="text-sm text-amber-800">
                     <p className="font-semibold mb-1">Achtung!</p>
                     <p>
-                      Diese Aktion ersetzt die aktuelle Datenbank komplett.
-                      Alle aktuellen Daten werden überschrieben.
-                      Ein automatisches Backup wird vor der Wiederherstellung erstellt.
+                      Diese Aktion ersetzt die aktuelle Datenbank komplett — und mergt
+                      Dokumente, Fotos und Abrechnungs-PDFs aus dem Backup. Vor dem
+                      Überschreiben wird automatisch eine Kopie der aktuellen DB angelegt.
                     </p>
                   </div>
                 </div>
@@ -2585,7 +2604,7 @@ export default function AdminSettings() {
                 <label className="label">Backup-Datei auswählen</label>
                 <input
                   type="file"
-                  accept=".db"
+                  accept=".tar.gz,.tgz,.enc,.db"
                   onChange={(e) => setRestoreFile(e.target.files?.[0] || null)}
                   className="w-full text-sm text-gray-500
                     file:mr-4 file:py-2 file:px-4
@@ -2595,6 +2614,9 @@ export default function AdminSettings() {
                     hover:file:bg-primary-100
                     cursor-pointer"
                 />
+                <p className="mt-1 text-xs text-gray-400">
+                  <code>.tar.gz</code> (vollständig) oder <code>.tar.gz.enc</code> (verschlüsselt — dann Passphrase nötig). Eine nackte <code>.db</code> stellt nur die Datenbank wieder her, ohne Dokumente/PDFs.
+                </p>
                 {restoreFile && (
                   <p className="mt-2 text-sm text-gray-600">
                     Ausgewählt: <span className="font-medium">{restoreFile.name}</span> ({(restoreFile.size / (1024 * 1024)).toFixed(2)} MB)
@@ -2602,12 +2624,27 @@ export default function AdminSettings() {
                 )}
               </div>
 
+              {restoreFile?.name.toLowerCase().endsWith('.enc') && (
+                <div>
+                  <label className="label">Passphrase</label>
+                  <input
+                    type="password"
+                    value={restorePassphrase}
+                    onChange={(e) => setRestorePassphrase(e.target.value)}
+                    placeholder="Passphrase des verschlüsselten Backups"
+                    className="input"
+                    autoComplete="off"
+                  />
+                </div>
+              )}
+
               <div className="flex justify-end gap-3 pt-4">
                 <button
                   type="button"
                   onClick={() => {
                     setShowRestoreModal(false);
                     setRestoreFile(null);
+                    setRestorePassphrase('');
                   }}
                   className="btn btn-secondary"
                 >
@@ -2615,7 +2652,7 @@ export default function AdminSettings() {
                 </button>
                 <button
                   type="submit"
-                  disabled={!restoreFile || restoreDatabaseMutation.isPending}
+                  disabled={!restoreFile || restoreDatabaseMutation.isPending || (restoreFile.name.toLowerCase().endsWith('.enc') && !restorePassphrase)}
                   className="btn bg-amber-600 text-white hover:bg-amber-700 flex items-center gap-2"
                 >
                   {restoreDatabaseMutation.isPending ? (
@@ -2632,6 +2669,100 @@ export default function AdminSettings() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Backup-Download-Modal: optional mit Passphrase verschlüsseln */}
+      {showBackupModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+              <h2 className="text-xl font-semibold flex items-center gap-2">
+                <Download size={20} />
+                Backup herunterladen
+              </h2>
+              <button
+                onClick={() => { setShowBackupModal(false); setBackupPassphrase(''); setBackupPassphraseConfirm(''); }}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-gray-600">
+                Erstellt ein vollständiges Backup (<code>.tar.gz</code>): Datenbank,
+                Mitarbeiter-Fotos, hochgeladene Dokumente und finalisierte Abrechnungs-PDFs.
+              </p>
+
+              <div>
+                <label className="label">Passphrase (optional)</label>
+                <input
+                  type="password"
+                  value={backupPassphrase}
+                  onChange={(e) => setBackupPassphrase(e.target.value)}
+                  placeholder="Leer lassen für unverschlüsseltes Backup"
+                  className="input"
+                  autoComplete="new-password"
+                />
+                {backupPassphrase && (
+                  <input
+                    type="password"
+                    value={backupPassphraseConfirm}
+                    onChange={(e) => setBackupPassphraseConfirm(e.target.value)}
+                    placeholder="Passphrase wiederholen"
+                    className="input mt-2"
+                    autoComplete="new-password"
+                  />
+                )}
+              </div>
+
+              {backupPassphrase ? (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-800 flex items-start gap-2">
+                  <Shield size={18} className="mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="font-medium">Verschlüsseltes Backup</p>
+                    <p>Das Archiv wird AES-256-GCM-verschlüsselt (<code>.tar.gz.enc</code>) und enthält dann auch den <code>DOCUMENT_ENCRYPTION_KEY</code> — ein einziges self-contained Backup, das ohne diese Passphrase nutzlos ist. <strong>Merke dir die Passphrase gut</strong> — ohne sie ist das Backup unwiederbringlich verloren.</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800 flex items-start gap-2">
+                  <AlertCircle size={18} className="mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="font-medium">Achtung: ohne Encryption-Key</p>
+                    <p>Ein unverschlüsseltes Backup enthält <strong>nicht</strong> den <code>DOCUMENT_ENCRYPTION_KEY</code>. Verschlüsselte Dokumente und Abrechnungs-PDFs lassen sich nach einer Wiederherstellung nur lesen, wenn derselbe Key in der <code>backend/.env</code> der Zielinstanz steht. Sichere den Key separat (z.B. ausgedruckt im Safe) — oder vergib eine Passphrase, dann ist er im Backup enthalten.</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => { setShowBackupModal(false); setBackupPassphrase(''); setBackupPassphraseConfirm(''); }}
+                  className="btn btn-secondary"
+                >
+                  Abbrechen
+                </button>
+                <button
+                  type="button"
+                  disabled={isDownloading || (!!backupPassphrase && (backupPassphrase.length < 8 || backupPassphrase !== backupPassphraseConfirm))}
+                  onClick={() => doBackupDownload(backupPassphrase || undefined)}
+                  className="btn btn-primary flex items-center gap-2"
+                >
+                  {isDownloading ? (
+                    <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Erstelle…</>
+                  ) : (
+                    <><Download size={16} /> {backupPassphrase ? 'Verschlüsselt herunterladen' : 'Herunterladen'}</>
+                  )}
+                </button>
+              </div>
+              {!!backupPassphrase && backupPassphrase.length < 8 && (
+                <p className="text-xs text-red-600">Passphrase muss mindestens 8 Zeichen haben.</p>
+              )}
+              {!!backupPassphrase && backupPassphrase.length >= 8 && backupPassphrase !== backupPassphraseConfirm && (
+                <p className="text-xs text-red-600">Die Passphrasen stimmen nicht überein.</p>
+              )}
+            </div>
           </div>
         </div>
       )}

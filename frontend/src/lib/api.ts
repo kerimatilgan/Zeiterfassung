@@ -260,12 +260,16 @@ export const settingsApi = {
     });
   },
   deleteTerminalLogo: () => api.delete('/settings/terminal-logo'),
-  // Datenbank-Verwaltung
+  // Datenbank-Verwaltung / Backup
   getDatabaseInfo: () => api.get('/settings/database/info'),
-  downloadBackup: () => api.get('/settings/database/backup', { responseType: 'blob' }),
-  restoreDatabase: (file: File) => {
+  // Vollständiges Backup (.tar.gz mit DB + uploads + reports). Mit passphrase →
+  // verschlüsseltes .tar.gz.enc inkl. DOCUMENT_ENCRYPTION_KEY.
+  downloadBackup: (passphrase?: string) =>
+    api.post('/settings/database/backup', { passphrase: passphrase || '' }, { responseType: 'blob' }),
+  restoreDatabase: (file: File, passphrase?: string) => {
     const formData = new FormData();
     formData.append('database', file);
+    if (passphrase) formData.append('passphrase', passphrase);
     return api.post('/settings/database/restore', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
