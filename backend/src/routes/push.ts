@@ -46,7 +46,7 @@ router.post('/subscribe', authMiddleware, async (req: AuthRequest, res: Response
     res.json({ ok: true });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: error.errors[0].message });
+      return res.status(400).json({ error: error.issues[0].message });
     }
     console.error('Push subscribe error:', error);
     res.status(500).json({ error: 'Fehler beim Speichern der Subscription' });
@@ -64,7 +64,7 @@ router.post('/unsubscribe', authMiddleware, async (req: AuthRequest, res: Respon
     res.json({ ok: true });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: error.errors[0].message });
+      return res.status(400).json({ error: error.issues[0].message });
     }
     console.error('Push unsubscribe error:', error);
     res.status(500).json({ error: 'Fehler beim Entfernen der Subscription' });

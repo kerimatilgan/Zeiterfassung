@@ -124,7 +124,7 @@ router.post('/login', loginLimiter, async (req, res) => {
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: error.errors[0].message });
+      return res.status(400).json({ error: error.issues[0].message });
     }
     console.error('Login error:', error);
     res.status(500).json({ error: 'Anmeldung fehlgeschlagen' });

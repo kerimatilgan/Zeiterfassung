@@ -144,7 +144,7 @@ router.post('/complete', async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     if (error.name === 'ZodError') {
-      return res.status(400).json({ error: error.errors[0].message });
+      return res.status(400).json({ error: error.issues[0].message });
     }
     console.error('Setup error:', error);
     res.status(500).json({ error: error.message || 'Fehler bei der Einrichtung' });

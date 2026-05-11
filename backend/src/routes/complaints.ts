@@ -256,7 +256,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
 
     res.status(201).json(complaint);
   } catch (error: any) {
-    if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors[0].message });
+    if (error instanceof z.ZodError) return res.status(400).json({ error: error.issues[0].message });
     console.error('Create complaint error:', error);
     res.status(500).json({ error: 'Fehler beim Erstellen' });
   }
@@ -525,7 +525,7 @@ router.post('/:id/resolve', authMiddleware, adminMiddleware, async (req: AuthReq
 
     res.json(resolved);
   } catch (error: any) {
-    if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors[0].message });
+    if (error instanceof z.ZodError) return res.status(400).json({ error: error.issues[0].message });
     console.error('Resolve error:', error);
     res.status(500).json({ error: 'Fehler beim Bearbeiten' });
   }

@@ -179,7 +179,7 @@ router.put('/', authMiddleware, adminMiddleware, async (req: AuthRequest, res: R
     res.json({ ...settings, _geocodeWarning: geocodeWarning });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: error.errors[0].message });
+      return res.status(400).json({ error: error.issues[0].message });
     }
     console.error('Update settings error:', error);
     res.status(500).json({ error: 'Fehler beim Speichern der Einstellungen' });
@@ -232,7 +232,7 @@ router.post('/holidays', authMiddleware, adminMiddleware, async (req: AuthReques
     res.status(201).json(holiday);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: error.errors[0].message });
+      return res.status(400).json({ error: error.issues[0].message });
     }
     console.error('Create holiday error:', error);
     res.status(500).json({ error: 'Fehler beim Erstellen des Feiertags' });
@@ -350,7 +350,7 @@ router.post('/holidays/generate', authMiddleware, adminMiddleware, async (req: A
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: error.errors[0].message });
+      return res.status(400).json({ error: error.issues[0].message });
     }
     console.error('Generate holidays error:', error);
     res.status(500).json({ error: 'Fehler beim Generieren der Feiertage' });
@@ -472,7 +472,7 @@ router.post('/absence-types', authMiddleware, adminMiddleware, async (req: AuthR
     res.status(201).json(absenceType);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: error.errors[0].message });
+      return res.status(400).json({ error: error.issues[0].message });
     }
     console.error('Create absence type error:', error);
     res.status(500).json({ error: 'Fehler beim Erstellen des Abwesenheitstyps' });
@@ -504,7 +504,7 @@ router.put('/absence-types/:id', authMiddleware, adminMiddleware, async (req: Au
     res.json(absenceType);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: error.errors[0].message });
+      return res.status(400).json({ error: error.issues[0].message });
     }
     console.error('Update absence type error:', error);
     res.status(500).json({ error: 'Fehler beim Aktualisieren des Abwesenheitstyps' });
@@ -623,7 +623,7 @@ router.post('/absences', authMiddleware, adminMiddleware, async (req: AuthReques
     res.status(201).json(absence);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: error.errors[0].message });
+      return res.status(400).json({ error: error.issues[0].message });
     }
     console.error('Create absence error:', error);
     res.status(500).json({ error: 'Fehler beim Erstellen der Abwesenheit' });
@@ -658,7 +658,7 @@ router.post('/absences/bulk', authMiddleware, adminMiddleware, async (req: AuthR
 
     res.status(201).json({ created, total: data.dates.length });
   } catch (error) {
-    if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors[0].message });
+    if (error instanceof z.ZodError) return res.status(400).json({ error: error.issues[0].message });
     res.status(500).json({ error: 'Fehler beim Erstellen' });
   }
 });
@@ -698,7 +698,7 @@ router.put('/absences/:id', authMiddleware, adminMiddleware, async (req: AuthReq
     res.json(absence);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: error.errors[0].message });
+      return res.status(400).json({ error: error.issues[0].message });
     }
     console.error('Update absence error:', error);
     res.status(500).json({ error: 'Fehler beim Aktualisieren der Abwesenheit' });
@@ -877,7 +877,7 @@ router.put('/initial-balances/:id', authMiddleware, adminMiddleware, async (req:
     res.json(employee);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: error.errors[0].message });
+      return res.status(400).json({ error: error.issues[0].message });
     }
     console.error('Set initial balance error:', error);
     res.status(500).json({ error: 'Fehler beim Speichern' });
@@ -1056,7 +1056,7 @@ router.post('/document-types', authMiddleware, adminMiddleware, async (req: Auth
     res.status(201).json(docType);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: error.errors[0].message });
+      return res.status(400).json({ error: error.issues[0].message });
     }
     console.error('Create document type error:', error);
     res.status(500).json({ error: 'Fehler beim Erstellen des Dokumenttyps' });
@@ -1081,7 +1081,7 @@ router.put('/document-types/:id', authMiddleware, adminMiddleware, async (req: A
     res.json(docType);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: error.errors[0].message });
+      return res.status(400).json({ error: error.issues[0].message });
     }
     console.error('Update document type error:', error);
     res.status(500).json({ error: 'Fehler beim Aktualisieren des Dokumenttyps' });
@@ -1521,7 +1521,7 @@ router.put('/mail', authMiddleware, adminMiddleware, async (req: AuthRequest, re
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: error.errors[0].message });
+      return res.status(400).json({ error: error.issues[0].message });
     }
     console.error('Update mail settings error:', error);
     res.status(500).json({ error: 'Fehler beim Speichern der Mail-Einstellungen' });
@@ -1562,7 +1562,7 @@ router.post('/mail/test', authMiddleware, adminMiddleware, async (req: AuthReque
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: error.errors[0].message });
+      return res.status(400).json({ error: error.issues[0].message });
     }
     console.error('Mail test error:', error);
     res.status(500).json({
@@ -1632,7 +1632,7 @@ router.post('/work-categories', authMiddleware, adminMiddleware, async (req: Aut
     res.status(201).json(category);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: error.errors[0].message });
+      return res.status(400).json({ error: error.issues[0].message });
     }
     console.error('Create work category error:', error);
     res.status(500).json({ error: 'Fehler beim Erstellen der Arbeitskategorie' });
@@ -1674,7 +1674,7 @@ router.put('/work-categories/:id', authMiddleware, adminMiddleware, async (req: 
     res.json(category);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: error.errors[0].message });
+      return res.status(400).json({ error: error.issues[0].message });
     }
     console.error('Update work category error:', error);
     res.status(500).json({ error: 'Fehler beim Aktualisieren der Arbeitskategorie' });

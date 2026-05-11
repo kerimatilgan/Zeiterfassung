@@ -274,7 +274,7 @@ router.post('/', authMiddleware, adminMiddleware, async (req: AuthRequest, res: 
     res.status(201).json(employee);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: error.errors[0].message });
+      return res.status(400).json({ error: error.issues[0].message });
     }
     console.error('Create employee error:', error);
     res.status(500).json({ error: 'Fehler beim Anlegen des Mitarbeiters' });
@@ -416,7 +416,7 @@ router.put('/:id', authMiddleware, adminMiddleware, async (req: AuthRequest, res
     res.json(employee);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: error.errors[0].message });
+      return res.status(400).json({ error: error.issues[0].message });
     }
     console.error('Update employee error:', error);
     res.status(500).json({ error: 'Fehler beim Aktualisieren des Mitarbeiters' });
@@ -710,7 +710,7 @@ router.post('/me/position', authMiddleware, async (req: AuthRequest, res: Respon
     res.json({ ok: true });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: error.errors[0].message });
+      return res.status(400).json({ error: error.issues[0].message });
     }
     console.error('Position heartbeat error:', error);
     res.status(500).json({ error: 'Fehler beim Speichern der Position' });
@@ -734,7 +734,7 @@ router.put('/me/dashboard-order', authMiddleware, async (req: AuthRequest, res: 
     res.json({ ok: true });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: error.errors[0].message });
+      return res.status(400).json({ error: error.issues[0].message });
     }
     console.error('Dashboard card order save error:', error);
     res.status(500).json({ error: 'Fehler beim Speichern' });
@@ -756,7 +756,7 @@ router.put('/me/theme', authMiddleware, async (req: AuthRequest, res: Response) 
     res.json({ ok: true, theme });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: error.errors[0].message });
+      return res.status(400).json({ error: error.issues[0].message });
     }
     console.error('Theme save error:', error);
     res.status(500).json({ error: 'Fehler beim Speichern' });

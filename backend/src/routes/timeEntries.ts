@@ -180,7 +180,7 @@ router.post('/manual', authMiddleware, adminMiddleware, async (req: AuthRequest,
     res.status(201).json(entry);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: error.errors[0].message });
+      return res.status(400).json({ error: error.issues[0].message });
     }
     console.error('Create manual entry error:', error);
     res.status(500).json({ error: 'Fehler beim Erstellen des Eintrags' });
@@ -263,7 +263,7 @@ router.put('/:id', authMiddleware, adminMiddleware, async (req: AuthRequest, res
     res.json(entry);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: error.errors[0].message });
+      return res.status(400).json({ error: error.issues[0].message });
     }
     console.error('Update entry error:', error);
     res.status(500).json({ error: 'Fehler beim Aktualisieren des Eintrags' });
@@ -962,7 +962,7 @@ router.post('/vacation-adjustments', authMiddleware, adminMiddleware, async (req
 
     res.json(adjustment);
   } catch (error) {
-    if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors[0].message });
+    if (error instanceof z.ZodError) return res.status(400).json({ error: error.issues[0].message });
     console.error('Create vacation adjustment error:', error);
     res.status(500).json({ error: 'Fehler beim Speichern' });
   }
@@ -1370,7 +1370,7 @@ router.post('/complaint/standalone', authMiddleware, async (req: AuthRequest, re
     res.json(entry);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: error.errors[0].message });
+      return res.status(400).json({ error: error.issues[0].message });
     }
     console.error('Create standalone complaint error:', error);
     res.status(500).json({ error: 'Fehler beim Erstellen der Reklamation' });
@@ -1498,7 +1498,7 @@ router.post('/:id/complaint', authMiddleware, async (req: AuthRequest, res: Resp
     res.json(updatedEntry);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: error.errors[0].message });
+      return res.status(400).json({ error: error.issues[0].message });
     }
     console.error('Create complaint error:', error);
     res.status(500).json({ error: 'Fehler beim Erstellen der Reklamation' });
@@ -1657,7 +1657,7 @@ router.post('/:id/complaint/resolve', authMiddleware, adminMiddleware, async (re
     res.json(updatedEntry);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: error.errors[0].message });
+      return res.status(400).json({ error: error.issues[0].message });
     }
     console.error('Resolve complaint error:', error);
     res.status(500).json({ error: 'Fehler beim Bearbeiten der Reklamation' });
