@@ -2,7 +2,10 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { settingsApi, timeEntriesApi } from '../../lib/api';
 import { photoSrc } from '../../lib/photoUrl';
-import { Users, Clock, FileText, TrendingUp, UserCheck, AlertTriangle, ChevronRight, X } from 'lucide-react';
+import {
+  Users, Clock, FileText, UserCheck, AlertTriangle, ChevronRight, X,
+  CalendarDays, MessageSquare,
+} from 'lucide-react';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
@@ -42,169 +45,158 @@ export default function AdminDashboard() {
   const statCards = [
     {
       label: 'Aktive Mitarbeiter',
-      value: stats?.activeEmployees ?? '-',
+      value: stats?.activeEmployees ?? '—',
       icon: Users,
-      color: 'bg-blue-500',
       onClick: () => navigate('/admin/employees'),
     },
     {
       label: 'Aktuell eingestempelt',
-      value: stats?.currentlyClockedIn ?? '-',
+      value: stats?.currentlyClockedIn ?? '—',
       icon: UserCheck,
-      color: 'bg-green-500',
       onClick: () => setActiveModal('clockedIn'),
+      highlight: typeof stats?.currentlyClockedIn === 'number' && stats.currentlyClockedIn > 0,
     },
     {
       label: 'Einträge heute',
-      value: stats?.entriesToday ?? '-',
+      value: stats?.entriesToday ?? '—',
       icon: Clock,
-      color: 'bg-orange-500',
       onClick: () => setActiveModal('entriesToday'),
     },
     {
       label: 'Offene Abrechnungen',
-      value: stats?.pendingReports ?? '-',
+      value: stats?.pendingReports ?? '—',
       icon: FileText,
-      color: 'bg-purple-500',
       onClick: () => navigate('/admin/reports?status=draft'),
     },
   ];
 
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Admin Dashboard</h1>
-        <p className="text-gray-500 dark:text-gray-400">Übersicht der Zeiterfassung</p>
-      </div>
+  const today = format(new Date(), 'dd. MMMM yyyy', { locale: de });
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+  return (
+    <div className="space-y-stack_lg">
+      {/* Header */}
+      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-stack_sm">
+        <div>
+          <h1 className="font-display text-display text-on-surface">Übersicht</h1>
+          <p className="font-body-md text-body-md text-on-surface-variant mt-1">
+            Live-Stand der Zeiterfassung
+          </p>
+        </div>
+        <div className="inline-flex items-center gap-2 bg-surface-container-low dark:bg-surface-container border border-outline-variant rounded-full px-4 py-2 shadow-sm">
+          <CalendarDays size={18} className="text-on-surface-variant" />
+          <span className="font-body-md text-body-md font-medium text-on-surface-variant">{today}</span>
+        </div>
+      </header>
+
+      {/* KPI-Kacheln */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-gutter">
         {statCards.map((stat) => (
-          <div
+          <button
             key={stat.label}
-            className="card p-6 cursor-pointer hover:shadow-md transition-shadow"
             onClick={stat.onClick}
+            className="text-left bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl p-stack_md flex flex-col gap-stack_sm shadow-sm hover:shadow-md transition-shadow duration-150 ease-in-out"
           >
-            <div className="flex items-center gap-4">
-              <div className={`p-3 rounded-lg ${stat.color}`}>
-                <stat.icon className="w-6 h-6 text-white" />
-              </div>
-              <div className="flex-1">
-                <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{stat.value}</p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">{stat.label}</p>
-              </div>
-              <ChevronRight className="w-5 h-5 text-gray-300" />
+            <div className="flex items-center justify-between">
+              <span className="font-label-md text-label-md uppercase text-on-surface-variant">{stat.label}</span>
+              <stat.icon size={18} className="text-outline" />
             </div>
-          </div>
+            <div className="flex items-center gap-2">
+              <span className="font-stat-number text-stat-number text-on-surface">{stat.value}</span>
+              {stat.highlight && (
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75 animate-ping" />
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500" />
+                </span>
+              )}
+            </div>
+          </button>
         ))}
       </div>
 
-      {/* Offene Reklamationen Widget */}
+      {/* Offene Reklamationen — Tabellen-Karte */}
       {pendingComplaints && pendingComplaints.count > 0 && (pendingComplaints.entries?.length ?? 0) > 0 && (
-        <div className="card border-2 border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-950/40">
-          <div className="p-4 border-b border-orange-200 dark:border-orange-800 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-orange-800 dark:text-orange-300 flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5" />
-              Offene Reklamationen
-              <span className="ml-2 px-2 py-0.5 text-sm bg-orange-500 text-white rounded-full">
+        <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-sm overflow-hidden">
+          <div className="px-stack_lg py-stack_md border-b border-outline-variant bg-surface-bright dark:bg-surface-container flex items-center justify-between">
+            <div className="flex items-center gap-stack_sm">
+              <AlertTriangle size={20} className="text-error" />
+              <h2 className="font-headline-md text-headline-md text-on-surface">Offene Reklamationen</h2>
+              <span className="bg-error text-on-error font-label-md text-label-md px-2 py-0.5 rounded-full">
                 {pendingComplaints.count}
               </span>
-            </h2>
+            </div>
+            <button
+              onClick={() => navigate('/admin/complaints')}
+              className="font-body-md text-body-md text-primary-container hover:underline"
+            >
+              Alle anzeigen
+            </button>
           </div>
-          <div className="divide-y divide-orange-200">
+          <div className="divide-y divide-outline-variant">
             {(pendingComplaints.entries ?? []).map((entry: any) => (
-              <div
+              <button
                 key={entry.id}
-                className="p-4 hover:bg-orange-100 dark:hover:bg-orange-900/40 cursor-pointer transition-colors"
                 onClick={() => navigate(`/admin/complaints?entry=${encodeURIComponent(entry.id)}`)}
+                className="w-full text-left flex items-center gap-stack_md px-stack_lg py-stack_md hover:bg-surface-container-low dark:hover:bg-surface-container transition-colors"
               >
-                <div className="flex items-start gap-3">
-                  {/* Avatar */}
-                  <div className="flex-shrink-0">
-                    {entry.employee.photoUrl ? (
-                      <img
-                        src={photoSrc(entry.employee.photoUrl)}
-                        alt=""
-                        className="w-10 h-10 rounded-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-10 h-10 rounded-full bg-orange-200 flex items-center justify-center text-orange-700 dark:text-orange-300 font-medium">
-                        {entry.employee.firstName[0]}{entry.employee.lastName[0]}
-                      </div>
-                    )}
-                  </div>
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <p className="font-medium text-gray-900 dark:text-gray-100">
-                        {entry.employee.firstName} {entry.employee.lastName}
-                      </p>
-                      <ChevronRight className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                <div className="shrink-0">
+                  {entry.employee.photoUrl ? (
+                    <img src={photoSrc(entry.employee.photoUrl)} alt="" className="w-10 h-10 rounded-full object-cover" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-error-container text-on-error-container flex items-center justify-center font-body-md text-body-md font-semibold">
+                      {entry.employee.firstName[0]}{entry.employee.lastName[0]}
                     </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      {format(new Date(entry.clockIn), 'dd.MM.yyyy', { locale: de })} • {format(new Date(entry.clockIn), 'HH:mm', { locale: de })}
-                      {entry.clockOut && ` - ${format(new Date(entry.clockOut), 'HH:mm', { locale: de })}`}
-                    </p>
-                    <p className="text-sm text-orange-700 dark:text-orange-300 mt-1 truncate">
-                      "{entry.complaintMessage}"
-                    </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      Reklamiert {format(new Date(entry.complaintAt), "dd.MM.yyyy 'um' HH:mm", { locale: de })}
-                    </p>
-                  </div>
+                  )}
                 </div>
-              </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-body-md text-body-md font-semibold text-on-surface">
+                    {entry.employee.firstName} {entry.employee.lastName}
+                  </p>
+                  <p className="font-body-md text-body-md text-on-surface-variant truncate">
+                    „{entry.complaintMessage}"
+                  </p>
+                  <p className="font-label-md text-label-md text-on-surface-variant mt-0.5">
+                    Eintrag vom {format(new Date(entry.clockIn), 'dd.MM.yyyy', { locale: de })}
+                    {' · '}reklamiert {format(new Date(entry.complaintAt), "dd.MM.yyyy 'um' HH:mm", { locale: de })}
+                  </p>
+                </div>
+                <ChevronRight size={20} className="text-outline shrink-0" />
+              </button>
             ))}
           </div>
-          {pendingComplaints.count > 5 && (
-            <div className="p-3 border-t border-orange-200 dark:border-orange-800 text-center">
-              <button
-                onClick={() => navigate('/admin/complaints')}
-                className="text-sm text-orange-700 dark:text-orange-300 hover:text-orange-900 font-medium"
-              >
-                Alle {pendingComplaints.count} Reklamationen anzeigen →
-              </button>
-            </div>
-          )}
         </div>
       )}
 
-      {/* Recent Activity */}
-      <div className="card">
-        <div className="p-6 border-b border-gray-100 dark:border-gray-800">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-            <TrendingUp size={20} />
-            Letzte Aktivitäten
+      {/* Letzte Aktivitäten — Timeline-Stil */}
+      <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-sm overflow-hidden">
+        <div className="px-stack_lg py-stack_md border-b border-outline-variant bg-surface-bright dark:bg-surface-container flex items-center justify-between">
+          <h2 className="font-headline-md text-headline-md text-on-surface flex items-center gap-stack_sm">
+            <MessageSquare size={20} className="text-on-surface-variant" />
+            Letzte Stempelungen
           </h2>
         </div>
-        <div className="divide-y divide-gray-100 dark:divide-gray-800">
+        <div className="p-stack_lg">
           {recentEntries?.length ? (
-            recentEntries.map((entry: any) => (
-              <div key={entry.id} className="p-4 flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-gray-900 dark:text-gray-100">
-                    {entry.employee.firstName} {entry.employee.lastName}
-                  </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {format(new Date(entry.clockIn), 'dd.MM.yyyy HH:mm', { locale: de })}
-                    {entry.clockOut && (
-                      <> - {format(new Date(entry.clockOut), 'HH:mm', { locale: de })}</>
-                    )}
-                  </p>
-                </div>
-                <span
-                  className={`px-3 py-1 rounded-full text-sm font-medium ${
-                    entry.clockOut
-                      ? 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
-                      : 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300'
-                  }`}
-                >
-                  {entry.clockOut ? 'Abgeschlossen' : 'Aktiv'}
-                </span>
-              </div>
-            ))
+            <div className="relative border-l-2 border-outline-variant ml-3 flex flex-col gap-stack_lg">
+              {recentEntries.map((entry: any) => {
+                const isActive = !entry.clockOut;
+                const dotColor = isActive ? 'border-green-500' : 'border-on-surface-variant';
+                return (
+                  <div key={entry.id} className="relative pl-stack_lg">
+                    <div className={`absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-surface dark:bg-surface-container-high border-2 ${dotColor}`} />
+                    <p className="font-body-md text-body-md text-on-surface">
+                      <span className="font-semibold">{entry.employee.firstName} {entry.employee.lastName}</span>
+                      {' '}{isActive ? 'eingestempelt' : 'ausgestempelt'}
+                    </p>
+                    <p className="font-label-md text-label-md text-on-surface-variant mt-0.5">
+                      {format(new Date(entry.clockIn), "dd.MM.yyyy 'um' HH:mm", { locale: de })}
+                      {entry.clockOut && ` – ${format(new Date(entry.clockOut), 'HH:mm', { locale: de })}`}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
           ) : (
-            <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+            <div className="text-center py-stack_lg font-body-md text-body-md text-on-surface-variant">
               Keine Einträge vorhanden
             </div>
           )}
@@ -214,54 +206,54 @@ export default function AdminDashboard() {
       {/* Modal: Aktuell eingestempelt */}
       {activeModal === 'clockedIn' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setActiveModal(null)}>
-          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-            <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
-              <h2 className="text-xl font-semibold flex items-center gap-2">
-                <UserCheck className="w-5 h-5 text-green-500" />
+          <div className="bg-surface dark:bg-surface-container-high rounded-xl shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col border border-outline-variant" onClick={(e) => e.stopPropagation()}>
+            <div className="p-stack_lg border-b border-outline-variant flex items-center justify-between">
+              <h2 className="font-headline-md text-headline-md text-on-surface flex items-center gap-stack_sm">
+                <UserCheck size={20} className="text-green-500" />
                 Aktuell eingestempelt
               </h2>
-              <button onClick={() => setActiveModal(null)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+              <button onClick={() => setActiveModal(null)} className="p-2 text-on-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-container-highest rounded-lg transition-colors">
                 <X size={20} />
               </button>
             </div>
-            <div className="overflow-y-auto flex-1 divide-y divide-gray-100 dark:divide-gray-800">
+            <div className="overflow-y-auto flex-1 divide-y divide-outline-variant">
               {clockedInEntries?.length ? (
                 clockedInEntries.map((entry: any) => (
-                  <div
+                  <button
                     key={entry.id}
-                    className="p-4 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
+                    className="w-full text-left p-stack_md flex items-center gap-stack_md hover:bg-surface-container-low dark:hover:bg-surface-container transition-colors"
                     onClick={() => {
                       setActiveModal(null);
                       navigate(`/admin/employees?openEmployee=${entry.employeeId}`);
                     }}
                   >
-                    <div className="flex-shrink-0">
+                    <div className="shrink-0">
                       {entry.employee.photoUrl ? (
                         <img src={photoSrc(entry.employee.photoUrl)} alt="" className="w-10 h-10 rounded-full object-cover" />
                       ) : (
-                        <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/40 flex items-center justify-center text-green-700 dark:text-green-300 font-medium">
+                        <div className="w-10 h-10 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center font-body-md font-semibold">
                           {entry.employee.firstName[0]}{entry.employee.lastName[0]}
                         </div>
                       )}
                     </div>
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-900 dark:text-gray-100">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-body-md text-body-md font-semibold text-on-surface truncate">
                         {entry.employee.firstName} {entry.employee.lastName}
                       </p>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">#{entry.employee.employeeNumber}</p>
+                      <p className="font-label-md text-label-md text-on-surface-variant">#{entry.employee.employeeNumber}</p>
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm font-medium text-green-600 dark:text-green-400">
+                    <div className="text-right shrink-0">
+                      <p className="font-body-md text-body-md font-medium text-green-600 dark:text-green-400">
                         seit {format(new Date(entry.clockIn), 'HH:mm', { locale: de })}
                       </p>
-                      <p className="text-xs text-gray-400 dark:text-gray-500">
+                      <p className="font-label-md text-label-md text-on-surface-variant">
                         {format(new Date(entry.clockIn), 'dd.MM.yyyy', { locale: de })}
                       </p>
                     </div>
-                  </div>
+                  </button>
                 ))
               ) : (
-                <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+                <div className="p-stack_lg text-center font-body-md text-body-md text-on-surface-variant">
                   Niemand eingestempelt
                 </div>
               )}
@@ -273,55 +265,59 @@ export default function AdminDashboard() {
       {/* Modal: Einträge heute */}
       {activeModal === 'entriesToday' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setActiveModal(null)}>
-          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-            <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
-              <h2 className="text-xl font-semibold flex items-center gap-2">
-                <Clock className="w-5 h-5 text-orange-500" />
+          <div className="bg-surface dark:bg-surface-container-high rounded-xl shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col border border-outline-variant" onClick={(e) => e.stopPropagation()}>
+            <div className="p-stack_lg border-b border-outline-variant flex items-center justify-between">
+              <h2 className="font-headline-md text-headline-md text-on-surface flex items-center gap-stack_sm">
+                <Clock size={20} className="text-on-surface-variant" />
                 Einträge heute
               </h2>
-              <button onClick={() => setActiveModal(null)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+              <button onClick={() => setActiveModal(null)} className="p-2 text-on-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-container-highest rounded-lg transition-colors">
                 <X size={20} />
               </button>
             </div>
-            <div className="overflow-y-auto flex-1 divide-y divide-gray-100 dark:divide-gray-800">
+            <div className="overflow-y-auto flex-1 divide-y divide-outline-variant">
               {todayEntries?.length ? (
                 todayEntries.map((entry: any) => (
-                  <div
+                  <button
                     key={entry.id}
-                    className="p-4 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
+                    className="w-full text-left p-stack_md flex items-center gap-stack_md hover:bg-surface-container-low dark:hover:bg-surface-container transition-colors"
                     onClick={() => {
                       setActiveModal(null);
                       navigate(`/admin/employees?openEmployee=${entry.employeeId}`);
                     }}
                   >
-                    <div className="flex-shrink-0">
+                    <div className="shrink-0">
                       {entry.employee.photoUrl ? (
                         <img src={photoSrc(entry.employee.photoUrl)} alt="" className="w-10 h-10 rounded-full object-cover" />
                       ) : (
-                        <div className="w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-900/40 flex items-center justify-center text-orange-700 dark:text-orange-300 font-medium">
+                        <div className="w-10 h-10 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center font-body-md font-semibold">
                           {entry.employee.firstName[0]}{entry.employee.lastName[0]}
                         </div>
                       )}
                     </div>
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-900 dark:text-gray-100">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-body-md text-body-md font-semibold text-on-surface truncate">
                         {entry.employee.firstName} {entry.employee.lastName}
                       </p>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">#{entry.employee.employeeNumber}</p>
+                      <p className="font-label-md text-label-md text-on-surface-variant">#{entry.employee.employeeNumber}</p>
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    <div className="text-right shrink-0">
+                      <p className="font-body-md text-body-md font-medium text-on-surface">
                         {format(new Date(entry.clockIn), 'HH:mm', { locale: de })}
-                        {entry.clockOut ? ` - ${format(new Date(entry.clockOut), 'HH:mm', { locale: de })}` : ''}
+                        {entry.clockOut ? ` – ${format(new Date(entry.clockOut), 'HH:mm', { locale: de })}` : ''}
                       </p>
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${entry.clockOut ? 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400' : 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300'}`}>
+                      <span className={`inline-block mt-1 font-label-md text-label-md px-2 py-0.5 rounded-full ${
+                        entry.clockOut
+                          ? 'bg-surface-container-high text-on-surface-variant'
+                          : 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300'
+                      }`}>
                         {entry.clockOut ? 'Fertig' : 'Aktiv'}
                       </span>
                     </div>
-                  </div>
+                  </button>
                 ))
               ) : (
-                <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+                <div className="p-stack_lg text-center font-body-md text-body-md text-on-surface-variant">
                   Keine Einträge heute
                 </div>
               )}
