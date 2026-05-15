@@ -380,13 +380,15 @@ export default function EmployeeDashboard() {
   }, [status?.activeEntry, currentTime]);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+    <div className="space-y-stack_lg">
+      <header className="mb-stack_sm">
+        <h1 className="font-display text-display text-on-surface mb-1">
           Hallo, {employee?.firstName}!
         </h1>
-        <p className="text-gray-500 dark:text-gray-400">Deine Zeiterfassung auf einen Blick</p>
-      </div>
+        <p className="font-body-lg text-body-lg text-on-surface-variant">
+          Deine Zeiterfassung auf einen Blick.
+        </p>
+      </header>
 
       {/* Banner: Push-Benachrichtigungen aktivieren (dezent, dismissable) */}
       {showPushBanner && (
@@ -467,63 +469,63 @@ export default function EmployeeDashboard() {
         </button>
       )}
 
-      {/* Current Status */}
+      {/* Status-Hero — eingestempelt = grüner Akzent, ausgestempelt = neutrale Karte */}
       <div
-        className={`card p-6 ${
+        className={`rounded-xl p-stack_lg shadow-sm flex items-center justify-between ${
           status?.isClockedIn
             ? 'bg-gradient-to-r from-green-500 to-green-600 text-white'
-            : 'bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 text-gray-900 dark:text-gray-100'
+            : 'bg-surface-container-low dark:bg-surface-container-high border border-outline-variant text-on-surface'
         }`}
       >
-        <div className="flex items-center justify-between">
-          <div>
-            <p className={`text-sm ${status?.isClockedIn ? 'text-green-100' : 'text-gray-500 dark:text-gray-400'}`}>
-              Aktueller Status
+        <div className="min-w-0">
+          <p className={`font-label-md text-label-md uppercase ${status?.isClockedIn ? 'text-white/80' : 'text-on-surface-variant'}`}>
+            Aktueller Status
+          </p>
+          <p className="font-display text-display font-bold mt-1">
+            {status?.isClockedIn ? 'Eingestempelt' : 'Ausgestempelt'}
+          </p>
+          {status?.isClockedIn && status.activeEntry && (
+            <p className="font-body-lg text-body-lg text-white/90 mt-2">
+              Seit {format(new Date(status.activeEntry.clockIn), 'HH:mm', { locale: de })} Uhr
+              {' '}({calculateCurrentDuration()})
             </p>
-            <p className="text-2xl font-bold mt-1">
-              {status?.isClockedIn ? 'Eingestempelt' : 'Ausgestempelt'}
+          )}
+          {stats?.isTodayWorkDay && stats.dailyTarget > 0 && (
+            <p className={`mt-2 font-body-md text-body-md ${status?.isClockedIn ? 'text-white/90' : 'text-on-surface-variant'}`}>
+              Heute: {formatHoursToTime(stats.todayWorked)} / {formatHoursToTime(stats.dailyTarget)} h
+              {stats.todayRemaining > 0 ? ` · noch ${formatHoursToTime(stats.todayRemaining)} h` : ' · Tagessoll erreicht!'}
             </p>
-            {status?.isClockedIn && status.activeEntry && (
-              <p className="text-green-100 mt-2">
-                Seit {format(new Date(status.activeEntry.clockIn), 'HH:mm', { locale: de })} Uhr
-                {' '}({calculateCurrentDuration()})
-              </p>
-            )}
-            {stats?.isTodayWorkDay && stats.dailyTarget > 0 && (
-              <p className={`mt-2 text-sm ${status?.isClockedIn ? 'text-green-100' : 'text-gray-500 dark:text-gray-400'}`}>
-                Heute: {formatHoursToTime(stats.todayWorked)} / {formatHoursToTime(stats.dailyTarget)} h
-                {stats.todayRemaining > 0 ? ` · noch ${formatHoursToTime(stats.todayRemaining)} h` : ' · Tagessoll erreicht!'}
-              </p>
-            )}
-          </div>
-          <div
-            className={`p-4 rounded-full ${
-              status?.isClockedIn ? 'bg-green-400/30' : 'bg-gray-300 dark:bg-gray-700'
-            }`}
-          >
-            <Clock size={32} className={status?.isClockedIn ? 'text-white' : 'text-gray-500 dark:text-gray-400'} />
-          </div>
+          )}
+        </div>
+        <div
+          className={`w-16 h-16 rounded-full flex items-center justify-center shrink-0 ${
+            status?.isClockedIn
+              ? 'bg-white/20 backdrop-blur-sm'
+              : 'bg-surface-container-high dark:bg-surface-container-highest'
+          }`}
+        >
+          <Clock size={32} className={status?.isClockedIn ? 'text-white' : 'text-on-surface-variant'} />
         </div>
       </div>
 
       {/* PWA Stempel-Buttons */}
       {(pwaPermissions?.canClockInPwa || pwaPermissions?.canClockOutPwa) && (
-        <div className="flex gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-gutter">
           {canPwaClockIn && (
             <button
               onClick={() => openPwaModal('clock-in')}
-              className="flex-1 flex items-center justify-center gap-2 p-4 bg-green-600 hover:bg-green-700 text-white rounded-xl font-medium shadow-lg transition"
+              className="flex items-center justify-center gap-2 h-14 min-h-[48px] bg-green-600 hover:bg-green-700 text-white font-headline-md text-headline-md rounded-lg shadow-sm transition-colors duration-150 ease-in-out active:scale-[0.98]"
             >
-              <LogIn size={20} />
+              <LogIn size={22} />
               Einstempeln
             </button>
           )}
           {canPwaClockOut && (
             <button
               onClick={() => openPwaModal('clock-out')}
-              className="flex-1 flex items-center justify-center gap-2 p-4 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium shadow-lg transition"
+              className="flex items-center justify-center gap-2 h-14 min-h-[48px] bg-error hover:bg-error/90 text-on-error font-headline-md text-headline-md rounded-lg shadow-sm transition-colors duration-150 ease-in-out active:scale-[0.98]"
             >
-              <LogOut size={20} />
+              <LogOut size={22} />
               Ausstempeln
             </button>
           )}
