@@ -89,9 +89,9 @@ function PwaReasonsSection() {
   };
 
   return (
-    <div className="card">
-      <div className="p-6 border-b border-gray-100 dark:border-gray-800">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+    <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-sm">
+      <div className="p-stack_lg border-b border-outline-variant">
+        <h2 className="font-headline-md text-headline-md font-semibold text-on-surface flex items-center gap-2">
           <Smartphone size={20} />
           PWA-Stempel-Gründe
         </h2>
@@ -114,7 +114,7 @@ function PwaReasonsSection() {
         {reasons.length > 0 ? (
           <div className="space-y-2">
             {reasons.map((r) => (
-              <div key={r.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+              <div key={r.id} className="flex items-center justify-between p-stack_sm bg-surface-container-low dark:bg-surface-container rounded-lg">
                 <div className="flex items-center gap-3">
                   <span className={`font-medium ${r.isActive ? 'text-gray-900 dark:text-gray-100' : 'text-gray-400 dark:text-gray-500 line-through'}`}>
                     {r.name}
@@ -222,9 +222,9 @@ function DataImportSection() {
   };
 
   return (
-    <div className="card">
-      <div className="p-6 border-b border-gray-100 dark:border-gray-800">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+    <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-sm">
+      <div className="p-stack_lg border-b border-outline-variant">
+        <h2 className="font-headline-md text-headline-md font-semibold text-on-surface flex items-center gap-2">
           <Database size={20} />
           Daten-Import (Startsalden)
         </h2>
@@ -234,7 +234,7 @@ function DataImportSection() {
       </div>
 
       {/* CSV Upload */}
-      <div className="p-6 border-b border-gray-100 dark:border-gray-800">
+      <div className="p-stack_lg border-b border-outline-variant">
         <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">CSV-Import</h3>
         <div className="flex flex-wrap items-center gap-3">
           <label className="btn btn-secondary text-sm flex items-center gap-2 cursor-pointer">
@@ -260,7 +260,7 @@ function DataImportSection() {
         {csvData && csvData.length > 0 && (
           <div className="mt-3 max-h-40 overflow-y-auto border rounded-lg">
             <table className="w-full text-xs">
-              <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0">
+              <thead className="bg-surface-container-low dark:bg-surface-container sticky top-0">
                 <tr>
                   <th className="px-3 py-1.5 text-left">Nr.</th>
                   <th className="px-3 py-1.5 text-right">Überstunden</th>
@@ -288,7 +288,7 @@ function DataImportSection() {
       {/* Manual Entry Table */}
       <div className="overflow-x-auto">
         <table className="w-full">
-          <thead className="bg-gray-50 dark:bg-gray-800">
+          <thead className="bg-surface-container-low dark:bg-surface-container border-b border-outline-variant">
             <tr>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Mitarbeiter</th>
               <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Überstunden (h)</th>
@@ -298,7 +298,7 @@ function DataImportSection() {
               <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Aktionen</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+          <tbody className="divide-y divide-outline-variant">
             {employees?.map((emp: any) => {
               const isEditing = editingId === emp.id;
               return (
@@ -1017,15 +1017,15 @@ export default function AdminSettings() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Einstellungen</h1>
-        <p className="text-gray-500 dark:text-gray-400">System-Einstellungen verwalten</p>
+        <h1 className="font-display text-display text-on-surface">Einstellungen</h1>
+        <p className="font-body-md text-body-md text-on-surface-variant mt-1">System-Einstellungen verwalten.</p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Company Settings */}
-        <form onSubmit={handleSubmit} className="card">
-          <div className="p-6 border-b border-gray-100 dark:border-gray-800">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+        <form onSubmit={handleSubmit} className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-sm">
+          <div className="p-stack_lg border-b border-outline-variant">
+            <h2 className="font-headline-md text-headline-md font-semibold text-on-surface flex items-center gap-2">
               <Building2 size={20} />
               Firmendaten
             </h2>
@@ -1071,7 +1071,7 @@ export default function AdminSettings() {
               </div>
             </div>
           </div>
-          <div className="p-6 border-t border-gray-100 dark:border-gray-800">
+          <div className="p-stack_lg border-t border-outline-variant">
             <h3 className="font-medium text-gray-900 dark:text-gray-100 flex items-center gap-2 mb-4">
               <Clock size={18} />
               Zeiterfassung
@@ -1169,7 +1169,7 @@ export default function AdminSettings() {
               </div>
             </div>
           </div>
-          <div className="p-6 border-t border-gray-100 dark:border-gray-800 flex justify-end">
+          <div className="p-stack_lg border-t border-outline-variant flex justify-end">
             <button
               type="submit"
               disabled={updateMutation.isPending}
@@ -1189,10 +1189,10 @@ export default function AdminSettings() {
         />
 
         {/* Holidays */}
-        <div className="card">
-          <div className="p-6 border-b border-gray-100 dark:border-gray-800">
+        <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-sm">
+          <div className="p-stack_lg border-b border-outline-variant">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+              <h2 className="font-headline-md text-headline-md font-semibold text-on-surface flex items-center gap-2">
                 <Calendar size={20} />
                 Feiertage
               </h2>
@@ -1233,7 +1233,7 @@ export default function AdminSettings() {
               </div>
             )}
           </div>
-          <div className="divide-y divide-gray-100 dark:divide-gray-800 max-h-96 overflow-y-auto">
+          <div className="divide-y divide-outline-variant max-h-96 overflow-y-auto">
             {holidays?.length ? (
               holidays.map((holiday: any) => (
                 <div key={holiday.id} className="p-4 flex items-center justify-between">
@@ -1258,9 +1258,9 @@ export default function AdminSettings() {
         </div>
 
         {/* Mail Server Settings */}
-        <div className="card">
-          <div className="p-6 border-b border-gray-100 dark:border-gray-800">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+        <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-sm">
+          <div className="p-stack_lg border-b border-outline-variant">
+            <h2 className="font-headline-md text-headline-md font-semibold text-on-surface flex items-center gap-2">
               <Mail size={20} />
               Mail-Server
             </h2>
@@ -1417,10 +1417,10 @@ export default function AdminSettings() {
         </div>
 
         {/* Absence Types */}
-        <div className="card lg:col-span-2">
-          <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+        <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-sm lg:col-span-2">
+          <div className="p-stack_lg border-b border-outline-variant flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+              <h2 className="font-headline-md text-headline-md font-semibold text-on-surface flex items-center gap-2">
                 <Briefcase size={20} />
                 Abwesenheitstypen
               </h2>
@@ -1438,7 +1438,7 @@ export default function AdminSettings() {
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50 dark:bg-gray-800">
+              <thead className="bg-surface-container-low dark:bg-surface-container border-b border-outline-variant">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                     Bezeichnung
@@ -1460,7 +1460,7 @@ export default function AdminSettings() {
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+              <tbody className="divide-y divide-outline-variant">
                 {absenceTypes?.length ? (
                   absenceTypes.map((type) => (
                     <tr key={type.id}>
@@ -1534,10 +1534,10 @@ export default function AdminSettings() {
 
       {/* Arbeitskategorien */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="card lg:col-span-2">
-          <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+        <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-sm lg:col-span-2">
+          <div className="p-stack_lg border-b border-outline-variant flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+              <h2 className="font-headline-md text-headline-md font-semibold text-on-surface flex items-center gap-2">
                 <Clock size={20} />
                 Arbeitskategorien
               </h2>
@@ -1555,7 +1555,7 @@ export default function AdminSettings() {
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50 dark:bg-gray-800">
+              <thead className="bg-surface-container-low dark:bg-surface-container border-b border-outline-variant">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                     Bezeichnung
@@ -1571,7 +1571,7 @@ export default function AdminSettings() {
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+              <tbody className="divide-y divide-outline-variant">
                 {workCategories?.length ? (
                   workCategories.map((cat) => (
                     <tr key={cat.id}>
@@ -1631,11 +1631,11 @@ export default function AdminSettings() {
       {showWorkCategoryModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-lg">
-            <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
-              <h2 className="text-xl font-semibold">
+            <div className="p-stack_lg border-b border-outline-variant flex items-center justify-between">
+              <h2 className="font-headline-md text-headline-md font-semibold text-on-surface">
                 {editingWorkCategory ? 'Arbeitskategorie bearbeiten' : 'Neue Arbeitskategorie'}
               </h2>
-              <button onClick={closeWorkCategoryModal} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+              <button onClick={closeWorkCategoryModal} className="p-2 hover:bg-surface-container-high dark:hover:bg-surface-container-highest rounded-lg">
                 <X size={20} />
               </button>
             </div>
@@ -1694,9 +1694,9 @@ export default function AdminSettings() {
       <PwaReasonsSection />
 
       {/* Datenbank & Backups */}
-      <div className="card">
-        <div className="p-6 border-b border-gray-100 dark:border-gray-800">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+      <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-sm">
+        <div className="p-stack_lg border-b border-outline-variant">
+          <h2 className="font-headline-md text-headline-md font-semibold text-on-surface flex items-center gap-2">
             <Shield size={20} />
             Datenbank & Backups
           </h2>
@@ -1705,7 +1705,7 @@ export default function AdminSettings() {
           {/* DB Info */}
           {databaseInfo && (
             <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+              <div className="flex items-center justify-between p-stack_sm bg-surface-container-low dark:bg-surface-container rounded-lg">
                 <div className="flex items-center gap-3">
                   <HardDrive size={20} className="text-gray-500 dark:text-gray-400" />
                   <div>
@@ -1713,24 +1713,24 @@ export default function AdminSettings() {
                     <p className="text-xs text-gray-500 dark:text-gray-400">SQLite Datenbank</p>
                   </div>
                 </div>
-                <span className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                <span className="font-headline-md text-headline-md font-semibold text-on-surface">
                   {databaseInfo.sizeFormatted}
                 </span>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-                <div className="p-2 bg-gray-50 dark:bg-gray-800 rounded">
+                <div className="p-2 bg-surface-container-low dark:bg-surface-container rounded">
                   <span className="text-gray-500 dark:text-gray-400">Mitarbeiter:</span>
                   <span className="ml-2 font-medium">{databaseInfo.stats?.employees ?? 0}</span>
                 </div>
-                <div className="p-2 bg-gray-50 dark:bg-gray-800 rounded">
+                <div className="p-2 bg-surface-container-low dark:bg-surface-container rounded">
                   <span className="text-gray-500 dark:text-gray-400">Zeiteinträge:</span>
                   <span className="ml-2 font-medium">{databaseInfo.stats?.timeEntries ?? 0}</span>
                 </div>
-                <div className="p-2 bg-gray-50 dark:bg-gray-800 rounded">
+                <div className="p-2 bg-surface-container-low dark:bg-surface-container rounded">
                   <span className="text-gray-500 dark:text-gray-400">Abrechnungen:</span>
                   <span className="ml-2 font-medium">{databaseInfo.stats?.monthlyReports ?? 0}</span>
                 </div>
-                <div className="p-2 bg-gray-50 dark:bg-gray-800 rounded">
+                <div className="p-2 bg-surface-container-low dark:bg-surface-container rounded">
                   <span className="text-gray-500 dark:text-gray-400">Feiertage:</span>
                   <span className="ml-2 font-medium">{databaseInfo.stats?.holidays ?? 0}</span>
                 </div>
@@ -1779,10 +1779,10 @@ export default function AdminSettings() {
       <SsoSettings />
 
       {/* Dokumenttypen */}
-      <div className="card">
-        <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+      <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-sm">
+        <div className="p-stack_lg border-b border-outline-variant flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+            <h2 className="font-headline-md text-headline-md font-semibold text-on-surface flex items-center gap-2">
               <Briefcase size={20} />
               Dokumenttypen
             </h2>
@@ -1795,7 +1795,7 @@ export default function AdminSettings() {
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50 dark:bg-gray-800">
+            <thead className="bg-surface-container-low dark:bg-surface-container border-b border-outline-variant">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Farbe</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Name</th>
@@ -1804,7 +1804,7 @@ export default function AdminSettings() {
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Aktionen</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+            <tbody className="divide-y divide-outline-variant">
               {documentTypes?.map((dt: any) => (
                 <tr key={dt.id}>
                   <td className="px-6 py-3">
@@ -1844,9 +1844,9 @@ export default function AdminSettings() {
       {showDocTypeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowDocTypeModal(false)}>
           <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
-            <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
-              <h2 className="text-xl font-semibold">{editingDocType ? 'Dokumenttyp bearbeiten' : 'Neuer Dokumenttyp'}</h2>
-              <button onClick={() => setShowDocTypeModal(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"><X size={20} /></button>
+            <div className="p-stack_lg border-b border-outline-variant flex items-center justify-between">
+              <h2 className="font-headline-md text-headline-md font-semibold text-on-surface">{editingDocType ? 'Dokumenttyp bearbeiten' : 'Neuer Dokumenttyp'}</h2>
+              <button onClick={() => setShowDocTypeModal(false)} className="p-2 hover:bg-surface-container-high dark:hover:bg-surface-container-highest rounded-lg"><X size={20} /></button>
             </div>
             <form
               className="p-6 space-y-4"
@@ -1892,9 +1892,9 @@ export default function AdminSettings() {
       {/* Terminals */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Terminal Logo */}
-        <div className="card lg:col-span-2">
-          <div className="p-6 border-b border-gray-100 dark:border-gray-800">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+        <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-sm lg:col-span-2">
+          <div className="p-stack_lg border-b border-outline-variant">
+            <h2 className="font-headline-md text-headline-md font-semibold text-on-surface flex items-center gap-2">
               <Monitor size={20} />
               Terminal-Logo
             </h2>
@@ -1961,7 +1961,7 @@ export default function AdminSettings() {
                 className={`flex flex-col items-center justify-center w-full h-36 rounded-lg border-2 border-dashed cursor-pointer transition-colors ${
                   logoDragging
                     ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30'
-                    : 'border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 hover:border-gray-400'
+                    : 'border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 hover:bg-surface-container-high dark:hover:bg-surface-container-highest hover:border-gray-400'
                 }`}
                 onDragOver={(e) => { e.preventDefault(); setLogoDragging(true); }}
                 onDragLeave={() => setLogoDragging(false)}
@@ -2017,10 +2017,10 @@ export default function AdminSettings() {
           </div>
         </div>
 
-        <div className="card lg:col-span-2">
-          <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+        <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-sm lg:col-span-2">
+          <div className="p-stack_lg border-b border-outline-variant flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+              <h2 className="font-headline-md text-headline-md font-semibold text-on-surface flex items-center gap-2">
                 <Monitor size={20} />
                 Terminals
               </h2>
@@ -2038,7 +2038,7 @@ export default function AdminSettings() {
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50 dark:bg-gray-800">
+              <thead className="bg-surface-container-low dark:bg-surface-container border-b border-outline-variant">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                     Name
@@ -2057,7 +2057,7 @@ export default function AdminSettings() {
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+              <tbody className="divide-y divide-outline-variant">
                 {terminals?.length ? (
                   terminals.map((terminal) => (
                     <tr key={terminal.id}>
@@ -2151,11 +2151,11 @@ export default function AdminSettings() {
       {showTerminalModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-lg">
-            <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
-              <h2 className="text-xl font-semibold">
+            <div className="p-stack_lg border-b border-outline-variant flex items-center justify-between">
+              <h2 className="font-headline-md text-headline-md font-semibold text-on-surface">
                 {editingTerminal ? 'Terminal bearbeiten' : 'Neues Terminal'}
               </h2>
-              <button onClick={() => { setShowTerminalModal(false); setEditingTerminal(null); }} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+              <button onClick={() => { setShowTerminalModal(false); setEditingTerminal(null); }} className="p-2 hover:bg-surface-container-high dark:hover:bg-surface-container-highest rounded-lg">
                 <X size={20} />
               </button>
             </div>
@@ -2216,8 +2216,8 @@ export default function AdminSettings() {
       {showApiKeyModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-lg">
-            <div className="p-6 border-b border-gray-100 dark:border-gray-800">
-              <h2 className="text-xl font-semibold flex items-center gap-2">
+            <div className="p-stack_lg border-b border-outline-variant">
+              <h2 className="font-headline-md text-headline-md font-semibold text-on-surface flex items-center gap-2">
                 <Key size={20} className="text-amber-500" />
                 Terminal API-Key
               </h2>
@@ -2278,11 +2278,11 @@ export default function AdminSettings() {
       {showHolidayModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-lg">
-            <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
-              <h2 className="text-xl font-semibold">Feiertag hinzufügen</h2>
+            <div className="p-stack_lg border-b border-outline-variant flex items-center justify-between">
+              <h2 className="font-headline-md text-headline-md font-semibold text-on-surface">Feiertag hinzufügen</h2>
               <button
                 onClick={() => setShowHolidayModal(false)}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+                className="p-2 hover:bg-surface-container-high dark:hover:bg-surface-container-highest rounded-lg"
               >
                 <X size={20} />
               </button>
@@ -2336,11 +2336,11 @@ export default function AdminSettings() {
       {showAbsenceTypeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-lg">
-            <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
-              <h2 className="text-xl font-semibold">
+            <div className="p-stack_lg border-b border-outline-variant flex items-center justify-between">
+              <h2 className="font-headline-md text-headline-md font-semibold text-on-surface">
                 {editingAbsenceType ? 'Abwesenheitstyp bearbeiten' : 'Neuer Abwesenheitstyp'}
               </h2>
-              <button onClick={closeAbsenceTypeModal} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+              <button onClick={closeAbsenceTypeModal} className="p-2 hover:bg-surface-container-high dark:hover:bg-surface-container-highest rounded-lg">
                 <X size={20} />
               </button>
             </div>
@@ -2464,14 +2464,14 @@ export default function AdminSettings() {
       {showGenerateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-lg">
-            <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
-              <h2 className="text-xl font-semibold flex items-center gap-2">
+            <div className="p-stack_lg border-b border-outline-variant flex items-center justify-between">
+              <h2 className="font-headline-md text-headline-md font-semibold text-on-surface flex items-center gap-2">
                 <Wand2 size={20} />
                 Feiertage automatisch generieren
               </h2>
               <button
                 onClick={() => setShowGenerateModal(false)}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+                className="p-2 hover:bg-surface-container-high dark:hover:bg-surface-container-highest rounded-lg"
               >
                 <X size={20} />
               </button>
@@ -2573,8 +2573,8 @@ export default function AdminSettings() {
       {showRestoreModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
-              <h2 className="text-xl font-semibold flex items-center gap-2">
+            <div className="p-stack_lg border-b border-outline-variant flex items-center justify-between">
+              <h2 className="font-headline-md text-headline-md font-semibold text-on-surface flex items-center gap-2">
                 <Upload size={20} />
                 Backup wiederherstellen
               </h2>
@@ -2584,7 +2584,7 @@ export default function AdminSettings() {
                   setRestoreFile(null);
                   setRestorePassphrase('');
                 }}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+                className="p-2 hover:bg-surface-container-high dark:hover:bg-surface-container-highest rounded-lg"
               >
                 <X size={20} />
               </button>
@@ -2681,14 +2681,14 @@ export default function AdminSettings() {
       {showBackupModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
-              <h2 className="text-xl font-semibold flex items-center gap-2">
+            <div className="p-stack_lg border-b border-outline-variant flex items-center justify-between">
+              <h2 className="font-headline-md text-headline-md font-semibold text-on-surface flex items-center gap-2">
                 <Download size={20} />
                 Backup herunterladen
               </h2>
               <button
                 onClick={() => { setShowBackupModal(false); setBackupPassphrase(''); setBackupPassphraseConfirm(''); }}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+                className="p-2 hover:bg-surface-container-high dark:hover:bg-surface-container-highest rounded-lg"
               >
                 <X size={20} />
               </button>

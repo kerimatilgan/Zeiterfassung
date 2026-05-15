@@ -530,7 +530,7 @@ export default function BackupSettings() {
   return (
     <div className="space-y-6">
       {/* Status */}
-      <div className="card p-6">
+      <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-sm p-stack_lg">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className="p-3 rounded-lg bg-blue-100 dark:bg-blue-900/40">
@@ -579,7 +579,7 @@ export default function BackupSettings() {
 
       {/* Backup-Einstellungen */}
       {bsFrequency && (
-        <div className="card p-6">
+        <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-sm p-stack_lg">
           <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
             <Clock size={18} /> Zeitplan & Aufbewahrung
           </h3>
@@ -632,7 +632,7 @@ export default function BackupSettings() {
       )}
 
       {/* Backup-Ziele */}
-      <div className="card">
+      <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-sm">
         <div className="p-6 border-b flex items-center justify-between">
           <h3 className="font-semibold text-gray-900 dark:text-gray-100">Backup-Ziele</h3>
           <button onClick={() => { setEditTarget(null); setShowModal(true); }}
@@ -696,7 +696,7 @@ export default function BackupSettings() {
       </div>
 
       {/* Backup-Verlauf */}
-      <div className="card">
+      <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-sm">
         <div className="p-6 border-b">
           <h3 className="font-semibold text-gray-900 dark:text-gray-100">Backup-Verlauf</h3>
         </div>

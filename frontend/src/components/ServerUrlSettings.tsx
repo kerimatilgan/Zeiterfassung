@@ -44,9 +44,9 @@ export default function ServerUrlSettings() {
   };
 
   return (
-    <div className="card">
-      <div className="p-6 border-b border-gray-100 dark:border-gray-800">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+    <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-sm">
+      <div className="p-stack_lg border-b border-outline-variant">
+        <h2 className="font-headline-md text-headline-md font-semibold text-on-surface flex items-center gap-2">
           <Server size={20} />
           Server-URL
         </h2>
@@ -73,7 +73,7 @@ export default function ServerUrlSettings() {
           </p>
         </div>
       </div>
-      <div className="p-6 border-t border-gray-100 dark:border-gray-800 flex justify-between">
+      <div className="p-stack_lg border-t border-outline-variant flex justify-between">
         <button
           type="button"
           onClick={handleReset}
