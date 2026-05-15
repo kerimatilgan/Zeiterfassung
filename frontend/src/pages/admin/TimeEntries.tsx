@@ -244,38 +244,60 @@ export default function AdminTimeEntries() {
   }, [editingEntry, showCreateEntry]);
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex flex-col">
-      <div className="p-4 border-b shrink-0">
-        <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Zeiteinträge</h1>
-      </div>
-      <div className="flex flex-1 overflow-hidden">
+    <div className="flex flex-col gap-stack_lg">
+      <header>
+        <h1 className="font-display text-display text-on-surface">Zeiteinträge</h1>
+        <p className="font-body-md text-body-md text-on-surface-variant mt-1">
+          Pro Mitarbeiter: Monat wählen, Tag öffnen, Buchungen und Abwesenheiten verwalten.
+        </p>
+      </header>
+
+      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] xl:grid-cols-[280px_1fr_320px] gap-gutter">
         {/* MA-Liste */}
-        <div className="w-56 border-r flex flex-col shrink-0">
-          <div className="p-2">
+        <aside className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-sm flex flex-col min-h-[400px] max-h-[calc(100vh-12rem)]">
+          <div className="p-stack_md border-b border-outline-variant">
             <div className="relative">
-              <Search size={14} className="absolute left-2.5 top-2.5 text-gray-400 dark:text-gray-500" />
-              <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full pl-8 pr-2 py-2 text-sm border rounded-lg" placeholder="Suchen..." />
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 bg-surface-container-lowest dark:bg-surface-container border border-outline-variant rounded-lg font-body-md text-body-md text-on-surface placeholder:text-on-surface-variant/70 focus:border-primary-600 focus:ring-1 focus:ring-primary-600 outline-none transition-colors"
+                placeholder="Mitarbeiter suchen…"
+              />
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto">
-            {filtered.map(emp => (
-              <button key={emp.id} onClick={() => selectEmployee(emp)}
-                className={`w-full text-left px-3 py-2 flex items-center gap-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition ${selectedEmployee?.id === emp.id ? 'bg-primary-50 dark:bg-primary-900/30 border-l-[3px] border-l-primary-500' : 'border-l-[3px] border-l-transparent'}`}>
-                <div className="w-7 h-7 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center shrink-0 overflow-hidden">
-                  {emp.photoUrl ? <img src={photoSrc(emp.photoUrl)} className="w-full h-full object-cover" /> : <User size={14} className="text-gray-500 dark:text-gray-400" />}
-                </div>
-                <div className="min-w-0">
-                  <p className="font-medium text-gray-900 dark:text-gray-100 truncate">{emp.firstName} {emp.lastName}</p>
-                  <p className="text-xs text-gray-400 dark:text-gray-500">#{emp.employeeNumber}</p>
-                </div>
-              </button>
-            ))}
+          <div className="flex-1 overflow-y-auto p-stack_sm">
+            {filtered.map(emp => {
+              const active = selectedEmployee?.id === emp.id;
+              return (
+                <button
+                  key={emp.id}
+                  onClick={() => selectEmployee(emp)}
+                  className={`w-full text-left flex items-center gap-stack_sm p-stack_sm rounded-lg mb-1 transition-colors ${
+                    active
+                      ? 'bg-secondary-container text-on-secondary-container shadow-sm'
+                      : 'hover:bg-surface-container-high dark:hover:bg-surface-container-highest text-on-surface'
+                  }`}
+                >
+                  <div className="w-9 h-9 rounded-full bg-surface-variant flex items-center justify-center shrink-0 overflow-hidden">
+                    {emp.photoUrl
+                      ? <img src={photoSrc(emp.photoUrl)} className="w-full h-full object-cover" />
+                      : <User size={16} className="text-on-surface-variant" />}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className={`font-body-md text-body-md truncate ${active ? 'font-semibold' : 'font-medium'}`}>{emp.firstName} {emp.lastName}</p>
+                    <p className="font-label-md text-label-md text-on-surface-variant truncate">#{emp.employeeNumber}</p>
+                  </div>
+                </button>
+              );
+            })}
           </div>
-        </div>
+        </aside>
 
         {selectedEmployee ? (<>
           {/* Mitte: Tagesdetails */}
-          <div className={`flex-1 overflow-y-auto p-4 transition-opacity ${loading ? 'opacity-50' : ''}`}>
+          <div className={`flex flex-col gap-stack_md transition-opacity ${loading ? 'opacity-50' : ''}`}>
             {/* MA Info + Urlaub/Krank Stats */}
             {(() => {
               const isWorkDay = (d: string) => workDays.includes(new Date(d).getDay());
@@ -286,45 +308,88 @@ export default function AdminTimeEntries() {
               const vacationMonth = absences.filter((a: Absence) => a.absenceType.name.toLowerCase().includes('urlaub') && isWorkDay(a.date)).length;
               const vd = vacationDetails;
               return (
-                <div className="mb-4 space-y-2">
-                  <div className="bg-primary-50 dark:bg-primary-900/30 rounded-lg p-2 text-sm text-center">
-                    <span className="text-primary-700 dark:text-primary-300 font-medium">{selectedEmployee.firstName} {selectedEmployee.lastName}</span>
-                    <span className="mx-2 text-gray-300">|</span>
-                    <span className="text-primary-700 dark:text-primary-300">{format(selectedMonth, 'MMMM yyyy', { locale: de })}</span>
-                    <span className="mx-2 text-gray-300">|</span>
-                    <span className="text-primary-700 dark:text-primary-300">Ist: {fmtMin(totalMin)} h</span>
-                    <span className="mx-2 text-gray-300">|</span>
-                    <span className="text-primary-700 dark:text-primary-300">Soll: {fmtMin(targetMin)} h</span>
+                <>
+                  {/* Context-Header */}
+                  <div className="bg-surface-container-lowest dark:bg-surface-container border border-outline-variant rounded-xl shadow-sm p-stack_md flex flex-wrap items-center justify-between gap-stack_md">
+                    <div className="flex items-center gap-stack_md flex-wrap font-body-md text-body-md">
+                      <span className="font-semibold text-primary-container">{selectedEmployee.firstName} {selectedEmployee.lastName}</span>
+                      <span className="w-1 h-1 rounded-full bg-outline-variant" />
+                      <span className="text-on-surface-variant">{format(selectedMonth, 'MMMM yyyy', { locale: de })}</span>
+                    </div>
+                    <div className="flex items-center gap-stack_lg">
+                      <div className="flex flex-col items-end">
+                        <span className="font-label-md text-label-md uppercase text-on-surface-variant">Ist</span>
+                        <span className="font-headline-md text-headline-md font-bold text-primary-container">{fmtMin(totalMin)} h</span>
+                      </div>
+                      <div className="h-8 w-px bg-outline-variant" />
+                      <div className="flex flex-col items-end">
+                        <span className="font-label-md text-label-md uppercase text-on-surface-variant">Soll</span>
+                        <span className="font-headline-md text-headline-md font-semibold text-on-surface">{fmtMin(targetMin)} h</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
+
+                  {/* Bento-Stats: Urlaub + Krank */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-gutter">
                     {/* Urlaub */}
-                    <div className="border rounded-lg p-2.5">
-                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">Urlaub {selectedMonth.getFullYear()}</p>
+                    <div className="bg-surface-container-lowest dark:bg-surface-container border border-outline-variant rounded-xl shadow-sm overflow-hidden flex flex-col">
+                      <div className="bg-surface-container dark:bg-surface-container-high px-stack_md py-stack_sm border-b border-outline-variant flex justify-between items-center">
+                        <h3 className="font-body-md text-body-md font-semibold text-on-surface">Urlaub {selectedMonth.getFullYear()}</h3>
+                        <Briefcase size={16} className="text-on-surface-variant" />
+                      </div>
                       {vd?.carryOver > 0 && (
-                        <div className="mb-1.5 p-1 bg-blue-50 dark:bg-blue-950/40 rounded text-center">
-                          <p className="text-[10px] text-blue-600 dark:text-blue-400">Übertrag: <span className="font-bold">{vd.carryOver}</span> Tage {vd.carryOverUsed > 0 ? `(${vd.carryOverRemaining} übrig)` : ''}</p>
+                        <div className="px-stack_md pt-stack_sm">
+                          <div className="px-stack_sm py-1 bg-primary-container/10 rounded text-center">
+                            <p className="font-label-md text-label-md text-primary-container">Übertrag: <span className="font-bold">{vd.carryOver}</span> Tage {vd.carryOverUsed > 0 ? `(${vd.carryOverRemaining} übrig)` : ''}</p>
+                          </div>
                         </div>
                       )}
-                      <div className="grid grid-cols-3 gap-1 text-center">
-                        <div className="bg-gray-50 dark:bg-gray-800 rounded p-1"><p className="text-sm font-bold text-gray-900 dark:text-gray-100">{vd?.total ?? '-'}</p><p className="text-[10px] text-gray-400 dark:text-gray-500">Gesamt</p></div>
-                        <div className="bg-orange-50 dark:bg-orange-950/40 rounded p-1"><p className="text-sm font-bold text-orange-600 dark:text-orange-400">{vd?.totalUsed ?? '-'}</p><p className="text-[10px] text-gray-400 dark:text-gray-500">Genommen</p></div>
-                        <div className="bg-green-50 dark:bg-green-950/40 rounded p-1"><p className={`text-sm font-bold ${(vd?.totalRemaining ?? 0) < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>{vd?.totalRemaining ?? '-'}</p><p className="text-[10px] text-gray-400 dark:text-gray-500">Rest</p></div>
+                      <div className="flex divide-x divide-outline-variant p-stack_md">
+                        <div className="flex-1 flex flex-col items-center justify-center">
+                          <span className="font-stat-number text-stat-number text-on-surface">{vd?.total ?? '—'}</span>
+                          <span className="font-label-md text-label-md uppercase text-on-surface-variant mt-1">Gesamt</span>
+                        </div>
+                        <div className="flex-1 flex flex-col items-center justify-center">
+                          <span className="font-stat-number text-stat-number text-tertiary-container">{vd?.totalUsed ?? '—'}</span>
+                          <span className="font-label-md text-label-md uppercase text-on-surface-variant mt-1">Genommen</span>
+                        </div>
+                        <div className="flex-1 flex flex-col items-center justify-center">
+                          <span className={`font-stat-number text-stat-number ${(vd?.totalRemaining ?? 0) < 0 ? 'text-error' : 'text-green-600 dark:text-green-400'}`}>{vd?.totalRemaining ?? '—'}</span>
+                          <span className="font-label-md text-label-md uppercase text-on-surface-variant mt-1">Rest</span>
+                        </div>
                       </div>
-                      {vacationMonth > 0 && <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">davon {vacationMonth} in {format(selectedMonth, 'MMMM', { locale: de })}</p>}
-                      {vd?.deductedDays > 0 && <p className="text-[10px] text-red-500 mt-1">{vd.deductedDays} abgezogen (Minusstd.)</p>}
-                      {vd?.adjustmentDays != null && vd.adjustmentDays !== 0 && <p className={`text-[10px] mt-1 ${vd.adjustmentDays > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>{vd.adjustmentDays > 0 ? '+' : ''}{vd.adjustmentDays} angepasst (manuell)</p>}
-                      {vd?.specialLeaveUsed > 0 && <p className="text-[10px] text-purple-500 mt-1">{vd.specialLeaveUsed} Sonderurlaub</p>}
+                      {vd?.total > 0 && (
+                        <div className="h-1.5 w-full bg-surface-container dark:bg-surface-container-highest flex">
+                          <div className="h-full bg-tertiary-container" style={{ width: `${Math.min(100, ((vd?.totalUsed ?? 0) / vd.total) * 100)}%` }} />
+                          <div className="h-full bg-green-500" style={{ width: `${Math.max(0, ((vd?.totalRemaining ?? 0) / vd.total) * 100)}%` }} />
+                        </div>
+                      )}
+                      <div className="px-stack_md pb-stack_sm text-on-surface-variant">
+                        {vacationMonth > 0 && <p className="font-label-md text-label-md">davon {vacationMonth} in {format(selectedMonth, 'MMMM', { locale: de })}</p>}
+                        {vd?.deductedDays > 0 && <p className="font-label-md text-label-md text-error">{vd.deductedDays} abgezogen (Minusstd.)</p>}
+                        {vd?.adjustmentDays != null && vd.adjustmentDays !== 0 && <p className={`font-label-md text-label-md ${vd.adjustmentDays > 0 ? 'text-green-600 dark:text-green-400' : 'text-error'}`}>{vd.adjustmentDays > 0 ? '+' : ''}{vd.adjustmentDays} angepasst (manuell)</p>}
+                        {vd?.specialLeaveUsed > 0 && <p className="font-label-md text-label-md text-purple-500">{vd.specialLeaveUsed} Sonderurlaub</p>}
+                      </div>
                     </div>
                     {/* Krank */}
-                    <div className="border rounded-lg p-2.5">
-                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">Krankheit {selectedMonth.getFullYear()}</p>
-                      <div className="grid grid-cols-2 gap-1 text-center">
-                        <div className="bg-red-50 dark:bg-red-950/40 rounded p-1"><p className="text-sm font-bold text-red-600 dark:text-red-400">{sickMonth}</p><p className="text-[10px] text-gray-400 dark:text-gray-500">{format(selectedMonth, 'MMM', { locale: de })}</p></div>
-                        <div className="bg-gray-50 dark:bg-gray-800 rounded p-1"><p className="text-sm font-bold text-gray-900 dark:text-gray-100">{sickYear}</p><p className="text-[10px] text-gray-400 dark:text-gray-500">Jahr</p></div>
+                    <div className="bg-surface-container-lowest dark:bg-surface-container border border-outline-variant rounded-xl shadow-sm overflow-hidden flex flex-col">
+                      <div className="bg-surface-container dark:bg-surface-container-high px-stack_md py-stack_sm border-b border-outline-variant flex justify-between items-center">
+                        <h3 className="font-body-md text-body-md font-semibold text-on-surface">Krankheit {selectedMonth.getFullYear()}</h3>
+                        <AlertTriangle size={16} className="text-on-surface-variant" />
+                      </div>
+                      <div className="flex divide-x divide-outline-variant p-stack_md flex-1">
+                        <div className="flex-1 flex flex-col items-center justify-center">
+                          <span className="font-stat-number text-stat-number text-error">{sickMonth}</span>
+                          <span className="font-label-md text-label-md uppercase text-on-surface-variant mt-1">{format(selectedMonth, 'MMM', { locale: de })}</span>
+                        </div>
+                        <div className="flex-1 flex flex-col items-center justify-center">
+                          <span className="font-stat-number text-stat-number text-on-surface">{sickYear}</span>
+                          <span className="font-label-md text-label-md uppercase text-on-surface-variant mt-1">Jahr</span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
+                </>
               );
             })()}
 
@@ -348,12 +413,14 @@ export default function AdminTimeEntries() {
               const isNonWork = !workDays.includes(selectedDate.getDay());
               const isHol = !!holiday && !isNonWork;
               return (
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="text-lg font-semibold">{format(selectedDate, 'EEEE, dd. MMMM yyyy', { locale: de })}</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      {entries.length > 0 ? `${fmtMin(calcMin(selectedDate))} h` : ''}{isHol ? ` · ${holiday!.name}` : ''}{isNonWork ? ' · Frei' : ''}
-                    </p>
+                <div className="bg-surface-container-lowest dark:bg-surface-container border border-outline-variant rounded-xl shadow-sm p-stack_lg space-y-stack_md">
+                  <div className="flex items-end justify-between border-b border-outline-variant pb-stack_md">
+                    <div>
+                      <h2 className="font-headline-lg text-headline-lg text-on-surface">{format(selectedDate, 'EEEE, dd. MMMM yyyy', { locale: de })}</h2>
+                      <p className="font-body-md text-body-md text-on-surface-variant mt-1">
+                        {entries.length > 0 ? `${fmtMin(calcMin(selectedDate))} h` : '—'}{isHol ? ` · ${holiday!.name}` : ''}{isNonWork ? ' · Frei' : ''}
+                      </p>
+                    </div>
                   </div>
                   {absence && (
                     <div className="rounded-lg px-3 py-2 cursor-pointer flex items-center gap-2" style={{ backgroundColor: absence.absenceType.color + '20', borderLeft: `3px solid ${absence.absenceType.color}` }}
@@ -424,7 +491,7 @@ export default function AdminTimeEntries() {
           </div>
 
           {/* Rechts: Kalender */}
-          <div className="w-72 border-l p-3 shrink-0 self-start">
+          <aside className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-sm p-stack_md self-start">
             <div className="flex items-center gap-1 mb-3">
               <button onClick={() => changeMonth('prev')} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"><ChevronLeft size={16} /></button>
               <select value={selectedMonth.getMonth()} onChange={e => { const m = new Date(selectedMonth); m.setMonth(parseInt(e.target.value)); setSelectedMonth(m); if (selectedEmployee) loadData(selectedEmployee.id, m); }} className="text-sm font-medium bg-transparent border rounded px-1.5 py-0.5">{MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}</select>
@@ -546,12 +613,17 @@ export default function AdminTimeEntries() {
                   })()}
                 </div>
               ) : (
-                <p className="text-[10px] text-gray-400 dark:text-gray-500">Keine Anpassungen</p>
+                <p className="font-label-md text-label-md text-on-surface-variant">Keine Anpassungen</p>
               )}
             </div>
-          </div>
+          </aside>
         </>) : (
-          <div className="flex-1 flex items-center justify-center text-gray-400 dark:text-gray-500"><div className="text-center"><User size={48} className="mx-auto mb-3 opacity-30" /><p>Wähle einen Mitarbeiter</p></div></div>
+          <div className="lg:col-span-1 xl:col-span-2 bg-surface-container-low dark:bg-surface-container border border-dashed border-outline-variant rounded-xl flex items-center justify-center py-stack_lg text-on-surface-variant">
+            <div className="text-center">
+              <User size={48} className="mx-auto mb-stack_sm opacity-30" />
+              <p className="font-body-md text-body-md">Wähle einen Mitarbeiter</p>
+            </div>
+          </div>
         )}
       </div>
 
