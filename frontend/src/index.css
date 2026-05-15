@@ -2,20 +2,109 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─── Design-Tokens (Material-3-Inspired, „Chronos Precision") ──────────────
+   Werte als „R G B"-Triplets, damit Tailwind sie via
+   rgb(var(--m3-…) / <alpha-value>) mit Opacity-Modifier nutzen kann.
+   Die light-Werte stammen 1:1 aus dem Stitch-Export, die dark-Werte sind
+   die M3-Standard-Inversionen. */
+:root {
+  /* Surface / Background */
+  --m3-background: 250 248 255;
+  --m3-on-background: 25 27 35;
+  --m3-surface: 250 248 255;
+  --m3-on-surface: 25 27 35;
+  --m3-on-surface-variant: 67 70 85;
+  --m3-surface-dim: 217 217 229;
+  --m3-surface-bright: 250 248 255;
+  --m3-surface-variant: 225 226 237;
+  --m3-surface-container-lowest: 255 255 255;
+  --m3-surface-container-low: 243 243 254;
+  --m3-surface-container: 237 237 249;
+  --m3-surface-container-high: 231 231 243;
+  --m3-surface-container-highest: 225 226 237;
+  /* Primary */
+  --m3-on-primary: 255 255 255;
+  --m3-primary-container: 37 99 235;          /* #2563eb (Markenblau) */
+  --m3-on-primary-container: 238 239 255;
+  /* Secondary */
+  --m3-secondary: 80 95 118;
+  --m3-on-secondary: 255 255 255;
+  --m3-secondary-container: 208 225 251;
+  --m3-on-secondary-container: 84 100 122;
+  /* Tertiary */
+  --m3-tertiary: 148 55 0;
+  --m3-on-tertiary: 255 255 255;
+  --m3-tertiary-container: 188 72 0;
+  --m3-on-tertiary-container: 255 237 230;
+  /* Error */
+  --m3-error: 186 26 26;
+  --m3-on-error: 255 255 255;
+  --m3-error-container: 255 218 214;
+  --m3-on-error-container: 147 0 10;
+  /* Outline */
+  --m3-outline: 115 118 134;
+  --m3-outline-variant: 195 198 215;
+  /* Inverse */
+  --m3-inverse-surface: 46 48 57;
+  --m3-inverse-on-surface: 240 240 251;
+  --m3-inverse-primary: 180 197 255;
+  /* Fixed (gleich in Light + Dark) */
+  --m3-primary-fixed: 219 225 255;
+  --m3-primary-fixed-dim: 180 197 255;
+  --m3-on-primary-fixed: 0 23 75;
+  --m3-on-primary-fixed-variant: 0 62 168;
+  --m3-secondary-fixed: 211 228 254;
+  --m3-secondary-fixed-dim: 183 200 225;
+  --m3-on-secondary-fixed: 11 28 48;
+  --m3-on-secondary-fixed-variant: 56 72 93;
+}
+
+html.dark {
+  --m3-background: 13 14 19;
+  --m3-on-background: 225 226 237;
+  --m3-surface: 20 22 29;
+  --m3-on-surface: 225 226 237;
+  --m3-on-surface-variant: 195 198 215;
+  --m3-surface-dim: 13 14 19;
+  --m3-surface-bright: 58 60 67;
+  --m3-surface-variant: 67 70 85;
+  --m3-surface-container-lowest: 10 11 16;
+  --m3-surface-container-low: 25 27 35;
+  --m3-surface-container: 29 31 39;
+  --m3-surface-container-high: 40 42 50;
+  --m3-surface-container-highest: 51 53 61;
+  --m3-on-primary: 0 41 90;
+  --m3-primary-container: 37 99 235;          /* Markenblau bleibt */
+  --m3-on-primary-container: 238 239 255;
+  --m3-secondary: 183 200 225;
+  --m3-on-secondary: 33 48 68;
+  --m3-secondary-container: 56 72 93;
+  --m3-on-secondary-container: 211 228 254;
+  --m3-tertiary: 255 181 150;
+  --m3-on-tertiary: 86 30 0;
+  --m3-tertiary-container: 125 45 0;
+  --m3-on-tertiary-container: 255 219 205;
+  --m3-error: 255 180 171;
+  --m3-on-error: 105 0 5;
+  --m3-error-container: 147 0 10;
+  --m3-on-error-container: 255 218 214;
+  --m3-outline: 141 144 158;
+  --m3-outline-variant: 67 70 85;
+  --m3-inverse-surface: 225 226 237;
+  --m3-inverse-on-surface: 25 27 35;
+  --m3-inverse-primary: 0 74 198;
+  /* Fixed-Tokens unverändert */
+}
+
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-  background-color: #f3f4f6;
-  color: #111827;
+  background-color: rgb(var(--m3-background));
+  color: rgb(var(--m3-on-background));
 }
 
 html.dark {
   /* native Form-Controls, Scrollbars, Date-/Time-Picker etc. dunkel rendern */
   color-scheme: dark;
-}
-
-html.dark body {
-  background-color: #030712; /* gray-950 */
-  color: #f3f4f6;
 }
 
 /* Baseline für Text-/Auswahlfelder ohne explizite dark:-Klassen.

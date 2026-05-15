@@ -48,12 +48,11 @@ export default function Login() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const companyName = branding?.companyName?.trim() || 'Zeiterfassung';
-  // Schriftgröße an die Länge anpassen — Karte ist max-w-md (~448 px)
   const companyNameSizeClass = companyName.length <= 16
-    ? 'text-2xl'
+    ? 'text-headline-lg'
     : companyName.length <= 24
-    ? 'text-xl'
-    : 'text-lg';
+    ? 'text-headline-md'
+    : 'text-body-lg';
 
   useEffect(() => {
     if (step === 'totp' && totpInputRef.current) {
@@ -70,10 +69,8 @@ export default function Login() {
   const handleCredentialSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
     try {
       const response = await authApi.login(username, password);
-
       if (response.data.requires2FA) {
         setTempToken(response.data.tempToken);
         setStep('totp');
@@ -92,7 +89,6 @@ export default function Login() {
     e.preventDefault();
     if (totpCode.length !== 6) return;
     setLoading(true);
-
     try {
       const response = await twoFactorApi.totpValidate(tempToken, totpCode);
       completeLogin(response.data.token, response.data.employee);
@@ -106,7 +102,6 @@ export default function Login() {
 
   const handlePasskeyLogin = async () => {
     setPasskeyLoading(true);
-
     try {
       const optionsRes = await twoFactorApi.passkeyAuthOptions();
       const authResult = await startAuthentication({ optionsJSON: optionsRes.data });
@@ -123,143 +118,143 @@ export default function Login() {
     }
   };
 
+  const showSecondaryAuth = showSsoButton || (window.isSecureContext && !isNativeApp());
+
+  // Styling-Helper für Inputs/Labels/Buttons der neuen Login-Karte
+  const labelCls = 'font-label-md text-label-md uppercase text-on-surface-variant';
+  const inputCls =
+    'w-full bg-surface-container-lowest dark:bg-surface-container-high border border-outline-variant rounded-lg px-4 py-2.5 text-body-lg text-on-surface placeholder-on-surface-variant/60 focus:outline-none focus:ring-2 focus:ring-primary-container focus:border-transparent transition-shadow duration-150 ease-in-out';
+  const primaryBtnCls =
+    'w-full flex items-center justify-center gap-2 rounded-lg py-3 px-4 bg-primary-container hover:bg-primary-container/90 text-on-primary-container font-body-lg font-medium transition-colors duration-150 ease-in-out disabled:opacity-60 disabled:cursor-not-allowed';
+  const secondaryBtnCls =
+    'w-full flex items-center justify-center gap-2 rounded-lg py-2.5 px-4 bg-surface-container hover:bg-surface-container-high text-on-surface border border-outline-variant/50 font-body-md font-medium transition-colors duration-150 ease-in-out disabled:opacity-60 disabled:cursor-not-allowed';
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-500 to-primary-700 p-4">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary-container to-on-primary-fixed-variant dark:from-[#0f172a] dark:to-[#1e1b4b]">
       <div className="w-full max-w-md">
-        <div className="card p-8">
-          {/* Logo */}
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-100 dark:bg-primary-900/40 rounded-full mb-4">
-              <Clock className="w-8 h-8 text-primary-600 dark:text-primary-400" />
+        {/* Karte */}
+        <div className="bg-surface dark:bg-surface-container-high rounded-xl shadow-lg border border-outline-variant/30 overflow-hidden">
+          {/* Header */}
+          <div className="pt-8 pb-6 px-8 flex flex-col items-center text-center">
+            <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4 bg-primary-container/10 dark:bg-primary-container">
+              <Clock className="w-8 h-8 text-primary-container dark:text-on-primary-container" strokeWidth={2} />
             </div>
-            <h1 className={`${companyNameSizeClass} font-bold text-gray-900 dark:text-gray-100 leading-tight break-words`} title={companyName}>{companyName}</h1>
-            <p className="text-gray-500 dark:text-gray-400 mt-1">Zeiterfassung</p>
+            <h1 className={`${companyNameSizeClass} font-headline-lg text-on-surface leading-tight break-words`} title={companyName}>
+              {companyName}
+            </h1>
+            <p className="font-body-md text-body-md text-on-surface-variant mt-1">Zeiterfassung</p>
           </div>
 
-          {step === 'credentials' ? (
-            <>
-              {/* Credentials Form */}
-              <form onSubmit={handleCredentialSubmit} className="space-y-6">
-                <div>
-                  <label htmlFor="username" className="label">
-                    Benutzername
-                  </label>
-                  <input
-                    id="username"
-                    type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    className="input"
-                    placeholder="Benutzername eingeben"
-                    required
-                    autoComplete="username"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="password" className="label">
-                    Passwort
-                  </label>
-                  <input
-                    id="password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="input"
-                    placeholder="Passwort eingeben"
-                    required
-                    autoComplete="current-password"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="btn btn-primary w-full flex items-center justify-center gap-2"
-                >
-                  {loading ? (
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <>
-                      <LogIn size={20} />
-                      Anmelden
-                    </>
-                  )}
-                </button>
-              </form>
-
-              {/* Passkey- und/oder SSO-Button. Passkey nur in secure context UND nicht
-                  in nativer App (Capacitor/Tauri-WebView macht WebAuthn ohne Asset-Links
-                  Probleme). SSO-Button nur wenn vom Admin konfiguriert. */}
-              {(showSsoButton || (window.isSecureContext && !isNativeApp())) && (
-                <>
-                  <div className="relative my-6">
-                    <div className="absolute inset-0 flex items-center">
-                      <div className="w-full border-t border-gray-200 dark:border-gray-700" />
-                    </div>
-                    <div className="relative flex justify-center text-sm">
-                      <span className="bg-white dark:bg-gray-900 px-4 text-gray-400 dark:text-gray-500">oder</span>
-                    </div>
+          <div className="px-8 pb-8">
+            {step === 'credentials' ? (
+              <>
+                <form onSubmit={handleCredentialSubmit} className="flex flex-col gap-stack_md">
+                  <div className="flex flex-col gap-1">
+                    <label className={labelCls} htmlFor="username">Benutzername</label>
+                    <input
+                      id="username"
+                      type="text"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      className={inputCls}
+                      placeholder="Benutzername eingeben"
+                      required
+                      autoComplete="username"
+                    />
                   </div>
 
-                  <div className="space-y-3">
-                    {showSsoButton && (
-                      <button
-                        type="button"
-                        onClick={() => { window.location.href = '/api/auth/sso/login'; }}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-medium transition-colors"
-                      >
-                        <KeyRound size={20} />
-                        {branding?.ssoButtonLabel?.trim() || 'Single Sign-On'}
-                      </button>
-                    )}
-
-                    {window.isSecureContext && !isNativeApp() && (
-                      <button
-                        type="button"
-                        onClick={handlePasskeyLogin}
-                        disabled={passkeyLoading}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-gray-200 dark:border-gray-700 rounded-xl text-gray-700 dark:text-gray-300 font-medium hover:border-primary-300 hover:bg-primary-50 dark:hover:bg-primary-900/30 transition-colors disabled:opacity-50"
-                      >
-                        {passkeyLoading ? (
-                          <div className="w-5 h-5 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
-                        ) : (
-                          <>
-                            <Fingerprint size={20} className="text-primary-600 dark:text-primary-400" />
-                            Mit Passkey anmelden
-                          </>
-                        )}
-                      </button>
-                    )}
+                  <div className="flex flex-col gap-1">
+                    <label className={labelCls} htmlFor="password">Passwort</label>
+                    <input
+                      id="password"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className={inputCls}
+                      placeholder="••••••••"
+                      required
+                      autoComplete="current-password"
+                    />
                   </div>
-                </>
-              )}
 
-              {/* Passwort vergessen */}
-              <div className="mt-4 text-center">
-                <Link
-                  to="/forgot-password"
-                  className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 hover:underline"
-                >
-                  Passwort vergessen?
-                </Link>
-              </div>
-            </>
-          ) : (
-            <>
-              {/* TOTP Step */}
-              <div className="text-center mb-6">
-                <div className="inline-flex items-center justify-center w-12 h-12 bg-amber-100 dark:bg-amber-900/40 rounded-full mb-3">
-                  <ShieldCheck className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+                  <button type="submit" disabled={loading} className={`${primaryBtnCls} mt-2`}>
+                    {loading ? (
+                      <div className="w-5 h-5 border-2 border-on-primary-container border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        <LogIn size={20} />
+                        Anmelden
+                      </>
+                    )}
+                  </button>
+                </form>
+
+                {showSecondaryAuth && (
+                  <>
+                    {/* Trenner */}
+                    <div className="relative flex items-center py-6">
+                      <div className="flex-grow border-t border-outline-variant/60" />
+                      <span className="flex-shrink-0 mx-4 text-on-surface-variant font-label-md text-label-md uppercase">oder</span>
+                      <div className="flex-grow border-t border-outline-variant/60" />
+                    </div>
+
+                    {/* Alternative Anmeldungen */}
+                    <div className="flex flex-col gap-3">
+                      {showSsoButton && (
+                        <button
+                          type="button"
+                          onClick={() => { window.location.href = '/api/auth/sso/login'; }}
+                          className={secondaryBtnCls}
+                        >
+                          <KeyRound size={18} className="text-on-surface-variant" />
+                          {branding?.ssoButtonLabel?.trim() || 'Single Sign-On'}
+                        </button>
+                      )}
+
+                      {window.isSecureContext && !isNativeApp() && (
+                        <button
+                          type="button"
+                          onClick={handlePasskeyLogin}
+                          disabled={passkeyLoading}
+                          className={secondaryBtnCls}
+                        >
+                          {passkeyLoading ? (
+                            <div className="w-5 h-5 border-2 border-primary-container border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <>
+                              <Fingerprint size={18} className="text-on-surface-variant" />
+                              Mit Passkey anmelden
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                <div className="mt-6 text-center">
+                  <Link
+                    to="/forgot-password"
+                    className="font-body-md text-body-md text-primary-container hover:text-primary-container/80 hover:underline transition-colors duration-150 ease-in-out"
+                  >
+                    Passwort vergessen?
+                  </Link>
                 </div>
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Zwei-Faktor-Authentifizierung</h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                  Geben Sie den 6-stelligen Code aus Ihrer Authenticator-App ein.
-                </p>
-              </div>
+              </>
+            ) : (
+              <>
+                {/* TOTP-Schritt */}
+                <div className="text-center mb-6">
+                  <div className="inline-flex items-center justify-center w-12 h-12 bg-tertiary-container/20 dark:bg-tertiary-container rounded-full mb-3">
+                    <ShieldCheck className="w-6 h-6 text-tertiary dark:text-on-tertiary-container" />
+                  </div>
+                  <h2 className="font-headline-md text-headline-md text-on-surface">Zwei-Faktor-Authentifizierung</h2>
+                  <p className="font-body-md text-body-md text-on-surface-variant mt-1">
+                    Gib den 6-stelligen Code aus deiner Authenticator-App ein.
+                  </p>
+                </div>
 
-              <form onSubmit={handleTotpSubmit} className="space-y-6">
-                <div>
+                <form onSubmit={handleTotpSubmit} className="flex flex-col gap-stack_md">
                   <input
                     ref={totpInputRef}
                     type="text"
@@ -267,80 +262,74 @@ export default function Login() {
                     pattern="[0-9]*"
                     maxLength={6}
                     value={totpCode}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/\D/g, '');
-                      setTotpCode(val);
-                    }}
-                    className="input text-center text-2xl tracking-[0.5em] font-mono"
+                    onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, ''))}
+                    className={`${inputCls} text-center text-2xl tracking-[0.5em] font-mono`}
                     placeholder="000000"
                     autoComplete="one-time-code"
                   />
+
+                  <button type="submit" disabled={loading || totpCode.length !== 6} className={`${primaryBtnCls} mt-2`}>
+                    {loading ? (
+                      <div className="w-5 h-5 border-2 border-on-primary-container border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        <ShieldCheck size={20} />
+                        Verifizieren
+                      </>
+                    )}
+                  </button>
+                </form>
+
+                <div className="mt-4 text-center">
+                  <button
+                    onClick={() => { setStep('credentials'); setTempToken(''); setTotpCode(''); }}
+                    className="inline-flex items-center gap-1 font-body-md text-body-md text-primary-container hover:text-primary-container/80 hover:underline transition-colors duration-150 ease-in-out"
+                  >
+                    <ArrowLeft size={16} />
+                    Zurück zum Login
+                  </button>
                 </div>
+              </>
+            )}
+          </div>
 
-                <button
-                  type="submit"
-                  disabled={loading || totpCode.length !== 6}
-                  className="btn btn-primary w-full flex items-center justify-center gap-2"
-                >
-                  {loading ? (
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <>
-                      <ShieldCheck size={20} />
-                      Verifizieren
-                    </>
-                  )}
-                </button>
-              </form>
-
-              <div className="mt-4 text-center">
-                <button
-                  onClick={() => {
-                    setStep('credentials');
-                    setTempToken('');
-                    setTotpCode('');
-                  }}
-                  className="inline-flex items-center gap-1 text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 hover:underline"
-                >
-                  <ArrowLeft size={16} />
-                  Zurück zum Login
-                </button>
-              </div>
-            </>
-          )}
+          {/* Bottom-Akzent */}
+          <div className="h-1 w-full bg-primary-container" />
         </div>
 
-        {/* Server-Konfiguration nur in nativen Apps */}
-        {isNativeApp() && (
-          <div className="mt-4 text-center">
+        {/* Footer / Subtext + Server-URL (native App) */}
+        <div className="mt-6 text-center">
+          {isNativeApp() ? (
             <button
               onClick={() => setShowServerModal(true)}
-              className="inline-flex items-center gap-1 text-xs text-white/80 hover:text-white"
+              className="inline-flex items-center gap-1 font-body-md text-body-md text-on-primary-container/80 hover:text-on-primary-container"
             >
-              <Server size={12} />
+              <Server size={14} />
               Server: {getServerUrl() || getDefaultServerUrl()}
             </button>
-          </div>
-        )}
+          ) : (
+            <p className="font-body-md text-body-md text-on-primary-container/80">Sichere Verbindung</p>
+          )}
+        </div>
       </div>
 
       {/* Server-Konfig-Modal */}
       {showServerModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl max-w-md w-full">
-            <div className="p-5 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2">
-              <Server size={20} className="text-primary-600 dark:text-primary-400" />
-              <h3 className="text-lg font-semibold">Server-URL konfigurieren</h3>
+          <div className="bg-surface dark:bg-surface-container-high rounded-xl shadow-xl max-w-md w-full">
+            <div className="p-5 border-b border-outline-variant/40 flex items-center gap-2">
+              <Server size={20} className="text-primary-container" />
+              <h3 className="font-headline-md text-headline-md text-on-surface">Server-URL konfigurieren</h3>
             </div>
             <div className="p-5 space-y-3">
-              <p className="text-sm text-gray-600 dark:text-gray-400">
+              <p className="font-body-md text-body-md text-on-surface-variant">
                 Adresse der Zeiterfassungs-Instanz, mit der sich diese App verbinden soll.
               </p>
               <input
                 type="url"
                 value={serverInput}
                 onChange={(e) => setServerInput(e.target.value)}
-                className="input"
+                className={inputCls}
                 placeholder="https://zeit.handy-insel.de"
                 spellCheck={false}
                 autoCapitalize="off"
@@ -349,18 +338,13 @@ export default function Login() {
               <button
                 type="button"
                 onClick={() => setServerInput(getDefaultServerUrl())}
-                className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                className="font-body-md text-xs text-on-surface-variant hover:text-on-surface"
               >
                 Auf Standard ({getDefaultServerUrl()}) zurücksetzen
               </button>
             </div>
-            <div className="p-5 border-t border-gray-100 dark:border-gray-800 flex justify-end gap-2">
-              <button
-                onClick={() => setShowServerModal(false)}
-                className="btn btn-secondary"
-              >
-                Abbrechen
-              </button>
+            <div className="p-5 border-t border-outline-variant/40 flex justify-end gap-2">
+              <button onClick={() => setShowServerModal(false)} className="btn btn-secondary">Abbrechen</button>
               <button
                 onClick={() => {
                   if (!/^https?:\/\//.test(serverInput)) {
