@@ -52,7 +52,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
       {opts && (
         <>
           <div className="fixed inset-0 bg-black/50 z-[60]" onClick={() => close(false)} />
-          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white dark:bg-gray-900 rounded-xl shadow-2xl w-full max-w-md z-[70] mx-4">
+          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white dark:bg-gray-900 rounded-xl shadow-2xl w-full max-w-lg z-[70] mx-4">
             <div className="p-5 flex items-start gap-3 border-b">
               <div className={`p-2 ${styles.iconBg} rounded-lg shrink-0`}>
                 <AlertTriangle size={20} className={styles.icon} />
