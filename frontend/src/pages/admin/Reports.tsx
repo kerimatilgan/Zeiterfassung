@@ -516,7 +516,7 @@ export default function AdminReports() {
           : '';
         return createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-md">
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-lg">
             <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
               <h2 className="text-xl font-semibold">Neue Abrechnung</h2>
               <button
@@ -871,7 +871,7 @@ export default function AdminReports() {
       {/* Batch-Zusammenfassung */}
       {batchDone && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-md p-6 text-center">
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-lg p-6 text-center">
             <div className="w-16 h-16 bg-green-100 dark:bg-green-900/40 rounded-full flex items-center justify-center mx-auto mb-4">
               <FileText size={32} className="text-green-600 dark:text-green-400" />
             </div>

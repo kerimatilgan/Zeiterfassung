@@ -3265,7 +3265,7 @@ export default function AdminEmployees() {
       {/* RFID Lookup Modal */}
       {showLookupModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => { if (!lookupScanning) { setShowLookupModal(false); } }}>
-          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
             <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
               <h2 className="text-xl font-semibold flex items-center gap-2">
                 <CreditCard size={20} />

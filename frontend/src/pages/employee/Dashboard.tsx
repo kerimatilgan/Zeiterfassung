@@ -535,7 +535,7 @@ export default function EmployeeDashboard() {
       {/* PWA Stempel-Modal */}
       {showPwaModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowPwaModal(false)}>
-          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-lg" onClick={e => e.stopPropagation()}>
             <div className={`p-5 rounded-t-xl text-white ${pwaAction === 'clock-in' ? 'bg-green-600' : 'bg-red-600'}`}>
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold flex items-center gap-2">

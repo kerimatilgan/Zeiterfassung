@@ -201,7 +201,7 @@ export default function Layout({ isAdmin = false }: LayoutProps) {
 
         {/* Main */}
         <main className="flex-1 min-w-0">
-          <div className="max-w-7xl mx-auto w-full p-container_padding flex flex-col gap-stack_lg">
+          <div className="w-full p-container_padding flex flex-col gap-stack_lg">
             <Outlet />
           </div>
         </main>
