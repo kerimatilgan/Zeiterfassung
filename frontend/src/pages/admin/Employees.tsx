@@ -1767,7 +1767,7 @@ export default function AdminEmployees() {
       {/* Create/Edit Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+          <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
             <div className="p-stack_lg border-b border-outline-variant flex items-center justify-between">
               <h2 className="font-headline-md text-headline-md font-semibold text-on-surface">
                 {editingEmployee ? 'Mitarbeiter bearbeiten' : 'Neuer Mitarbeiter'}
@@ -1776,267 +1776,275 @@ export default function AdminEmployees() {
                 <X size={20} />
               </button>
             </div>
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="label">Mitarbeiternummer</label>
-                  <input
-                    type="text"
-                    value={formData.employeeNumber}
-                    onChange={(e) => setFormData({ ...formData, employeeNumber: e.target.value })}
-                    className="input"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="label">Benutzername</label>
-                  <input
-                    type="text"
-                    value={formData.username}
-                    onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                    className="input"
-                    placeholder="z.B. max.mustermann"
-                  />
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Für die Anmeldung im Dashboard</p>
-                </div>
-              </div>
-              {!formData.isAdmin && (
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="label">Urlaubstage/Jahr</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="365"
-                    value={formData.vacationDaysPerYear}
-                    onChange={(e) => setFormData({ ...formData, vacationDaysPerYear: parseInt(e.target.value) || 0 })}
-                    className="input"
-                    required
-                  />
-                </div>
-              </div>
-              )}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="label">Vorname</label>
-                  <input
-                    type="text"
-                    value={formData.firstName}
-                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                    className="input"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="label">Nachname</label>
-                  <input
-                    type="text"
-                    value={formData.lastName}
-                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                    className="input"
-                    required
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="label">E-Mail</label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="input"
-                />
-              </div>
-              <div>
-                <label className="label">Telefon</label>
-                <input
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="input"
-                />
-              </div>
-              {!formData.isAdmin && (
-              <>
-              <div>
-                <label className="label">Wochenstunden</label>
-                <input
-                  type="number"
-                  step="0.5"
-                  value={formData.weeklyHours}
-                  onChange={(e) => setFormData({ ...formData, weeklyHours: parseFloat(e.target.value) })}
-                  className="input"
-                  required
-                />
-              </div>
-              <div>
-                <label className="label">Arbeitstage</label>
-                <div className="flex flex-wrap gap-2">
-                  {WEEKDAY_OPTIONS.map((day) => {
-                    const workDayNumbers = formData.workDays.split(',').map(d => parseInt(d.trim())).filter(d => !isNaN(d));
-                    const isChecked = workDayNumbers.includes(day.value);
-                    return (
-                      <label
-                        key={day.value}
-                        className={`flex items-center gap-1 px-3 py-1.5 rounded-lg cursor-pointer border transition-colors ${
-                          isChecked
-                            ? 'bg-primary-100 dark:bg-primary-900/40 border-primary-500 text-primary-700 dark:text-primary-300'
-                            : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-surface-container-high dark:hover:bg-surface-container-highest'
-                        }`}
+            <form onSubmit={handleSubmit} className="p-stack_lg space-y-stack_lg">
+              {/* 2-Spalten-Layout: links Identität/Konto, rechts Arbeit/Vertrag */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-stack_lg gap-y-stack_md">
+                {/* Linke Spalte */}
+                <div className="space-y-stack_md">
+                  <div className="grid grid-cols-2 gap-stack_md">
+                    <div>
+                      <label className="label">Mitarbeiternummer</label>
+                      <input
+                        type="text"
+                        value={formData.employeeNumber}
+                        onChange={(e) => setFormData({ ...formData, employeeNumber: e.target.value })}
+                        className="input"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="label">Benutzername</label>
+                      <input
+                        type="text"
+                        value={formData.username}
+                        onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                        className="input"
+                        placeholder="z.B. max.mustermann"
+                      />
+                      <p className="font-label-md text-label-md text-on-surface-variant mt-1">Für die Anmeldung im Dashboard</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-stack_md">
+                    <div>
+                      <label className="label">Vorname</label>
+                      <input
+                        type="text"
+                        value={formData.firstName}
+                        onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                        className="input"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="label">Nachname</label>
+                      <input
+                        type="text"
+                        value={formData.lastName}
+                        onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                        className="input"
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="label">E-Mail</label>
+                    <input
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      className="input"
+                    />
+                  </div>
+                  <div>
+                    <label className="label">Telefon</label>
+                    <input
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      className="input"
+                    />
+                  </div>
+                  <div>
+                    <label className="label">
+                      {editingEmployee ? 'Neues Passwort (leer lassen = unverändert)' : 'Passwort'}
+                    </label>
+                    <input
+                      type="password"
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      className="input"
+                      minLength={editingEmployee ? 0 : 6}
+                      required={!editingEmployee}
+                    />
+                    {editingEmployee && editingEmployee.email && (
+                      <button
+                        type="button"
+                        id="reset-pw-btn"
+                        className="mt-2 font-body-md text-body-md text-primary-container hover:underline inline-flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                        onClick={async (e) => {
+                          const btn = e.currentTarget;
+                          btn.disabled = true;
+                          const originalText = btn.innerHTML;
+                          btn.innerHTML = '<svg class="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Wird gesendet...';
+                          try {
+                            const res = await authApi.adminResetPassword(editingEmployee.id);
+                            toast.success(res.data.message || 'Passwort-Reset E-Mail wurde gesendet', { duration: 5000 });
+                          } catch (err: any) {
+                            toast.error(err.response?.data?.error || 'Fehler beim Senden');
+                          } finally {
+                            btn.innerHTML = originalText;
+                            btn.disabled = false;
+                          }
+                        }}
                       >
+                        <KeyRound size={14} />
+                        Passwort-Reset per E-Mail senden
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="isAdmin"
+                      checked={formData.isAdmin}
+                      onChange={(e) => setFormData({ ...formData, isAdmin: e.target.checked })}
+                      className="w-4 h-4 rounded border-outline-variant"
+                    />
+                    <label htmlFor="isAdmin" className="font-body-md text-body-md text-on-surface">
+                      Administrator-Rechte
+                    </label>
+                  </div>
+                </div>
+
+                {/* Rechte Spalte — nur für nicht-Admins (Vertrag/Arbeit) */}
+                {!formData.isAdmin ? (
+                  <div className="space-y-stack_md">
+                    <div className="grid grid-cols-2 gap-stack_md">
+                      <div>
+                        <label className="label">Urlaubstage/Jahr</label>
                         <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={(e) => {
-                            let newWorkDays: number[];
-                            if (e.target.checked) {
-                              newWorkDays = [...workDayNumbers, day.value].sort((a, b) => a - b);
-                            } else {
-                              newWorkDays = workDayNumbers.filter(d => d !== day.value);
-                            }
-                            setFormData({ ...formData, workDays: newWorkDays.join(',') || '1,2,3,4,5' });
-                          }}
-                          className="sr-only"
+                          type="number"
+                          min="0"
+                          max="365"
+                          value={formData.vacationDaysPerYear}
+                          onChange={(e) => setFormData({ ...formData, vacationDaysPerYear: parseInt(e.target.value) || 0 })}
+                          className="input"
+                          required
                         />
-                        <span className="text-sm font-medium">{day.label}</span>
-                      </label>
-                    );
-                  })}
-                </div>
-              </div>
-              <div>
-                <label className="label">Arbeitskategorie</label>
-                <select
-                  value={formData.workCategoryId}
-                  onChange={(e) => setFormData({ ...formData, workCategoryId: e.target.value })}
-                  className="input"
-                >
-                  <option value="">Keine Kategorie</option>
-                  {workCategories?.map((cat: any) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.name} (ab {cat.earliestClockIn} Uhr)
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {/* Eintritts-/Austrittsdatum */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="label">Eintrittsdatum</label>
-                  <input
-                    type="date"
-                    value={formData.startDate}
-                    onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                    className="input"
-                  />
-                </div>
-                <div>
-                  <label className="label">Austrittsdatum</label>
-                  <input
-                    type="date"
-                    value={formData.endDate}
-                    onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                    className="input"
-                  />
-                  {formData.endDate && <p className="text-xs text-red-500 mt-1">MA kann sich ab diesem Datum nicht mehr einstempeln</p>}
-                </div>
-              </div>
-              {/* Reguläres Arbeitszeitende */}
-              <div>
-                <label className="label">Reguläres Arbeitszeitende</label>
-                <input
-                  type="time"
-                  value={formData.defaultClockOut}
-                  onChange={(e) => setFormData({ ...formData, defaultClockOut: e.target.value })}
-                  className="input"
-                />
-                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Wird für Auto-Ausstempeln verwendet wenn der MA sich nicht ausstempelt</p>
-              </div>
-              {/* PWA-Stempelung */}
-              <div>
-                <label className="label">PWA-Stempelung (mobil)</label>
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={formData.canClockInPwa}
-                      onChange={(e) => setFormData({ ...formData, canClockInPwa: e.target.checked })}
-                      className="rounded"
-                    />
-                    <span className="text-sm">Einstempeln über PWA erlauben</span>
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={formData.canClockOutPwa}
-                      onChange={(e) => setFormData({ ...formData, canClockOutPwa: e.target.checked })}
-                      className="rounded"
-                    />
-                    <span className="text-sm">Ausstempeln über PWA erlauben</span>
-                  </label>
-                </div>
-              </div>
-              </>
-              )}
-              <div>
-                <label className="label">
-                  {editingEmployee ? 'Neues Passwort (leer lassen = unverändert)' : 'Passwort'}
-                </label>
-                <input
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="input"
-                  minLength={editingEmployee ? 0 : 6}
-                  required={!editingEmployee}
-                />
-                {editingEmployee && editingEmployee.email && (
-                  <button
-                    type="button"
-                    id="reset-pw-btn"
-                    className="mt-2 text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 inline-flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
-                    onClick={async (e) => {
-                      const btn = e.currentTarget;
-                      btn.disabled = true;
-                      const originalText = btn.innerHTML;
-                      btn.innerHTML = '<svg class="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Wird gesendet...';
-                      try {
-                        const res = await authApi.adminResetPassword(editingEmployee.id);
-                        toast.success(res.data.message || 'Passwort-Reset E-Mail wurde gesendet', { duration: 5000 });
-                      } catch (err: any) {
-                        toast.error(err.response?.data?.error || 'Fehler beim Senden');
-                      } finally {
-                        btn.innerHTML = originalText;
-                        btn.disabled = false;
-                      }
-                    }}
-                  >
-                    <KeyRound size={14} />
-                    Passwort-Reset per E-Mail senden
-                  </button>
+                      </div>
+                      <div>
+                        <label className="label">Wochenstunden</label>
+                        <input
+                          type="number"
+                          step="0.5"
+                          value={formData.weeklyHours}
+                          onChange={(e) => setFormData({ ...formData, weeklyHours: parseFloat(e.target.value) })}
+                          className="input"
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="label">Arbeitstage</label>
+                      <div className="flex flex-wrap gap-2">
+                        {WEEKDAY_OPTIONS.map((day) => {
+                          const workDayNumbers = formData.workDays.split(',').map(d => parseInt(d.trim())).filter(d => !isNaN(d));
+                          const isChecked = workDayNumbers.includes(day.value);
+                          return (
+                            <label
+                              key={day.value}
+                              className={`flex items-center gap-1 px-3 py-1.5 rounded-lg cursor-pointer border transition-colors ${
+                                isChecked
+                                  ? 'bg-primary-100 dark:bg-primary-900/40 border-primary-500 text-primary-700 dark:text-primary-300'
+                                  : 'bg-surface-container-low dark:bg-surface-container border-outline-variant text-on-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-container-highest'
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={(e) => {
+                                  let newWorkDays: number[];
+                                  if (e.target.checked) {
+                                    newWorkDays = [...workDayNumbers, day.value].sort((a, b) => a - b);
+                                  } else {
+                                    newWorkDays = workDayNumbers.filter(d => d !== day.value);
+                                  }
+                                  setFormData({ ...formData, workDays: newWorkDays.join(',') || '1,2,3,4,5' });
+                                }}
+                                className="sr-only"
+                              />
+                              <span className="font-body-md text-body-md font-medium">{day.label}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="label">Arbeitskategorie</label>
+                      <select
+                        value={formData.workCategoryId}
+                        onChange={(e) => setFormData({ ...formData, workCategoryId: e.target.value })}
+                        className="input"
+                      >
+                        <option value="">Keine Kategorie</option>
+                        {workCategories?.map((cat: any) => (
+                          <option key={cat.id} value={cat.id}>
+                            {cat.name} (ab {cat.earliestClockIn} Uhr)
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-stack_md">
+                      <div>
+                        <label className="label">Eintrittsdatum</label>
+                        <input
+                          type="date"
+                          value={formData.startDate}
+                          onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                          className="input"
+                        />
+                      </div>
+                      <div>
+                        <label className="label">Austrittsdatum</label>
+                        <input
+                          type="date"
+                          value={formData.endDate}
+                          onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                          className="input"
+                        />
+                        {formData.endDate && <p className="font-label-md text-label-md text-error mt-1">MA kann sich ab diesem Datum nicht mehr einstempeln</p>}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="label">Reguläres Arbeitszeitende</label>
+                      <input
+                        type="time"
+                        value={formData.defaultClockOut}
+                        onChange={(e) => setFormData({ ...formData, defaultClockOut: e.target.value })}
+                        className="input"
+                      />
+                      <p className="font-label-md text-label-md text-on-surface-variant mt-1">Wird für Auto-Ausstempeln verwendet wenn der MA sich nicht ausstempelt</p>
+                    </div>
+                    <div>
+                      <label className="label">PWA-Stempelung (mobil)</label>
+                      <div className="space-y-2">
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={formData.canClockInPwa}
+                            onChange={(e) => setFormData({ ...formData, canClockInPwa: e.target.checked })}
+                            className="rounded"
+                          />
+                          <span className="font-body-md text-body-md text-on-surface">Einstempeln über PWA erlauben</span>
+                        </label>
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={formData.canClockOutPwa}
+                            onChange={(e) => setFormData({ ...formData, canClockOutPwa: e.target.checked })}
+                            className="rounded"
+                          />
+                          <span className="font-body-md text-body-md text-on-surface">Ausstempeln über PWA erlauben</span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="hidden lg:flex items-center justify-center text-on-surface-variant font-body-md text-body-md italic">
+                    Administratoren haben kein Arbeitszeit-Profil.
+                  </div>
                 )}
               </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="isAdmin"
-                  checked={formData.isAdmin}
-                  onChange={(e) => setFormData({ ...formData, isAdmin: e.target.checked })}
-                  className="w-4 h-4 text-primary-600 dark:text-primary-400 rounded border-gray-300 dark:border-gray-700"
-                />
-                <label htmlFor="isAdmin" className="text-sm text-gray-700 dark:text-gray-300">
-                  Administrator-Rechte
-                </label>
-              </div>
-              {/* 2FA Management (only in edit mode) */}
+
+              {/* 2FA Management (only in edit mode) — Full-width unten */}
               {editingEmployee && (
-                <div className="border-t pt-4 mt-4">
-                  <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Zwei-Faktor-Authentifizierung</h4>
+                <div className="border-t border-outline-variant pt-stack_md">
+                  <h4 className="font-label-md text-label-md uppercase font-semibold text-on-surface-variant mb-stack_sm">Zwei-Faktor-Authentifizierung</h4>
                   <TwoFactorAdminSection employeeId={editingEmployee.id} employeeName={`${editingEmployee.firstName} ${editingEmployee.lastName}`} />
                 </div>
               )}
 
-              <div className="flex justify-end gap-3 pt-4">
+              <div className="flex justify-end gap-3 pt-stack_md border-t border-outline-variant">
                 <button type="button" onClick={closeModal} className="btn btn-secondary">
                   Abbrechen
                 </button>
