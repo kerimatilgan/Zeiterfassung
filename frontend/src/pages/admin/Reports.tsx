@@ -250,55 +250,56 @@ export default function AdminReports() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'draft':
-        return <span className="px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300">Entwurf</span>;
+        return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 font-label-md text-label-md rounded-full bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300"><span className="w-1.5 h-1.5 rounded-full bg-yellow-500" />Entwurf</span>;
       case 'finalized':
-        return <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300">Finalisiert</span>;
+        return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 font-label-md text-label-md rounded-full bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300"><span className="w-1.5 h-1.5 rounded-full bg-green-500" />Finalisiert</span>;
       case 'paid':
-        return <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300">Bezahlt</span>;
+        return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 font-label-md text-label-md rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300"><span className="w-1.5 h-1.5 rounded-full bg-blue-500" />Bezahlt</span>;
       default:
         return null;
     }
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-stack_lg">
+      {/* Header */}
+      <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-stack_md">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Abrechnungen</h1>
-          <p className="text-gray-500 dark:text-gray-400">Monatsabrechnungen verwalten</p>
+          <h1 className="font-display text-display text-on-surface">Abrechnungen</h1>
+          <p className="font-body-md text-body-md text-on-surface-variant mt-1">Monatsabrechnungen erzeugen, finalisieren und in den MA-Akten ablegen.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-stack_sm">
           <button
             onClick={() => { setUploadPrefill({}); setUploadModalOpen(true); }}
-            className="btn btn-secondary flex items-center gap-2"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface border border-outline-variant font-body-md text-body-md font-medium transition-colors shadow-sm"
             title="Externes Dokument für einen Mitarbeiter hochladen"
           >
-            <Upload size={20} />
+            <Upload size={18} />
             Dokument hochladen
           </button>
           <button
             onClick={() => setShowCreateModal(true)}
-            className="btn btn-primary flex items-center gap-2"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-container hover:bg-primary-container/90 text-on-primary-container font-body-md text-body-md font-medium transition-colors shadow-sm"
           >
-            <Plus size={20} />
+            <Plus size={18} />
             Neue Abrechnung
           </button>
         </div>
-      </div>
+      </header>
 
-      {/* Filters */}
-      <div className="card p-4">
-        <div className="flex flex-wrap items-end gap-4">
-          <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+      {/* Filter-Toolbar */}
+      <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-sm p-stack_md">
+        <div className="flex flex-wrap items-end gap-stack_md">
+          <div className="flex items-center gap-2 text-on-surface-variant pb-1.5">
             <Filter size={18} />
-            <span className="text-sm font-medium">Filter:</span>
+            <span className="font-body-md text-body-md font-medium">Filter:</span>
           </div>
-          <div className="min-w-[180px]">
-            <label className="label text-xs">Mitarbeiter</label>
+          <div className="min-w-[180px] flex flex-col gap-1">
+            <label className="font-label-md text-label-md uppercase text-on-surface-variant">Mitarbeiter</label>
             <select
               value={filterEmployee}
               onChange={(e) => setFilterEmployee(e.target.value)}
-              className="input py-1.5 text-sm"
+              className="bg-surface-container-lowest dark:bg-surface-container border border-outline-variant rounded-lg px-3 py-1.5 font-body-md text-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container focus:border-transparent"
             >
               <option value="">Alle</option>
               {employees?.map((emp: any) => (
@@ -308,12 +309,12 @@ export default function AdminReports() {
               ))}
             </select>
           </div>
-          <div className="min-w-[100px]">
-            <label className="label text-xs">Jahr</label>
+          <div className="min-w-[100px] flex flex-col gap-1">
+            <label className="font-label-md text-label-md uppercase text-on-surface-variant">Jahr</label>
             <select
               value={filterYear}
               onChange={(e) => setFilterYear(e.target.value ? parseInt(e.target.value) : '')}
-              className="input py-1.5 text-sm"
+              className="bg-surface-container-lowest dark:bg-surface-container border border-outline-variant rounded-lg px-3 py-1.5 font-body-md text-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container focus:border-transparent"
             >
               <option value="">Alle</option>
               {[2023, 2024, 2025, 2026, 2027].map((y) => (
@@ -321,12 +322,12 @@ export default function AdminReports() {
               ))}
             </select>
           </div>
-          <div className="min-w-[120px]">
-            <label className="label text-xs">Monat</label>
+          <div className="min-w-[120px] flex flex-col gap-1">
+            <label className="font-label-md text-label-md uppercase text-on-surface-variant">Monat</label>
             <select
               value={filterMonth}
               onChange={(e) => setFilterMonth(e.target.value ? parseInt(e.target.value) : '')}
-              className="input py-1.5 text-sm"
+              className="bg-surface-container-lowest dark:bg-surface-container border border-outline-variant rounded-lg px-3 py-1.5 font-body-md text-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container focus:border-transparent"
             >
               <option value="">Alle</option>
               {MONTHS.map((m, i) => (
@@ -334,12 +335,12 @@ export default function AdminReports() {
               ))}
             </select>
           </div>
-          <div className="min-w-[120px]">
-            <label className="label text-xs">Status</label>
+          <div className="min-w-[120px] flex flex-col gap-1">
+            <label className="font-label-md text-label-md uppercase text-on-surface-variant">Status</label>
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="input py-1.5 text-sm"
+              className="bg-surface-container-lowest dark:bg-surface-container border border-outline-variant rounded-lg px-3 py-1.5 font-body-md text-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container focus:border-transparent"
             >
               <option value="">Alle</option>
               <option value="draft">Entwurf</option>
@@ -349,7 +350,7 @@ export default function AdminReports() {
           {(filterEmployee || filterYear || filterMonth || filterStatus) && (
             <button
               onClick={() => { setFilterEmployee(''); setFilterYear(''); setFilterMonth(''); setFilterStatus(''); }}
-              className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 hover:underline pb-1"
+              className="font-body-md text-body-md text-primary-container hover:underline pb-1.5 ml-2"
             >
               Zurücksetzen
             </button>
@@ -357,30 +358,20 @@ export default function AdminReports() {
         </div>
       </div>
 
-      {/* Table */}
-      <div className="card overflow-hidden">
+      {/* Tabelle */}
+      <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 dark:bg-gray-800">
+          <table className="w-full text-left">
+            <thead className="bg-surface-container-low dark:bg-surface-container border-b border-outline-variant">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                  Mitarbeiter
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                  Zeitraum
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                  Stunden
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                  Aktionen
-                </th>
+                <th className="px-stack_lg py-stack_sm font-label-md text-label-md uppercase text-on-surface-variant">Mitarbeiter</th>
+                <th className="px-stack_lg py-stack_sm font-label-md text-label-md uppercase text-on-surface-variant">Zeitraum</th>
+                <th className="px-stack_lg py-stack_sm font-label-md text-label-md uppercase text-on-surface-variant">Stunden</th>
+                <th className="px-stack_lg py-stack_sm font-label-md text-label-md uppercase text-on-surface-variant">Status</th>
+                <th className="px-stack_lg py-stack_sm font-label-md text-label-md uppercase text-on-surface-variant text-right">Aktionen</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+            <tbody className="divide-y divide-outline-variant">
               {(() => {
                 const filteredReports = reports?.filter((r: any) => {
                   if (filterEmployee && r.employeeId !== filterEmployee) return false;
@@ -397,7 +388,7 @@ export default function AdminReports() {
                 </tr>
               ) : filteredReports?.length ? (
                 filteredReports.map((report: any) => (
-                  <tr key={report.id}>
+                  <tr key={report.id} className="hover:bg-surface-container-low dark:hover:bg-surface-container transition-colors group">
                     <td className="px-6 py-4">
                       <p className="font-medium text-gray-900 dark:text-gray-100">
                         {report.employee.firstName} {report.employee.lastName}
@@ -516,12 +507,12 @@ export default function AdminReports() {
           : '';
         return createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-lg">
+          <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-xl w-full max-w-lg">
             <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
-              <h2 className="text-xl font-semibold">Neue Abrechnung</h2>
+              <h2 className="font-headline-md text-headline-md font-semibold text-on-surface">Neue Abrechnung</h2>
               <button
                 onClick={() => setShowCreateModal(false)}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+                className="p-2 hover:bg-surface-container-high dark:hover:bg-surface-container-highest rounded-lg"
               >
                 <X size={20} />
               </button>
@@ -606,19 +597,19 @@ export default function AdminReports() {
       {/* Preview Modal — siehe Kommentar oben am Create Modal */}
       {showPreviewModal && previewData && !batchDone && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+          <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
             <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
               {isBatchMode && (
                 <button
                   onClick={() => navigateBatchTo(batchIndex - 1)}
                   disabled={batchIndex === 0 || previewMutation.isPending}
-                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg disabled:opacity-30"
+                  className="p-2 hover:bg-surface-container-high dark:hover:bg-surface-container-highest rounded-lg disabled:opacity-30"
                 >
                   <ChevronLeft size={20} />
                 </button>
               )}
               <div className="text-center flex-1">
-                <h2 className="text-xl font-semibold">
+                <h2 className="font-headline-md text-headline-md font-semibold text-on-surface">
                   Vorschau: {previewData.period.monthName} {previewData.period.year}
                 </h2>
                 {isBatchMode && (
@@ -629,14 +620,14 @@ export default function AdminReports() {
                 <button
                   onClick={() => navigateBatchTo(batchIndex + 1)}
                   disabled={batchIndex >= batchEmployees.length - 1 || previewMutation.isPending}
-                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg disabled:opacity-30"
+                  className="p-2 hover:bg-surface-container-high dark:hover:bg-surface-container-highest rounded-lg disabled:opacity-30"
                 >
                   <ChevronRight size={20} />
                 </button>
               )}
               <button
                 onClick={() => isBatchMode ? closeBatch() : setShowPreviewModal(false)}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg ml-2"
+                className="p-2 hover:bg-surface-container-high dark:hover:bg-surface-container-highest rounded-lg ml-2"
               >
                 <X size={20} />
               </button>
@@ -871,7 +862,7 @@ export default function AdminReports() {
       {/* Batch-Zusammenfassung */}
       {batchDone && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-lg p-6 text-center">
+          <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-xl w-full max-w-lg p-6 text-center">
             <div className="w-16 h-16 bg-green-100 dark:bg-green-900/40 rounded-full flex items-center justify-center mx-auto mb-4">
               <FileText size={32} className="text-green-600 dark:text-green-400" />
             </div>
@@ -900,9 +891,9 @@ export default function AdminReports() {
       {/* Edit Modal */}
       {showEditModal && editingReport && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-lg">
-            <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
-              <h2 className="text-xl font-semibold">
+          <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-xl w-full max-w-lg">
+            <div className="p-stack_lg border-b border-outline-variant flex items-center justify-between">
+              <h2 className="font-headline-md text-headline-md font-semibold text-on-surface">
                 Abrechnung bearbeiten
               </h2>
               <button
@@ -910,7 +901,7 @@ export default function AdminReports() {
                   setShowEditModal(false);
                   setEditingReport(null);
                 }}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+                className="p-2 hover:bg-surface-container-high dark:hover:bg-surface-container-highest rounded-lg"
               >
                 <X size={20} />
               </button>
