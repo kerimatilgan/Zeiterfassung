@@ -34,6 +34,7 @@ import {
   Upload,
   Clock,
   MapPin,
+  Shield,
 } from 'lucide-react';
 
 interface Employee {
@@ -1526,63 +1527,59 @@ export default function AdminEmployees() {
   });
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-stack_lg">
+      {/* Header */}
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-stack_md">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Mitarbeiter</h1>
-          <p className="text-gray-500 dark:text-gray-400">Mitarbeiter verwalten</p>
+          <h1 className="font-display text-display text-on-surface">Mitarbeiterübersicht</h1>
+          <p className="font-body-md text-body-md text-on-surface-variant mt-1">Verwalte dein Team — Konto, Kontakt, Vertragsdaten und Status.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-stack_sm">
           <button
             onClick={() => { setShowLookupModal(true); setLookupResult(null); }}
-            className="btn btn-secondary flex items-center gap-2"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface border border-outline-variant font-body-md text-body-md font-medium transition-colors shadow-sm"
           >
-            <CreditCard size={20} />
+            <CreditCard size={18} />
             Karte abfragen
           </button>
-          <button onClick={openCreateModal} className="btn btn-primary flex items-center gap-2">
-            <Plus size={20} />
+          <button
+            onClick={openCreateModal}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-container hover:bg-primary-container/90 text-on-primary-container font-body-md text-body-md font-medium transition-colors shadow-sm"
+          >
+            <Plus size={18} />
             Neuer Mitarbeiter
           </button>
         </div>
+      </header>
+
+      {/* Toolbar (Suche) */}
+      <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-sm p-stack_md">
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" size={18} />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Mitarbeiter suchen…"
+            className="w-full pl-10 pr-3 py-2 bg-surface-container-lowest dark:bg-surface-container border border-outline-variant rounded-lg font-body-md text-body-md text-on-surface placeholder:text-on-surface-variant/70 focus:outline-none focus:ring-2 focus:ring-primary-container focus:border-transparent transition-shadow"
+          />
+        </div>
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" size={20} />
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Mitarbeiter suchen..."
-          className="input pl-10"
-        />
-      </div>
-
-      {/* Table */}
-      <div className="card overflow-hidden">
+      {/* Tabelle */}
+      <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 dark:bg-gray-800">
+          <table className="w-full text-left">
+            <thead className="bg-surface-container-low dark:bg-surface-container border-b border-outline-variant">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                  Mitarbeiter
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                  Kontakt
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                  Urlaub/Woche
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                  Aktionen
-                </th>
+                <th className="px-stack_lg py-stack_sm font-label-md text-label-md uppercase text-on-surface-variant">Mitarbeiter</th>
+                <th className="px-stack_lg py-stack_sm font-label-md text-label-md uppercase text-on-surface-variant">Kontakt</th>
+                <th className="px-stack_lg py-stack_sm font-label-md text-label-md uppercase text-on-surface-variant">Urlaub/Woche</th>
+                <th className="px-stack_lg py-stack_sm font-label-md text-label-md uppercase text-on-surface-variant">Status</th>
+                <th className="px-stack_lg py-stack_sm font-label-md text-label-md uppercase text-on-surface-variant text-right">Aktionen</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+            <tbody className="divide-y divide-outline-variant">
               {isLoading ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
@@ -1591,7 +1588,14 @@ export default function AdminEmployees() {
                 </tr>
               ) : filteredEmployees?.length ? (
                 filteredEmployees.map((employee) => (
-                  <tr key={employee.id} className={!employee.isActive ? 'bg-gray-50 dark:bg-gray-800 opacity-60' : ''}>
+                  <tr
+                    key={employee.id}
+                    className={`group transition-colors ${
+                      !employee.isActive
+                        ? 'bg-surface-container-low/40 dark:bg-surface-container/40 opacity-70'
+                        : 'hover:bg-surface-container-low dark:hover:bg-surface-container'
+                    }`}
+                  >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         {/* Avatar/Foto */}
@@ -1600,10 +1604,10 @@ export default function AdminEmployees() {
                             <img
                               src={photoSrc(employee.photoUrl)}
                               alt={`${employee.firstName} ${employee.lastName}`}
-                              className="w-10 h-10 rounded-full object-cover border-2 border-gray-200 dark:border-gray-700"
+                              className="w-10 h-10 rounded-full object-cover border border-outline-variant"
                             />
                           ) : (
-                            <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-500 dark:text-gray-400">
+                            <div className="w-10 h-10 rounded-full bg-secondary-container border border-outline-variant flex items-center justify-center text-on-secondary-container">
                               <User size={20} />
                             </div>
                           )}
@@ -1663,18 +1667,20 @@ export default function AdminEmployees() {
                       )}
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex flex-col gap-1">
+                      <div className="flex flex-col items-start gap-1">
                         <span
-                          className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 font-label-md text-label-md rounded-full ${
                             employee.isActive
                               ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300'
-                              : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
+                              : 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'
                           }`}
                         >
+                          <span className={`w-1.5 h-1.5 rounded-full ${employee.isActive ? 'bg-green-500' : 'bg-red-500'}`} />
                           {employee.isActive ? 'Aktiv' : 'Inaktiv'}
                         </span>
                         {employee.isAdmin && (
-                          <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 font-label-md text-label-md rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300">
+                            <Shield size={12} />
                             Admin
                           </span>
                         )}
