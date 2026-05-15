@@ -138,13 +138,13 @@ export default function EmployeeSettings() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Einstellungen</h1>
-        <p className="text-gray-500 dark:text-gray-400">Persönliche Einstellungen verwalten</p>
+        <h1 className="font-display text-display text-on-surface">Einstellungen</h1>
+        <p className="font-body-md text-body-md text-on-surface-variant mt-1">Persönliche Einstellungen verwalten.</p>
       </div>
 
       {/* Profile Info (Read-only) */}
-      <div className="card p-6">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Profil</h2>
+      <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-sm p-stack_lg">
+        <h2 className="font-headline-md text-headline-md font-semibold text-on-surface mb-stack_md">Profil</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="label">Mitarbeiternummer</label>
@@ -175,12 +175,12 @@ export default function EmployeeSettings() {
       </div>
 
       {/* Change Password */}
-      <div className="card p-6">
+      <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-sm p-stack_lg">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-2 rounded-lg bg-primary-100 dark:bg-primary-900/40">
             <Lock className="w-5 h-5 text-primary-600 dark:text-primary-400" />
           </div>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Passwort ändern</h2>
+          <h2 className="font-headline-md text-headline-md font-semibold text-on-surface">Passwort ändern</h2>
         </div>
 
         <form onSubmit={handlePasswordSubmit} className="space-y-4 max-w-md">
@@ -259,13 +259,13 @@ export default function EmployeeSettings() {
       </div>
 
       {/* 2FA / TOTP */}
-      <div className="card p-6">
+      <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-sm p-stack_lg">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-900/40">
             <ShieldCheck className="w-5 h-5 text-amber-600 dark:text-amber-400" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Zwei-Faktor-Authentifizierung (2FA)</h2>
+            <h2 className="font-headline-md text-headline-md font-semibold text-on-surface">Zwei-Faktor-Authentifizierung (2FA)</h2>
             <p className="text-sm text-gray-500 dark:text-gray-400">Zusätzliche Sicherheit beim Login mit Authenticator-App</p>
           </div>
         </div>
@@ -362,13 +362,13 @@ export default function EmployeeSettings() {
       </div>
 
       {/* Passkeys - only in secure context */}
-      {window.isSecureContext && <div className="card p-6">
+      {window.isSecureContext && <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-sm p-stack_lg">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900/40">
             <Fingerprint className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Passkeys</h2>
+            <h2 className="font-headline-md text-headline-md font-semibold text-on-surface">Passkeys</h2>
             <p className="text-sm text-gray-500 dark:text-gray-400">Anmelden ohne Passwort mit Fingerabdruck, Face ID oder Sicherheitsschlüssel</p>
           </div>
         </div>

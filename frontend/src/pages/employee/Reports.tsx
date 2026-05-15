@@ -46,64 +46,59 @@ export default function EmployeeReports() {
   };
 
   const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'draft':
-        return (
-          <span className="px-3 py-1 text-sm font-medium rounded-full bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300">
-            In Bearbeitung
-          </span>
-        );
-      case 'finalized':
-        return (
-          <span className="px-3 py-1 text-sm font-medium rounded-full bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300">
-            Fertig
-          </span>
-        );
-      case 'paid':
-        return (
-          <span className="px-3 py-1 text-sm font-medium rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300">
-            Ausgezahlt
-          </span>
-        );
-      default:
-        return null;
-    }
+    const variants: Record<string, { bg: string; text: string; dot: string; label: string }> = {
+      draft: { bg: 'bg-yellow-100 dark:bg-yellow-900/40', text: 'text-yellow-700 dark:text-yellow-300', dot: 'bg-yellow-500', label: 'In Bearbeitung' },
+      finalized: { bg: 'bg-green-100 dark:bg-green-900/40', text: 'text-green-700 dark:text-green-300', dot: 'bg-green-500', label: 'Fertig' },
+      paid: { bg: 'bg-blue-100 dark:bg-blue-900/40', text: 'text-blue-700 dark:text-blue-300', dot: 'bg-blue-500', label: 'Ausgezahlt' },
+    };
+    const v = variants[status];
+    if (!v) return null;
+    return (
+      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 font-label-md text-label-md rounded-full ${v.bg} ${v.text}`}>
+        <span className={`w-1.5 h-1.5 rounded-full ${v.dot}`} />
+        {v.label}
+      </span>
+    );
   };
 
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Meine Abrechnungen</h1>
-        <p className="text-gray-500 dark:text-gray-400">Übersicht deiner Monatsabrechnungen</p>
-      </div>
+  const selectCls = 'w-full bg-surface-container-lowest dark:bg-surface-container border border-outline-variant rounded-lg px-3 py-1.5 font-body-md text-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container focus:border-transparent';
 
-      {/* Filters */}
-      <div className="card p-4">
-        <div className="flex flex-wrap items-end gap-4">
-          <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+  const emptyCard = (title: string, subtitle?: string) => (
+    <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-sm p-stack_lg py-stack_lg text-center">
+      <div className="inline-flex items-center justify-center w-16 h-16 bg-surface-container-high dark:bg-surface-container-highest rounded-full mb-stack_md">
+        <FileText className="w-8 h-8 text-on-surface-variant" />
+      </div>
+      <h3 className="font-headline-md text-headline-md font-semibold text-on-surface">{title}</h3>
+      {subtitle && <p className="font-body-md text-body-md text-on-surface-variant mt-1">{subtitle}</p>}
+    </div>
+  );
+
+  return (
+    <div className="space-y-stack_lg">
+      <header>
+        <h1 className="font-display text-display text-on-surface">Meine Abrechnungen</h1>
+        <p className="font-body-md text-body-md text-on-surface-variant mt-1">Übersicht deiner Monatsabrechnungen mit PDF-Download.</p>
+      </header>
+
+      {/* Filter-Toolbar */}
+      <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-sm p-stack_md">
+        <div className="flex flex-wrap items-end gap-stack_md">
+          <div className="flex items-center gap-2 text-on-surface-variant pb-1.5">
             <Filter size={18} />
-            <span className="text-sm font-medium">Filter:</span>
+            <span className="font-body-md text-body-md font-medium">Filter:</span>
           </div>
-          <div className="min-w-[100px]">
-            <label className="label text-xs">Jahr</label>
-            <select
-              value={filterYear}
-              onChange={(e) => setFilterYear(e.target.value ? parseInt(e.target.value) : '')}
-              className="input py-1.5 text-sm"
-            >
+          <div className="min-w-[100px] flex flex-col gap-1">
+            <label className="font-label-md text-label-md uppercase text-on-surface-variant">Jahr</label>
+            <select value={filterYear} onChange={(e) => setFilterYear(e.target.value ? parseInt(e.target.value) : '')} className={selectCls}>
               <option value="">Alle</option>
               {[2023, 2024, 2025, 2026, 2027].map((y) => (
                 <option key={y} value={y}>{y}</option>
               ))}
             </select>
           </div>
-          <div className="min-w-[120px]">
-            <label className="label text-xs">Monat</label>
-            <select
-              value={filterMonth}
-              onChange={(e) => setFilterMonth(e.target.value ? parseInt(e.target.value) : '')}
-              className="input py-1.5 text-sm"
-            >
+          <div className="min-w-[120px] flex flex-col gap-1">
+            <label className="font-label-md text-label-md uppercase text-on-surface-variant">Monat</label>
+            <select value={filterMonth} onChange={(e) => setFilterMonth(e.target.value ? parseInt(e.target.value) : '')} className={selectCls}>
               <option value="">Alle</option>
               {MONTHS.map((m, i) => (
                 <option key={i} value={i + 1}>{m}</option>
@@ -113,7 +108,7 @@ export default function EmployeeReports() {
           {(filterYear || filterMonth) && (
             <button
               onClick={() => { setFilterYear(''); setFilterMonth(''); }}
-              className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 hover:underline pb-1"
+              className="font-body-md text-body-md text-primary-container hover:underline pb-1.5"
             >
               Zurücksetzen
             </button>
@@ -123,7 +118,7 @@ export default function EmployeeReports() {
 
       {isLoading ? (
         <div className="flex items-center justify-center h-64">
-          <div className="w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 border-4 border-primary-container border-t-transparent rounded-full animate-spin" />
         </div>
       ) : reports?.length ? (() => {
         const filteredReports = reports.filter((r: any) => {
@@ -132,40 +127,40 @@ export default function EmployeeReports() {
           return true;
         });
         return filteredReports.length ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-gutter md:grid-cols-2 lg:grid-cols-3">
           {filteredReports.map((report: any) => (
-            <div key={report.id} className="card overflow-hidden">
-              <div className="p-6">
-                <div className="flex items-start justify-between mb-4">
+            <div key={report.id} className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-sm overflow-hidden flex flex-col">
+              <div className="p-stack_lg flex-1">
+                <div className="flex items-start justify-between mb-stack_md">
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                    <h3 className="font-headline-md text-headline-md font-semibold text-on-surface">
                       {MONTHS[report.month - 1]} {report.year}
                     </h3>
-                    {getStatusBadge(report.status)}
+                    <div className="mt-2">{getStatusBadge(report.status)}</div>
                   </div>
-                  <div className="p-2 bg-primary-100 dark:bg-primary-900/40 rounded-lg">
-                    <FileText className="w-5 h-5 text-primary-600 dark:text-primary-400" />
+                  <div className="p-2 bg-primary-container/10 dark:bg-primary-container/20 rounded-lg">
+                    <FileText className="w-5 h-5 text-primary-container" />
                   </div>
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-stack_sm">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+                    <div className="flex items-center gap-2 text-on-surface-variant">
                       <Clock size={16} />
-                      <span>Arbeitsstunden</span>
+                      <span className="font-body-md text-body-md">Arbeitsstunden</span>
                     </div>
-                    <span className="font-medium text-gray-900 dark:text-gray-100">
+                    <span className="font-body-md text-body-md font-semibold text-on-surface">
                       {formatHoursToTime(report.totalHours)} h
                     </span>
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+                    <div className="flex items-center gap-2 text-on-surface-variant">
                       <TrendingUp size={16} />
-                      <span>Differenz Monat</span>
+                      <span className="font-body-md text-body-md">Differenz Monat</span>
                     </div>
                     <span
-                      className={`font-medium ${
+                      className={`font-body-md text-body-md font-medium ${
                         report.overtimeHours >= 0 ? 'text-orange-600 dark:text-orange-400' : 'text-red-600 dark:text-red-400'
                       }`}
                     >
@@ -174,13 +169,13 @@ export default function EmployeeReports() {
                     </span>
                   </div>
 
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+                  <div className="flex items-center justify-between pt-stack_sm border-t border-outline-variant">
+                    <div className="flex items-center gap-2 text-on-surface">
                       <Activity size={16} />
-                      <span className="font-semibold">Überstunden-Saldo</span>
+                      <span className="font-body-md text-body-md font-semibold">Überstunden-Saldo</span>
                     </div>
                     <span
-                      className={`font-bold ${
+                      className={`font-headline-md text-headline-md font-bold ${
                         (report.cumulativeOvertimeBalance || 0) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                       }`}
                     >
@@ -190,23 +185,23 @@ export default function EmployeeReports() {
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+                    <div className="flex items-center gap-2 text-on-surface-variant">
                       <Umbrella size={16} />
-                      <span>Urlaubstage</span>
+                      <span className="font-body-md text-body-md">Urlaubstage</span>
                     </div>
-                    <span className="font-medium text-gray-900 dark:text-gray-100">
+                    <span className="font-body-md text-body-md font-medium text-on-surface">
                       {report.vacationDaysUsed ?? 0} / {report.vacationDaysRemaining != null ? report.vacationDaysUsed + report.vacationDaysRemaining : '-'}
                     </span>
                   </div>
 
                   {(report.sickDaysThisMonth > 0 || report.sickDaysTotal > 0) && (
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+                      <div className="flex items-center gap-2 text-on-surface-variant">
                         <ThermometerSun size={16} />
-                        <span>Krankheitstage</span>
+                        <span className="font-body-md text-body-md">Krankheitstage</span>
                       </div>
-                      <span className="font-medium text-red-600 dark:text-red-400">
-                        {report.sickDaysThisMonth || 0} <span className="text-xs text-gray-500 dark:text-gray-400">(Jahr: {report.sickDaysTotal || 0})</span>
+                      <span className="font-body-md text-body-md font-medium text-red-600 dark:text-red-400">
+                        {report.sickDaysThisMonth || 0} <span className="font-label-md text-label-md text-on-surface-variant">(Jahr: {report.sickDaysTotal || 0})</span>
                       </span>
                     </div>
                   )}
@@ -214,10 +209,10 @@ export default function EmployeeReports() {
               </div>
 
               {report.status === 'finalized' && report.pdfPath && (
-                <div className="px-6 py-4 bg-gray-50 dark:bg-gray-800 border-t border-gray-100 dark:border-gray-800">
+                <div className="px-stack_lg py-stack_md bg-surface-container-low dark:bg-surface-container border-t border-outline-variant">
                   <button
                     onClick={() => handleDownload(report.id, report.year, report.month)}
-                    className="btn btn-primary w-full flex items-center justify-center gap-2"
+                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary-container hover:bg-primary-container/90 text-on-primary-container font-body-md text-body-md font-medium transition-colors shadow-sm"
                   >
                     <Download size={18} />
                     PDF herunterladen
@@ -227,28 +222,10 @@ export default function EmployeeReports() {
             </div>
           ))}
         </div>
-        ) : (
-        <div className="card p-12 text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full mb-4">
-            <FileText className="w-8 h-8 text-gray-400 dark:text-gray-500" />
-          </div>
-          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
-            Keine Abrechnungen für diesen Filter
-          </h3>
-        </div>
-        );
-      })() : (
-        <div className="card p-12 text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full mb-4">
-            <FileText className="w-8 h-8 text-gray-400 dark:text-gray-500" />
-          </div>
-          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
-            Noch keine Abrechnungen
-          </h3>
-          <p className="text-gray-500 dark:text-gray-400">
-            Sobald dein Administrator eine Abrechnung erstellt, wird sie hier angezeigt.
-          </p>
-        </div>
+        ) : emptyCard('Keine Abrechnungen für diesen Filter');
+      })() : emptyCard(
+        'Noch keine Abrechnungen',
+        'Sobald dein Administrator eine Abrechnung erstellt, wird sie hier angezeigt.'
       )}
     </div>
   );

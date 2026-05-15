@@ -210,68 +210,62 @@ export default function EmployeeTimesheet() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-stack_lg">
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-stack_md">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Meine Zeiten</h1>
-          <p className="text-gray-500 dark:text-gray-400">Übersicht deiner Arbeitsstunden</p>
+          <h1 className="font-display text-display text-on-surface">Meine Zeiten</h1>
+          <p className="font-body-md text-body-md text-on-surface-variant mt-1">Übersicht deiner Arbeitsstunden im Monat.</p>
         </div>
 
-        {/* Month Navigation */}
-        <div className="flex items-center gap-4">
+        {/* Month-Navigation */}
+        <div className="flex items-center gap-stack_sm bg-surface dark:bg-surface-container-high border border-outline-variant rounded-lg shadow-sm p-1">
           <button
             onClick={prevMonth}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+            className="p-2 text-on-surface-variant hover:bg-surface-container-low dark:hover:bg-surface-container rounded-lg transition-colors"
+            aria-label="Vorheriger Monat"
           >
             <ChevronLeft size={20} />
           </button>
-          <span className="text-lg font-medium min-w-[180px] text-center">
+          <span className="font-headline-md text-headline-md font-semibold min-w-[180px] text-center text-on-surface">
             {format(currentDate, 'MMMM yyyy', { locale: de })}
           </span>
           <button
             onClick={nextMonth}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+            className="p-2 text-on-surface-variant hover:bg-surface-container-low dark:hover:bg-surface-container rounded-lg transition-colors"
+            aria-label="Nächster Monat"
           >
             <ChevronRight size={20} />
           </button>
         </div>
-      </div>
+      </header>
 
-      {/* Summary */}
-      <div className="card p-6 bg-gradient-to-r from-primary-500 to-primary-600 text-white">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-white/20 rounded-lg">
-            <Clock size={24} />
+      {/* Summary-Hero */}
+      <div className="bg-gradient-to-r from-primary-500 to-primary-700 dark:from-primary-700 dark:to-primary-900 rounded-xl shadow-sm p-stack_lg text-white">
+        <div className="flex items-center gap-stack_md">
+          <div className="w-14 h-14 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
+            <Clock size={28} />
           </div>
           <div>
-            <p className="text-primary-100">Gesamtstunden {format(currentDate, 'MMMM', { locale: de })}</p>
-            <p className="text-3xl font-bold">{formatHoursToTime(totalMonthHours)} Stunden</p>
+            <p className="font-label-md text-label-md uppercase text-white/80">Gesamtstunden {format(currentDate, 'MMMM', { locale: de })}</p>
+            <p className="font-display text-display font-bold mt-1">{formatHoursToTime(totalMonthHours)} h</p>
           </div>
         </div>
       </div>
 
-      {/* Calendar View - Mobile: Karten, Desktop: Tabelle */}
-      <div className="card overflow-hidden">
-        {/* Desktop Tabellen-Ansicht */}
+      {/* Kalender-Ansicht — Mobile: Karten, Desktop: Tabelle */}
+      <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-sm overflow-hidden">
+        {/* Desktop-Tabelle */}
         <div className="hidden md:block overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 dark:bg-gray-800">
+          <table className="w-full text-left">
+            <thead className="bg-surface-container-low dark:bg-surface-container border-b border-outline-variant">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase w-32">
-                  Datum
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                  Tag
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                  Zeiten
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase w-24">
-                  Stunden
-                </th>
+                <th className="px-stack_md py-stack_sm font-label-md text-label-md uppercase text-on-surface-variant w-32">Datum</th>
+                <th className="px-stack_md py-stack_sm font-label-md text-label-md uppercase text-on-surface-variant">Tag</th>
+                <th className="px-stack_md py-stack_sm font-label-md text-label-md uppercase text-on-surface-variant">Zeiten</th>
+                <th className="px-stack_md py-stack_sm font-label-md text-label-md uppercase text-on-surface-variant text-right w-24">Stunden</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+            <tbody className="divide-y divide-outline-variant">
               {daysInMonth.map((day) => {
                 const dayEntries = getEntriesForDay(day);
                 const dayHours = calculateDayHours(dayEntries);
@@ -283,18 +277,18 @@ export default function EmployeeTimesheet() {
                   <tr
                     key={day.toISOString()}
                     className={`
-                      ${holidayName ? 'bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300' : weekend ? 'bg-gray-50 dark:bg-gray-800 text-gray-400 dark:text-gray-500' : ''}
-                      ${isToday ? 'bg-primary-50 dark:bg-primary-900/30' : ''}
+                      ${holidayName ? 'bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300' : weekend ? 'bg-surface-container-low dark:bg-surface-container text-on-surface-variant' : ''}
+                      ${isToday ? 'bg-secondary-container/40 dark:bg-secondary-container/50' : ''}
                     `}
                   >
-                    <td className="px-4 py-3">
-                      <span className={`font-medium ${isToday ? 'text-primary-600 dark:text-primary-400' : ''}`}>
+                    <td className="px-stack_md py-stack_sm">
+                      <span className={`font-medium ${isToday ? 'text-primary-container' : ''}`}>
                         {format(day, 'dd.MM.yyyy')}
                       </span>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-stack_md py-stack_sm">
                       <span>{format(day, 'EEEE', { locale: de })}</span>
-                      {holidayName && <span className="ml-2 text-xs text-red-500">({holidayName})</span>}
+                      {holidayName && <span className="ml-2 font-label-md text-label-md text-red-500">({holidayName})</span>}
                     </td>
                     <td className="px-4 py-3">
                       {dayEntries.length > 0 ? (
@@ -429,7 +423,7 @@ export default function EmployeeTimesheet() {
         </div>
 
         {/* Mobile Karten-Ansicht */}
-        <div className="md:hidden divide-y divide-gray-100 dark:divide-gray-800">
+        <div className="md:hidden divide-y divide-outline-variant">
           {daysInMonth.map((day) => {
             const dayEntries = getEntriesForDay(day);
             const dayHours = calculateDayHours(dayEntries);
@@ -443,7 +437,7 @@ export default function EmployeeTimesheet() {
             return (
               <div
                 key={day.toISOString()}
-                className={`p-4 ${isToday ? 'bg-primary-50 dark:bg-primary-900/30' : holidayNameMobile ? 'bg-red-50 dark:bg-red-950/40' : weekend ? 'bg-gray-50 dark:bg-gray-800' : ''}`}
+                className={`p-stack_md ${isToday ? 'bg-secondary-container/40 dark:bg-secondary-container/50' : holidayNameMobile ? 'bg-red-50 dark:bg-red-950/40' : weekend ? 'bg-surface-container-low dark:bg-surface-container' : ''}`}
               >
                 {/* Datum-Header */}
                 <div className="flex items-center justify-between mb-2">
@@ -559,9 +553,9 @@ export default function EmployeeTimesheet() {
           })}
 
           {/* Mobile Footer mit Gesamt */}
-          <div className="p-4 bg-gray-50 dark:bg-gray-800 flex justify-between items-center">
-            <span className="font-medium text-gray-900 dark:text-gray-100">Gesamt</span>
-            <span className="font-bold text-gray-900 dark:text-gray-100">{formatHoursToTime(totalMonthHours)} h</span>
+          <div className="p-stack_md bg-surface-container-low dark:bg-surface-container flex justify-between items-center">
+            <span className="font-body-md text-body-md font-medium text-on-surface">Gesamt</span>
+            <span className="font-headline-md text-headline-md font-bold text-on-surface">{formatHoursToTime(totalMonthHours)} h</span>
           </div>
         </div>
       </div>

@@ -170,62 +170,52 @@ export default function EmployeeDocuments() {
 
   const loading = isLoading || reportsLoading;
 
+  const selectCls = 'w-full bg-surface-container-lowest dark:bg-surface-container border border-outline-variant rounded-lg px-3 py-1.5 font-body-md text-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container focus:border-transparent';
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-stack_lg">
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-stack_md">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Meine Dokumente</h1>
-          <p className="text-gray-500 dark:text-gray-400">Gehaltsabrechnungen, Verträge und eigene Uploads</p>
+          <h1 className="font-display text-display text-on-surface">Meine Dokumente</h1>
+          <p className="font-body-md text-body-md text-on-surface-variant mt-1">Gehaltsabrechnungen, Verträge und eigene Uploads.</p>
         </div>
         <button
           onClick={() => setUploadOpen(true)}
-          className="btn btn-primary flex items-center gap-2"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-container hover:bg-primary-container/90 text-on-primary-container font-body-md text-body-md font-medium transition-colors shadow-sm"
         >
           <Upload size={18} />
           Dokument hochladen
         </button>
-      </div>
+      </header>
 
-      {/* Filters */}
-      <div className="card p-4">
-        <div className="flex flex-wrap items-end gap-4">
-          <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+      {/* Filter-Toolbar */}
+      <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-sm p-stack_md">
+        <div className="flex flex-wrap items-end gap-stack_md">
+          <div className="flex items-center gap-2 text-on-surface-variant pb-1.5">
             <Filter size={18} />
-            <span className="text-sm font-medium">Filter:</span>
+            <span className="font-body-md text-body-md font-medium">Filter:</span>
           </div>
-          <div className="min-w-[180px]">
-            <label className="label text-xs">Dokumenttyp</label>
-            <select
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
-              className="input py-1.5 text-sm"
-            >
+          <div className="min-w-[180px] flex flex-col gap-1">
+            <label className="font-label-md text-label-md uppercase text-on-surface-variant">Dokumenttyp</label>
+            <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className={selectCls}>
               <option value="">Alle</option>
               {allTypes.map((dt: any) => (
                 <option key={dt.id} value={dt.id}>{dt.name}</option>
               ))}
             </select>
           </div>
-          <div className="min-w-[100px]">
-            <label className="label text-xs">Jahr</label>
-            <select
-              value={filterYear}
-              onChange={(e) => setFilterYear(e.target.value ? parseInt(e.target.value) : '')}
-              className="input py-1.5 text-sm"
-            >
+          <div className="min-w-[100px] flex flex-col gap-1">
+            <label className="font-label-md text-label-md uppercase text-on-surface-variant">Jahr</label>
+            <select value={filterYear} onChange={(e) => setFilterYear(e.target.value ? parseInt(e.target.value) : '')} className={selectCls}>
               <option value="">Alle</option>
               {[2023, 2024, 2025, 2026, 2027].map((y) => (
                 <option key={y} value={y}>{y}</option>
               ))}
             </select>
           </div>
-          <div className="min-w-[120px]">
-            <label className="label text-xs">Monat</label>
-            <select
-              value={filterMonth}
-              onChange={(e) => setFilterMonth(e.target.value ? parseInt(e.target.value) : '')}
-              className="input py-1.5 text-sm"
-            >
+          <div className="min-w-[120px] flex flex-col gap-1">
+            <label className="font-label-md text-label-md uppercase text-on-surface-variant">Monat</label>
+            <select value={filterMonth} onChange={(e) => setFilterMonth(e.target.value ? parseInt(e.target.value) : '')} className={selectCls}>
               <option value="">Alle</option>
               {MONTHS.map((m, i) => (
                 <option key={i} value={i + 1}>{m}</option>
@@ -235,7 +225,7 @@ export default function EmployeeDocuments() {
           {(filterType || filterYear || filterMonth) && (
             <button
               onClick={() => { setFilterType(''); setFilterYear(''); setFilterMonth(''); }}
-              className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 hover:underline pb-1"
+              className="font-body-md text-body-md text-primary-container hover:underline pb-1.5"
             >
               Zurücksetzen
             </button>
@@ -243,15 +233,15 @@ export default function EmployeeDocuments() {
         </div>
       </div>
 
-      {/* Documents */}
+      {/* Dokumente */}
       {loading ? (
-        <div className="card p-12 text-center text-gray-500 dark:text-gray-400">Laden...</div>
+        <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-sm p-stack_lg py-stack_lg text-center font-body-md text-body-md text-on-surface-variant">Laden…</div>
       ) : filteredDocuments.length ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-gutter md:grid-cols-2 lg:grid-cols-3">
           {filteredDocuments.map((doc: any) => {
             const isOwnUpload = !doc._isReport && doc.uploadedBy === employee?.id;
             return (
-            <div key={doc.id} className={`card p-4 hover:shadow-md transition-shadow ${!doc.firstViewedAt ? 'ring-2 ring-blue-300' : ''}`}>
+            <div key={doc.id} className={`bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-sm p-stack_md hover:shadow-md transition-shadow ${!doc.firstViewedAt ? 'ring-2 ring-primary-container/60' : ''}`}>
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-2 flex-wrap">
@@ -349,21 +339,21 @@ export default function EmployeeDocuments() {
           })}
         </div>
       ) : (
-        <div className="card p-12 text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full mb-4">
-            <FolderOpen className="w-8 h-8 text-gray-400 dark:text-gray-500" />
+        <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-sm p-stack_lg py-stack_lg text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-surface-container-high dark:bg-surface-container-highest rounded-full mb-stack_md">
+            <FolderOpen className="w-8 h-8 text-on-surface-variant" />
           </div>
-          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+          <h3 className="font-headline-md text-headline-md font-semibold text-on-surface mb-2">
             {allDocuments.length ? 'Keine Dokumente für diesen Filter' : 'Noch keine Dokumente'}
           </h3>
           {!allDocuments.length && (
-            <p className="text-gray-500 dark:text-gray-400 mb-4">
+            <p className="font-body-md text-body-md text-on-surface-variant mb-stack_md">
               Sobald dein Administrator Dokumente hochlädt — oder du selbst welche hochlädst — werden sie hier angezeigt.
             </p>
           )}
           <button
             onClick={() => setUploadOpen(true)}
-            className="btn btn-primary inline-flex items-center gap-2"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-container hover:bg-primary-container/90 text-on-primary-container font-body-md text-body-md font-medium transition-colors shadow-sm"
           >
             <Upload size={18} /> Dokument hochladen
           </button>
