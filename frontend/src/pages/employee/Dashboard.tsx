@@ -625,12 +625,12 @@ export default function EmployeeDashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
         <SortableCard id="overtime" order={cardOrder.indexOf('overtime')} className={FULL_WIDTH_CARDS.has('overtime') ? 'lg:col-span-2' : ''}>
         {/* Überstunden-Saldo Gesamt */}
-        <div className="card p-5">
+        <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-sm p-stack_md">
           <div className="flex items-center gap-3 mb-3">
             <div className="p-2.5 rounded-lg bg-orange-100 dark:bg-orange-900/40">
               <Timer className="w-5 h-5 text-orange-600 dark:text-orange-400" />
             </div>
-            <h2 className="font-semibold text-gray-900 dark:text-gray-100">Überstunden-Saldo</h2>
+            <h2 className="font-headline-md text-headline-md font-semibold text-on-surface">Überstunden-Saldo</h2>
           </div>
           <div className="text-center p-3 rounded-lg bg-orange-50 dark:bg-orange-950/40">
             <p className={`text-2xl lg:text-3xl font-bold ${stats?.totalOvertimeBalance != null && stats.totalOvertimeBalance < 0 ? 'text-red-600 dark:text-red-400' : stats?.totalOvertimeBalance != null && stats.totalOvertimeBalance > 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-gray-100'}`}>
@@ -658,7 +658,7 @@ export default function EmployeeDashboard() {
           const weekPercent = weekTargetTotal > 0 ? Math.round((weekWorkedTotal / weekTargetTotal) * 100) : 0;
 
           return (
-            <div className="card overflow-hidden">
+            <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-sm overflow-hidden">
               {/* Week Header */}
               <div className="p-5 bg-gradient-to-r from-gray-800 to-gray-900 text-white">
                 <div className="flex items-center justify-between">
@@ -708,7 +708,7 @@ export default function EmployeeDashboard() {
               </div>
 
               {/* Day Cards */}
-              <div className="divide-y divide-gray-100 dark:divide-gray-800">
+              <div className="divide-y divide-outline-variant">
                 {weekDays.map(day => {
                   const worked = getDayWorkedHours(day);
                   const dayInfo = getDayTarget(day);
@@ -730,10 +730,10 @@ export default function EmployeeDashboard() {
                     <div
                       onClick={() => canInteract && setExpandedDay(isExpanded ? null : dayKey)}
                       className={`flex items-center gap-4 px-5 py-3.5 transition ${
-                        isToday ? 'bg-primary-50 dark:bg-primary-900/30' :
+                        isToday ? 'bg-secondary-container/40 dark:bg-secondary-container/50' :
                         !hasTarget && !isSpecial ? 'bg-gray-50 dark:bg-gray-800' :
                         isFuture ? 'opacity-40' : ''
-                      } ${canInteract ? 'cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700' : ''} ${isExpanded ? 'border-b' : ''}`}
+                      } ${canInteract ? 'cursor-pointer hover:bg-surface-container-low dark:hover:bg-surface-container' : ''} ${isExpanded ? 'border-b' : ''}`}
                     >
                       {/* Progress Ring */}
                       <div className="flex-shrink-0">
@@ -892,12 +892,12 @@ export default function EmployeeDashboard() {
 
         <SortableCard id="month" order={cardOrder.indexOf('month')} className={FULL_WIDTH_CARDS.has('month') ? 'lg:col-span-2' : ''}>
         {/* Arbeitszeit Monat */}
-        <div className="card p-5">
+        <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-sm p-stack_md">
           <div className="flex items-center gap-3 mb-3">
             <div className="p-2.5 rounded-lg bg-purple-100 dark:bg-purple-900/40">
               <Calendar className="w-5 h-5 text-purple-600 dark:text-purple-400" />
             </div>
-            <h2 className="font-semibold text-gray-900 dark:text-gray-100">Dieser Monat</h2>
+            <h2 className="font-headline-md text-headline-md font-semibold text-on-surface">Dieser Monat</h2>
           </div>
           <div className="grid grid-cols-3 gap-2">
             <div className="text-center p-2 bg-purple-50 dark:bg-purple-950/40 rounded-lg">
@@ -924,12 +924,12 @@ export default function EmployeeDashboard() {
 
         <SortableCard id="vacation" order={cardOrder.indexOf('vacation')} className={FULL_WIDTH_CARDS.has('vacation') ? 'lg:col-span-2' : ''}>
         {/* Urlaubstage */}
-        <div className="card p-5">
+        <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-sm p-stack_md">
           <div className="flex items-center gap-3 mb-3">
             <div className="p-2.5 rounded-lg bg-green-100 dark:bg-green-900/40">
               <Umbrella className="w-5 h-5 text-green-600 dark:text-green-400" />
             </div>
-            <h2 className="font-semibold text-gray-900 dark:text-gray-100">Urlaubstage {new Date().getFullYear()}</h2>
+            <h2 className="font-headline-md text-headline-md font-semibold text-on-surface">Urlaubstage {new Date().getFullYear()}</h2>
           </div>
           {vacationDetails?.carryOver > 0 && (
             <div className="mb-2 p-2 bg-blue-50 dark:bg-blue-950/40 rounded-lg text-center">
@@ -973,12 +973,12 @@ export default function EmployeeDashboard() {
 
         <SortableCard id="sick" order={cardOrder.indexOf('sick')} className={FULL_WIDTH_CARDS.has('sick') ? 'lg:col-span-2' : ''}>
         {/* Krankheitstage */}
-        <div className="card p-5">
+        <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-sm p-stack_md">
           <div className="flex items-center gap-3 mb-3">
             <div className="p-2.5 rounded-lg bg-red-100 dark:bg-red-900/40">
               <Thermometer className="w-5 h-5 text-red-600 dark:text-red-400" />
             </div>
-            <h2 className="font-semibold text-gray-900 dark:text-gray-100">Krankheitstage {new Date().getFullYear()}</h2>
+            <h2 className="font-headline-md text-headline-md font-semibold text-on-surface">Krankheitstage {new Date().getFullYear()}</h2>
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div className="text-center p-2 bg-red-50 dark:bg-red-950/40 rounded-lg">
@@ -1001,7 +1001,7 @@ export default function EmployeeDashboard() {
           {activeDragId ? (
             <div className="card px-4 py-3 shadow-2xl ring-2 ring-primary-400 cursor-grabbing inline-flex items-center gap-2">
               <GripVertical size={16} className="text-gray-400 dark:text-gray-500" />
-              <span className="font-semibold text-gray-900 dark:text-gray-100">{CARD_LABELS[activeDragId]}</span>
+              <span className="font-headline-md text-headline-md font-semibold text-on-surface">{CARD_LABELS[activeDragId]}</span>
             </div>
           ) : null}
         </DragOverlay>
