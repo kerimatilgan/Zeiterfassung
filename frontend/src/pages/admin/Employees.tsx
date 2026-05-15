@@ -1767,12 +1767,12 @@ export default function AdminEmployees() {
       {/* Create/Edit Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
-              <h2 className="text-xl font-semibold">
+          <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="p-stack_lg border-b border-outline-variant flex items-center justify-between">
+              <h2 className="font-headline-md text-headline-md font-semibold text-on-surface">
                 {editingEmployee ? 'Mitarbeiter bearbeiten' : 'Neuer Mitarbeiter'}
               </h2>
-              <button onClick={closeModal} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+              <button onClick={closeModal} className="p-2 hover:bg-surface-container-high dark:hover:bg-surface-container-highest rounded-lg">
                 <X size={20} />
               </button>
             </div>
@@ -1881,7 +1881,7 @@ export default function AdminEmployees() {
                         className={`flex items-center gap-1 px-3 py-1.5 rounded-lg cursor-pointer border transition-colors ${
                           isChecked
                             ? 'bg-primary-100 dark:bg-primary-900/40 border-primary-500 text-primary-700 dark:text-primary-300'
-                            : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                            : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-surface-container-high dark:hover:bg-surface-container-highest'
                         }`}
                       >
                         <input
@@ -2056,13 +2056,13 @@ export default function AdminEmployees() {
       {/* RFID Modal */}
       {showRfidModal && rfidEmployee && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl p-6 max-w-sm w-full">
+          <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-xl p-6 max-w-sm w-full">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold flex items-center gap-2">
+              <h3 className="font-headline-md text-headline-md font-semibold text-on-surface flex items-center gap-2">
                 <CreditCard size={20} />
                 RFID-Karte
               </h3>
-              <button onClick={closeRfidModal} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+              <button onClick={closeRfidModal} className="p-2 hover:bg-surface-container-high dark:hover:bg-surface-container-highest rounded-lg">
                 <X size={20} />
               </button>
             </div>
@@ -2172,27 +2172,27 @@ export default function AdminEmployees() {
 
       {/* Time Entries Modal - Fullscreen */}
       {showTimeEntriesModal && selectedEmployeeForTime && (
-        <div className="fixed inset-0 z-50 bg-white dark:bg-gray-900 flex flex-col">
+        <div className="fixed inset-0 z-50 bg-background flex flex-col">
             {/* Header */}
-            <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between shrink-0">
+            <div className="p-stack_lg border-b border-outline-variant flex items-center justify-between shrink-0">
               <div>
-                <h2 className="text-xl font-semibold">
+                <h2 className="font-headline-md text-headline-md font-semibold text-on-surface">
                   Zeiteinträge: {selectedEmployeeForTime.firstName} {selectedEmployeeForTime.lastName}
                 </h2>
                 <p className="text-sm text-gray-500 dark:text-gray-400">#{selectedEmployeeForTime.employeeNumber}</p>
               </div>
-              <button onClick={closeTimeEntriesModal} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+              <button onClick={closeTimeEntriesModal} className="p-2 hover:bg-surface-container-high dark:hover:bg-surface-container-highest rounded-lg">
                 <X size={20} />
               </button>
             </div>
 
             {/* Stats */}
-            <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-800 shrink-0">
+            <div className="px-stack_md py-stack_sm border-b border-outline-variant shrink-0">
               {(() => {
                 const totals = calculateTotalMinutes();
                 return (
-                  <div className="bg-primary-50 dark:bg-primary-900/30 rounded-lg p-2.5 flex justify-center gap-8 text-sm">
-                    <span className="text-primary-700 dark:text-primary-300 font-medium">
+                  <div className="bg-secondary-container/40 dark:bg-secondary-container/50 rounded-lg px-stack_md py-stack_sm flex justify-center gap-8 font-body-md text-body-md">
+                    <span className="text-on-secondary-container font-medium">
                       Arbeitszeit: {formatMinutesToHours(totals.workMinutes)} h
                     </span>
                     <span className="text-orange-600 dark:text-orange-400 font-medium">
@@ -2221,7 +2221,7 @@ export default function AdminEmployees() {
                           {/* Tages-Header */}
                           <div className="flex items-center justify-between">
                             <div>
-                              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                              <h3 className="font-headline-md text-headline-md font-semibold text-on-surface">
                                 {format(editingDate, 'EEEE, dd. MMMM yyyy', { locale: de })}
                               </h3>
                               <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -2384,7 +2384,7 @@ export default function AdminEmployees() {
                         <>
                           {/* Monat/Jahr Navigation */}
                           <div className="flex items-center gap-1 mb-3">
-                            <button onClick={() => handleMonthChange('prev')} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
+                            <button onClick={() => handleMonthChange('prev')} className="p-1 hover:bg-surface-container-high dark:hover:bg-surface-container-highest rounded">
                               <ChevronLeft size={16} />
                             </button>
                             <select
@@ -2413,7 +2413,7 @@ export default function AdminEmployees() {
                                 <option key={y} value={y}>{y}</option>
                               ))}
                             </select>
-                            <button onClick={() => handleMonthChange('next')} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
+                            <button onClick={() => handleMonthChange('next')} className="p-1 hover:bg-surface-container-high dark:hover:bg-surface-container-highest rounded">
                               <ChevronRight size={16} />
                             </button>
                           </div>
@@ -2604,7 +2604,7 @@ export default function AdminEmployees() {
                                   {summary.entries.map((entry) => (
                                     <div
                                       key={entry.id}
-                                      className={`entry-item flex items-center gap-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 rounded px-1 -mx-1 ${entry.complaintMessage && !entry.complaintResolvedAt ? 'bg-amber-50 dark:bg-amber-950/40' : ''}`}
+                                      className={`entry-item flex items-center gap-2 cursor-pointer hover:bg-surface-container-high dark:hover:bg-surface-container-highest rounded px-1 -mx-1 ${entry.complaintMessage && !entry.complaintResolvedAt ? 'bg-amber-50 dark:bg-amber-950/40' : ''}`}
                                       onClick={() => handleDayClick(date, entry)}
                                     >
                                       {/* Reklamations-Icon */}
@@ -2717,7 +2717,7 @@ export default function AdminEmployees() {
                         <h4 className="font-semibold">
                           {format(editingDate, 'dd.MM.yyyy - EEEE', { locale: de })}
                         </h4>
-                        <button onClick={closeQuickEdit} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
+                        <button onClick={closeQuickEdit} className="p-1 hover:bg-surface-container-high dark:hover:bg-surface-container-highest rounded">
                           <X size={16} />
                         </button>
                       </div>
@@ -2823,7 +2823,7 @@ export default function AdminEmployees() {
                             <button
                               type="button"
                               onClick={closeQuickEdit}
-                              className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+                              className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:bg-surface-container-high dark:hover:bg-surface-container-highest rounded-lg"
                             >
                               Abbrechen
                             </button>
@@ -2863,14 +2863,14 @@ export default function AdminEmployees() {
                   {/* Reklamation bearbeiten Modal */}
                   {showComplaintModal && editingTimeEntry?.complaintMessage && (
                     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                      <div ref={complaintModalRef} className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl p-6 w-96 max-w-[90vw]">
-                        <div className="flex items-center gap-3 mb-4">
+                      <div ref={complaintModalRef} className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-2xl p-stack_lg w-full max-w-lg">
+                        <div className="flex items-center gap-3 mb-stack_md">
                           <div className="p-2 bg-amber-100 dark:bg-amber-900/40 rounded-lg">
                             <MessageSquare size={20} className="text-amber-600 dark:text-amber-400" />
                           </div>
                           <div>
-                            <h3 className="font-semibold text-gray-900 dark:text-gray-100">Reklamation bearbeiten</h3>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">Mitarbeiter-Nachricht beantworten</p>
+                            <h3 className="font-headline-md text-headline-md font-semibold text-on-surface">Reklamation bearbeiten</h3>
+                            <p className="font-body-md text-body-md text-on-surface-variant">Mitarbeiter-Nachricht beantworten</p>
                           </div>
                         </div>
 
@@ -2948,7 +2948,7 @@ export default function AdminEmployees() {
                             </p>
                           )}
                         </div>
-                        <button onClick={closeAbsencePopup} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
+                        <button onClick={closeAbsencePopup} className="p-1 hover:bg-surface-container-high dark:hover:bg-surface-container-highest rounded">
                           <X size={16} />
                         </button>
                       </div>
@@ -3002,7 +3002,7 @@ export default function AdminEmployees() {
                             <button
                               type="button"
                               onClick={closeAbsencePopup}
-                              className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+                              className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:bg-surface-container-high dark:hover:bg-surface-container-highest rounded-lg"
                             >
                               Abbrechen
                             </button>
@@ -3029,7 +3029,7 @@ export default function AdminEmployees() {
                           <Clock size={18} className="text-orange-500" />
                           Pause einfügen
                         </h4>
-                        <button onClick={() => setShowPausePopup(false)} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
+                        <button onClick={() => setShowPausePopup(false)} className="p-1 hover:bg-surface-container-high dark:hover:bg-surface-container-highest rounded">
                           <X size={16} />
                         </button>
                       </div>
@@ -3061,7 +3061,7 @@ export default function AdminEmployees() {
                         <div className="flex justify-end gap-2 pt-2">
                           <button
                             onClick={() => setShowPausePopup(false)}
-                            className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+                            className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:bg-surface-container-high dark:hover:bg-surface-container-highest rounded-lg"
                           >
                             Abbrechen
                           </button>
@@ -3086,7 +3086,7 @@ export default function AdminEmployees() {
           <div className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
             <div className="bg-blue-600 text-white p-5 rounded-t-xl">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold flex items-center gap-2">
+                <h3 className="font-headline-md text-headline-md font-semibold text-on-surface flex items-center gap-2">
                   <MapPin size={20} /> Auswärtsstempelung
                 </h3>
                 <button onClick={() => setPwaDetailEntry(null)} className="p-1 hover:bg-white/20 rounded">
@@ -3145,16 +3145,16 @@ export default function AdminEmployees() {
         const formatFileSize = (bytes: number) => bytes < 1024*1024 ? `${(bytes/1024).toFixed(1)} KB` : `${(bytes/(1024*1024)).toFixed(1)} MB`;
         return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowDocumentsModal(false)}>
-          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-            <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+          <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="p-stack_lg border-b border-outline-variant flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-semibold flex items-center gap-2">
+                <h2 className="font-headline-md text-headline-md font-semibold text-on-surface flex items-center gap-2">
                   <FolderOpen size={20} />
                   Dokumente
                 </h2>
                 <p className="text-sm text-gray-500 dark:text-gray-400">{selectedEmployeeForDocs.firstName} {selectedEmployeeForDocs.lastName}</p>
               </div>
-              <button onClick={() => setShowDocumentsModal(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"><X size={20} /></button>
+              <button onClick={() => setShowDocumentsModal(false)} className="p-2 hover:bg-surface-container-high dark:hover:bg-surface-container-highest rounded-lg"><X size={20} /></button>
             </div>
             <div className="overflow-y-auto flex-1 p-6 space-y-6">
               {/* Upload Section */}
@@ -3198,7 +3198,7 @@ export default function AdminEmployees() {
                             ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30'
                             : docUploadFile
                             ? 'border-green-400 bg-green-50 dark:bg-green-950/40'
-                            : 'border-gray-300 dark:border-gray-700 hover:border-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                            : 'border-gray-300 dark:border-gray-700 hover:border-gray-400 hover:bg-surface-container-high dark:hover:bg-surface-container-highest'
                         }`}
                         onDragOver={(e) => { e.preventDefault(); setDocDragging(true); }}
                         onDragLeave={() => setDocDragging(false)}
@@ -3271,15 +3271,15 @@ export default function AdminEmployees() {
       {/* RFID Lookup Modal */}
       {showLookupModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => { if (!lookupScanning) { setShowLookupModal(false); } }}>
-          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
-            <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
-              <h2 className="text-xl font-semibold flex items-center gap-2">
+          <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-xl w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
+            <div className="p-stack_lg border-b border-outline-variant flex items-center justify-between">
+              <h2 className="font-headline-md text-headline-md font-semibold text-on-surface flex items-center gap-2">
                 <CreditCard size={20} />
                 Karte abfragen
               </h2>
               <button
                 onClick={() => { if (lookupScanning) stopLookupScan(); setShowLookupModal(false); }}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+                className="p-2 hover:bg-surface-container-high dark:hover:bg-surface-container-highest rounded-lg"
               >
                 <X size={20} />
               </button>
@@ -3359,15 +3359,15 @@ export default function AdminEmployees() {
       {/* Info-Schreiben Status-Modal (wenn Button grün ist = bereits signiert) */}
       {infoLetterModalEmployee && infoLetterModalEmployee.latestInfoLetter?.signedAt && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl max-w-md w-full">
-            <div className="flex items-center justify-between p-5 border-b border-gray-100 dark:border-gray-800">
+          <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-xl max-w-lg w-full">
+            <div className="flex items-center justify-between p-stack_lg border-b border-outline-variant">
               <div className="flex items-center gap-2">
                 <FileText size={20} className="text-green-600 dark:text-green-400" />
-                <h3 className="text-lg font-semibold">Info-Schreiben bestätigt</h3>
+                <h3 className="font-headline-md text-headline-md font-semibold text-on-surface">Info-Schreiben bestätigt</h3>
               </div>
               <button
                 onClick={() => setInfoLetterModalEmployee(null)}
-                className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+                className="p-1 hover:bg-surface-container-high dark:hover:bg-surface-container-highest rounded"
               >
                 <X size={20} />
               </button>
@@ -3391,7 +3391,7 @@ export default function AdminEmployees() {
                 erstellen. Das bisherige Dokument bleibt mit der Signatur im Archiv erhalten.
               </p>
             </div>
-            <div className="p-5 border-t border-gray-100 dark:border-gray-800 flex justify-between gap-2">
+            <div className="p-stack_lg border-t border-outline-variant flex justify-between gap-2">
               <button
                 onClick={() => setInfoLetterModalEmployee(null)}
                 className="btn btn-secondary"
