@@ -185,17 +185,20 @@ export default function EmployeeComplaints() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-stack_lg">
+      <header className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Meine Reklamationen</h1>
-          <p className="text-gray-500 dark:text-gray-400">Übersicht deiner Reklamationen mit Historie</p>
+          <h1 className="font-display text-display text-on-surface">Meine Reklamationen</h1>
+          <p className="font-body-md text-body-md text-on-surface-variant mt-1">Übersicht deiner Reklamationen mit Historie</p>
         </div>
-        <button onClick={() => setShowNewForm(true)} className="btn btn-primary flex items-center gap-2">
+        <button
+          onClick={() => setShowNewForm(true)}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-container hover:bg-primary-container/90 text-on-primary-container font-body-md text-body-md font-medium transition-colors shadow-sm"
+        >
           <Plus size={18} />
           <span className="hidden sm:inline">Neue Reklamation</span>
         </button>
-      </div>
+      </header>
 
       {/* Neue Reklamation - integriertes Formular */}
       {showNewForm && (
@@ -333,38 +336,61 @@ export default function EmployeeComplaints() {
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="card p-4 text-center">
-          <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{(complaints || []).length}</p>
-          <p className="text-xs text-gray-500 dark:text-gray-400">Gesamt</p>
+      <div className="grid grid-cols-3 gap-gutter">
+        <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-sm p-stack_md text-center">
+          <p className="font-stat-number text-stat-number text-on-surface">{(complaints || []).length}</p>
+          <p className="font-label-md text-label-md uppercase text-on-surface-variant mt-1">Gesamt</p>
         </div>
-        <div className="card p-4 text-center">
-          <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{openCount}</p>
-          <p className="text-xs text-gray-500 dark:text-gray-400">Offen</p>
+        <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-sm p-stack_md text-center">
+          <p className="font-stat-number text-stat-number text-amber-600 dark:text-amber-400">{openCount}</p>
+          <p className="font-label-md text-label-md uppercase text-on-surface-variant mt-1">Offen</p>
         </div>
-        <div className="card p-4 text-center">
-          <p className="text-2xl font-bold text-green-600 dark:text-green-400">{resolvedCount}</p>
-          <p className="text-xs text-gray-500 dark:text-gray-400">Bearbeitet</p>
+        <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-sm p-stack_md text-center">
+          <p className="font-stat-number text-stat-number text-green-600 dark:text-green-400">{resolvedCount}</p>
+          <p className="font-label-md text-label-md uppercase text-on-surface-variant mt-1">Bearbeitet</p>
         </div>
       </div>
 
       {/* Filter */}
-      <div className="flex flex-wrap gap-2">
-        <button onClick={() => setFilter('all')}
-          className={`px-3 py-1.5 text-sm rounded-lg border ${filter === 'all' ? 'bg-gray-900 text-white border-gray-900' : 'border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'}`}>
+      <div className="flex flex-wrap gap-2 items-center">
+        <button
+          onClick={() => setFilter('all')}
+          className={`px-4 py-1.5 font-body-md text-body-md font-medium rounded-lg transition-colors ${
+            filter === 'all'
+              ? 'bg-secondary-container text-on-secondary-container'
+              : 'bg-surface dark:bg-surface-container-high text-on-surface-variant border border-outline-variant hover:bg-surface-container-low dark:hover:bg-surface-container'
+          }`}
+        >
           Alle
         </button>
-        <button onClick={() => setFilter('open')}
-          className={`px-3 py-1.5 text-sm rounded-lg border ${filter === 'open' ? 'bg-amber-500 text-white border-amber-500' : 'border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'}`}>
-          Offen ({openCount})
+        <button
+          onClick={() => setFilter('open')}
+          className={`px-4 py-1.5 font-body-md text-body-md font-medium rounded-lg transition-colors flex items-center gap-2 ${
+            filter === 'open'
+              ? 'bg-amber-500 text-white'
+              : 'bg-surface dark:bg-surface-container-high text-on-surface-variant border border-outline-variant hover:bg-surface-container-low dark:hover:bg-surface-container'
+          }`}
+        >
+          Offen
+          <span className={`font-label-md text-label-md px-1.5 py-0.5 rounded-full ${filter === 'open' ? 'bg-white/20' : 'bg-surface-container-high dark:bg-surface-container-highest'}`}>{openCount}</span>
         </button>
-        <button onClick={() => setFilter('resolved')}
-          className={`px-3 py-1.5 text-sm rounded-lg border ${filter === 'resolved' ? 'bg-green-500 text-white border-green-500' : 'border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'}`}>
-          Bearbeitet ({resolvedCount})
+        <button
+          onClick={() => setFilter('resolved')}
+          className={`px-4 py-1.5 font-body-md text-body-md font-medium rounded-lg transition-colors flex items-center gap-2 ${
+            filter === 'resolved'
+              ? 'bg-green-500 text-white'
+              : 'bg-surface dark:bg-surface-container-high text-on-surface-variant border border-outline-variant hover:bg-surface-container-low dark:hover:bg-surface-container'
+          }`}
+        >
+          Bearbeitet
+          <span className={`font-label-md text-label-md px-1.5 py-0.5 rounded-full ${filter === 'resolved' ? 'bg-white/20' : 'bg-surface-container-high dark:bg-surface-container-highest'}`}>{resolvedCount}</span>
         </button>
         {months.length > 1 && (
-          <select value={filterMonth} onChange={e => setFilterMonth(e.target.value)}
-            className="px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-700 ml-auto">
+          <select
+            value={filterMonth}
+            onChange={e => setFilterMonth(e.target.value)}
+            className="ml-auto px-3 py-1.5 font-body-md text-body-md text-on-surface bg-surface-container-lowest dark:bg-surface-container border border-outline-variant rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-container focus:border-transparent"
+          >
             <option value="">Alle Monate</option>
             {months.map(m => (
               <option key={m} value={m}>{format(new Date(m + '-01'), 'MMMM yyyy', { locale: de })}</option>
@@ -378,14 +404,14 @@ export default function EmployeeComplaints() {
         const dayDate = new Date(dayKey);
         const isMulti = items.length > 1;
         return (
-          <div key={dayKey} className="card">
-            <div className="px-5 py-3 bg-gray-50 dark:bg-gray-800 border-b rounded-t-lg flex items-center justify-between">
-              <h3 className="font-semibold text-gray-700 dark:text-gray-300 text-sm">
+          <div key={dayKey} className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-sm overflow-hidden">
+            <div className="px-stack_lg py-stack_sm bg-surface-container-low dark:bg-surface-container border-b border-outline-variant flex items-center justify-between">
+              <h3 className="font-label-md text-label-md uppercase font-semibold text-on-surface-variant">
                 {format(dayDate, 'EEEE, dd.MM.yyyy', { locale: de })}
-                {isMulti && <span className="ml-2 text-amber-600 dark:text-amber-400 font-normal">({items.length} Reklamationen)</span>}
+                {isMulti && <span className="ml-2 text-amber-600 dark:text-amber-400 normal-case">({items.length} Reklamationen)</span>}
               </h3>
             </div>
-            <div className="divide-y">
+            <div className="divide-y divide-outline-variant">
               {items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map((c, idx) => (
                 <div
                   key={c.id}
@@ -487,9 +513,9 @@ export default function EmployeeComplaints() {
       })}
 
       {filtered.length === 0 && (
-        <div className="card p-12 text-center text-gray-400 dark:text-gray-500">
+        <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-sm p-stack_lg py-stack_lg text-center text-on-surface-variant">
           <MessageSquare size={48} className="mx-auto mb-3 opacity-30" />
-          <p>{filter === 'open' ? 'Keine offenen Reklamationen' : filter === 'resolved' ? 'Keine bearbeiteten Reklamationen' : 'Noch keine Reklamationen eingereicht'}</p>
+          <p className="font-body-md text-body-md">{filter === 'open' ? 'Keine offenen Reklamationen' : filter === 'resolved' ? 'Keine bearbeiteten Reklamationen' : 'Noch keine Reklamationen eingereicht'}</p>
         </div>
       )}
     </div>

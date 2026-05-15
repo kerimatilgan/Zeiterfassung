@@ -175,21 +175,25 @@ export default function AdminComplaints() {
   };
 
   return (
-    <div className="space-y-4 max-w-7xl mx-auto pb-8">
-      <div className="flex items-center justify-between flex-wrap gap-3">
+    <div className="space-y-stack_lg pb-stack_lg">
+      <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-stack_md flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <MessageSquare size={24} /> Reklamationen
+          <h1 className="font-display text-display text-on-surface flex items-center gap-3">
+            <MessageSquare size={32} className="text-on-surface-variant" />
+            Reklamationen
           </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Alle Reklamationen mit Historie</p>
+          <p className="font-body-md text-body-md text-on-surface-variant mt-1">Alle Reklamationen mit Historie und Verlauf.</p>
         </div>
-        <button onClick={() => refetch()} className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 px-3 py-1.5 border rounded-lg">
+        <button
+          onClick={() => refetch()}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface border border-outline-variant font-body-md text-body-md font-medium transition-colors shadow-sm"
+        >
           Aktualisieren
         </button>
-      </div>
+      </header>
 
       {/* Status Tabs */}
-      <div className="bg-white dark:bg-gray-900 border rounded-lg p-1 flex gap-1 w-fit">
+      <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-lg p-1 flex gap-1 w-fit shadow-sm">
         {[
           { value: 'open', label: 'Offen', count: counts.open },
           { value: 'resolved', label: 'Gelöst', count: counts.resolved },
@@ -198,35 +202,49 @@ export default function AdminComplaints() {
           <button
             key={tab.value}
             onClick={() => setFilterStatus(tab.value as any)}
-            className={`px-4 py-1.5 rounded-md text-sm font-medium flex items-center gap-2 transition ${
-              filterStatus === tab.value ? 'bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
+            className={`px-4 py-1.5 rounded-md font-body-md text-body-md font-medium flex items-center gap-2 transition-colors ${
+              filterStatus === tab.value
+                ? 'bg-secondary-container text-on-secondary-container'
+                : 'text-on-surface-variant hover:bg-surface-container-low dark:hover:bg-surface-container'
             }`}
           >
             {tab.label}
-            <span className={`text-xs px-1.5 py-0.5 rounded-full ${filterStatus === tab.value ? 'bg-primary-200' : 'bg-gray-100 dark:bg-gray-800'}`}>{tab.count}</span>
+            <span className={`font-label-md text-label-md px-1.5 py-0.5 rounded-full ${
+              filterStatus === tab.value
+                ? 'bg-primary-container/20 text-on-secondary-container'
+                : 'bg-surface-container-high dark:bg-surface-container-highest text-on-surface-variant'
+            }`}>{tab.count}</span>
           </button>
         ))}
       </div>
 
-      {/* Filter */}
-      <div className="bg-white dark:bg-gray-900 border rounded-lg p-3 flex flex-wrap gap-3 items-center">
-        <div className="flex items-center gap-2 flex-1 min-w-[200px]">
-          <Search size={16} className="text-gray-400 dark:text-gray-500" />
+      {/* Filter-Toolbar */}
+      <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-sm p-stack_md flex flex-wrap gap-stack_md items-center">
+        <div className="flex items-center gap-2 flex-1 min-w-[200px] bg-surface-container-lowest dark:bg-surface-container border border-outline-variant rounded-lg px-stack_sm py-1.5">
+          <Search size={16} className="text-on-surface-variant" />
           <input
             type="text"
-            placeholder="Suchen (Name, Nachricht, MA-Nr)..."
+            placeholder="Suchen (Name, Nachricht, MA-Nr)…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="flex-1 text-sm border-0 focus:ring-0 outline-none"
+            className="flex-1 bg-transparent border-0 focus:ring-0 outline-none font-body-md text-body-md text-on-surface placeholder:text-on-surface-variant/70"
           />
         </div>
-        <select value={filterEmployee} onChange={(e) => setFilterEmployee(e.target.value)} className="text-sm border rounded px-2 py-1.5">
+        <select
+          value={filterEmployee}
+          onChange={(e) => setFilterEmployee(e.target.value)}
+          className="bg-surface-container-lowest dark:bg-surface-container border border-outline-variant rounded-lg px-3 py-1.5 font-body-md text-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container focus:border-transparent"
+        >
           <option value="">Alle Mitarbeiter</option>
           {employees?.filter(e => !e.isAdmin).map(e => (
             <option key={e.id} value={e.id}>{e.firstName} {e.lastName} (#{e.employeeNumber})</option>
           ))}
         </select>
-        <select value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)} className="text-sm border rounded px-2 py-1.5">
+        <select
+          value={filterMonth}
+          onChange={(e) => setFilterMonth(e.target.value)}
+          className="bg-surface-container-lowest dark:bg-surface-container border border-outline-variant rounded-lg px-3 py-1.5 font-body-md text-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container focus:border-transparent"
+        >
           <option value="">Alle Monate</option>
           {months.map(m => (
             <option key={m} value={m}>{format(new Date(m + '-01'), 'MMMM yyyy', { locale: de })}</option>
@@ -236,12 +254,12 @@ export default function AdminComplaints() {
 
       {/* Liste */}
       {filtered.length === 0 ? (
-        <div className="bg-white dark:bg-gray-900 border rounded-lg p-12 text-center text-gray-400 dark:text-gray-500">
+        <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-xl shadow-sm p-stack_lg py-stack_lg text-center text-on-surface-variant">
           <MessageSquare size={48} className="mx-auto mb-3 opacity-30" />
-          <p>Keine Reklamationen{filterStatus === 'open' ? ' offen' : ''}</p>
+          <p className="font-body-md text-body-md">Keine Reklamationen{filterStatus === 'open' ? ' offen' : ''}</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-stack_sm">
           {filtered.map(c => {
             const isResolved = !!c.resolvedAt;
             const dayDate = new Date(c.date);
@@ -250,7 +268,7 @@ export default function AdminComplaints() {
               <div
                 key={c.id}
                 ref={(el) => { itemRefs.current[c.id] = el; }}
-                className={`bg-white dark:bg-gray-900 border-l-4 border rounded-lg p-4 transition-colors ${isResolved ? 'border-l-green-500' : 'border-l-amber-500'} ${isHighlighted ? 'ring-2 ring-amber-400 bg-amber-50 dark:bg-amber-950/40' : ''}`}
+                className={`bg-surface dark:bg-surface-container-high border-l-4 border border-outline-variant rounded-xl shadow-sm p-stack_md transition-colors ${isResolved ? 'border-l-green-500' : 'border-l-amber-500'} ${isHighlighted ? 'ring-2 ring-amber-400 bg-amber-50 dark:bg-amber-950/40' : ''}`}
               >
                 <div className="flex items-start justify-between gap-3 flex-wrap">
                   <div className="flex items-start gap-3 flex-1 min-w-[250px]">
@@ -278,7 +296,7 @@ export default function AdminComplaints() {
                       <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">
                         Eingereicht: {format(new Date(c.createdAt), 'dd.MM.yyyy HH:mm', { locale: de })}
                       </div>
-                      <div className="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap bg-gray-50 dark:bg-gray-800 rounded px-3 py-2">
+                      <div className="font-body-md text-body-md text-on-surface whitespace-pre-wrap bg-surface-container-low dark:bg-surface-container rounded-lg px-3 py-2">
                         {c.message}
                       </div>
                       {isResolved && c.response && (
