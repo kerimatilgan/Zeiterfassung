@@ -2150,16 +2150,16 @@ export default function AdminEmployees() {
                   <button
                     type="button"
                     onClick={handleRfidRemove}
-                    className="btn btn-secondary text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 flex-1"
+                    className="btn btn-secondary text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 flex-1 inline-flex items-center justify-center gap-2"
                     disabled={removeRfidMutation.isPending || isScanning}
                   >
-                    <Trash2 size={18} className="mr-2" />
+                    <Trash2 size={18} />
                     Entfernen
                   </button>
                 )}
                 <button
                   type="submit"
-                  className="btn btn-primary flex-1"
+                  className="btn btn-primary flex-1 inline-flex items-center justify-center"
                   disabled={!rfidInput.trim() || registerRfidMutation.isPending || isScanning}
                 >
                   {rfidEmployee.rfidCard ? 'Aktualisieren' : 'Registrieren'}
