@@ -40,3 +40,7 @@ coverage/
 # Prisma
 backend/prisma/migrations/
 worker/
+backend/uploads/documents/41322038-44a5-4744-800f-165e943dcb32/info-schreiben-1777028011292.pdf.enc
+.gitignore
+docs/stitch-prompt.md
+backend/uploads/documents/41322038-44a5-4744-800f-165e943dcb32/info-schreiben-1777301256199.pdf.enc
